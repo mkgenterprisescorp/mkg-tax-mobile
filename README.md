@@ -19,3 +19,13 @@ No secrets in the app. Laravel is authoritative.
 ## Branch
 
 `migration/unified-flutter-mobile`
+
+## Status
+
+**Not production-ready yet.**
+
+- Draft-only: GitHub remote/PR pending org repo creation
+- Demo auth UI (does not yet call Laravel Sanctum/MFA as authority)
+- Debug signing only (`app-debug.apk`)
+- Android debug build succeeds in this environment
+- **No iOS device/simulator build here** (Linux VM — needs macOS + Xcode)
