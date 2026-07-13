@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/mkg_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,11 +15,9 @@ class MkgTaxApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final router = createRouter();
     return MaterialApp.router(
-      title: 'MKG Tax',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B3A66)),
-        useMaterial3: true,
-      ),
+      title: 'MKG Tax Consultants',
+      debugShowCheckedModeBanner: false,
+      theme: buildMkgTheme(),
       routerConfig: router,
     );
   }
