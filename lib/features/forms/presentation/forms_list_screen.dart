@@ -1,28 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
 
-class TaxFormItem {
-  const TaxFormItem(this.name, this.status, {this.route});
-  final String name;
-  final String status; // not_started | in_progress | completed
-  final String? route;
+class FormsListScreen extends ConsumerStatefulWidget {
+  const FormsListScreen({super.key});
+
+  @override
+  ConsumerState<FormsListScreen> createState() => _FormsListScreenState();
 }
 
-const demoForms = <TaxFormItem>[
-  TaxFormItem('Fillable Client Data Sheet', 'in_progress', route: '/organizer'),
-  TaxFormItem('Self Employment Form', 'not_started'),
-  TaxFormItem('Filing Status Flow Chart', 'not_started'),
-  TaxFormItem('Schedule A Itemized Deduction', 'completed'),
-  TaxFormItem('Consent to Use', 'completed'),
-  TaxFormItem('Consent to Disclose', 'not_started'),
-  TaxFormItem('Borrower Disclosures', 'not_started'),
-  TaxFormItem('TILA / Interest Rate', 'not_started'),
-];
+class _FormsListScreenState extends ConsumerState<FormsListScreen> {
+  Map<String, dynamic>? _taxReturn;
+  bool _loadingReturn = true;
 
-class FormsListScreen extends StatelessWidget {
-  const FormsListScreen({super.key});
+  @override
+  void initState() {
+    super.initState();
+    _loadReturn();
+  }
+
+  Future<void> _loadReturn() async {
+    try {
+      final data = await ref.read(authRepositoryProvider).currentTaxReturn();
+      if (mounted) setState(() {
+        _taxReturn = data;
+        _loadingReturn = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingReturn = false);
+    }
+  }
 
   Color _statusColor(String status) {
     switch (status) {
@@ -48,6 +59,19 @@ class FormsListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final returnStatus = (_taxReturn?['status'] ?? 'draft').toString();
+    final taxYear = (_taxReturn?['taxYear'] ?? _taxReturn?['year'] ?? DateTime.now().year).toString();
+
+    final forms = <TaxFormItem>[
+      TaxFormItem('Tax Organizer ($taxYear)', returnStatus == 'draft' ? 'in_progress' : 'in_progress', route: '/organizer'),
+      const TaxFormItem('Upload Documents', 'not_started', route: '/documents'),
+      const TaxFormItem('Identity / KYC', 'not_started', route: '/profile'),
+      const TaxFormItem('Fee Agreement / Billing', 'not_started', route: '/billing'),
+      const TaxFormItem('Refund Tracker', 'not_started', route: '/account'),
+      const TaxFormItem('Ask TaxPro Assist', 'not_started', route: '/tessa'),
+    ];
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -55,7 +79,7 @@ class FormsListScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [MkgColors.primary, Color(0xFF004A8A)],
+              colors: [MkgColors.primary, MkgColors.primaryDark],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -64,54 +88,54 @@ class FormsListScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Welcome back',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              const Text('Welcome back', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 4),
+              Text(
+                user?.displayName ?? 'Client',
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Your 2025 tax forms',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+              Text(
+                user?.email ?? '',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  StatusChip(label: 'Demo session', color: Colors.white),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () => context.go('/profile'),
-                    icon: const Icon(Icons.verified_user_outlined, color: Colors.white, size: 18),
-                    label: const Text('Verify Profile', style: TextStyle(color: Colors.white)),
-                  ),
+                  StatusChip(label: 'financemkgtax.com', color: Colors.white),
+                  if (user?.kycStatus != null)
+                    StatusChip(label: 'KYC: ${user!.kycStatus}', color: MkgColors.accent),
+                  if (_loadingReturn)
+                    const StatusChip(label: 'Loading return…', color: Colors.white)
+                  else if (_taxReturn != null)
+                    StatusChip(label: 'Return $taxYear · $returnStatus', color: Colors.white)
+                  else
+                    const StatusChip(label: 'No return yet', color: Colors.white),
                 ],
               ),
             ],
           ),
         ),
-        const SectionHeader('Forms List'),
+        const SectionHeader('Client portal hub'),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: demoForms.length,
+          itemCount: forms.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.92,
+            childAspectRatio: 0.95,
           ),
           itemBuilder: (context, index) {
-            final form = demoForms[index];
+            final form = forms[index];
             return Card(
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
                 onTap: () {
-                  if (form.route != null) {
-                    context.go(form.route!);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${form.name} wizard coming next.')),
-                    );
-                  }
+                  if (form.route != null) context.go(form.route!);
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -143,35 +167,14 @@ class FormsListScreen extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 8),
-        const SectionHeader('Quick links'),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.folder_open, color: MkgColors.primary),
-                title: const Text('Upload documents'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/documents'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
-                title: const Text('Ask Tessa'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/tessa'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.support_agent, color: MkgColors.primary),
-                title: const Text('Contact support'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/support'),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
+}
+
+class TaxFormItem {
+  const TaxFormItem(this.name, this.status, {this.route});
+  final String name;
+  final String status;
+  final String? route;
 }

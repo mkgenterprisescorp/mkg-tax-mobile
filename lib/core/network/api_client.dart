@@ -1,29 +1,71 @@
+import 'dart:io';
+
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../config/app_config.dart';
 
+final apiClientProvider = Provider<ApiClient>((ref) {
+  throw UnimplementedError('ApiClient must be overridden in main() after init');
+});
+
 class ApiClient {
-  ApiClient({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage(),
-        dio = Dio(BaseOptions(
-          baseUrl: AppConfig.apiBaseUrl,
-          connectTimeout: const Duration(seconds: 20),
-          receiveTimeout: const Duration(seconds: 30),
-          headers: {'Accept': 'application/json'},
-        )) {
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'access_token');
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        options.headers['X-Correlation-Id'] =
-            DateTime.now().microsecondsSinceEpoch.toString();
-        handler.next(options);
-      },
-    ));
-  }
+  ApiClient(this.dio, this.cookieJar);
 
   final Dio dio;
-  final FlutterSecureStorage _storage;
+  final CookieJar cookieJar;
+
+  static Future<ApiClient> create() async {
+    final support = await getApplicationSupportDirectory();
+    final cookiePath = '${support.path}/financemkgtax_cookies';
+    await Directory(cookiePath).create(recursive: true);
+    final jar = PersistCookieJar(storage: FileStorage(cookiePath));
+
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: AppConfig.apiRoot,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Accept': 'application/json',
+          'X-Client': 'mkg-tax-mobile',
+        },
+        validateStatus: (code) => code != null && code < 500,
+      ),
+    );
+    dio.interceptors.add(CookieManager(jar));
+    return ApiClient(dio, jar);
+  }
+
+  /// In-memory client for widget/unit tests (no disk cookie jar).
+  factory ApiClient.memory({String baseUrl = 'https://financemkgtax.com'}) {
+    final jar = CookieJar();
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        validateStatus: (code) => code != null && code < 500,
+      ),
+    );
+    dio.interceptors.add(CookieManager(jar));
+    return ApiClient(dio, jar);
+  }
+
+  Future<Response<T>> get<T>(String path, {Map<String, dynamic>? query}) {
+    return dio.get<T>(path, queryParameters: query);
+  }
+
+  Future<Response<T>> post<T>(String path, {Object? data}) {
+    return dio.post<T>(path, data: data);
+  }
+
+  Future<Response<T>> put<T>(String path, {Object? data}) {
+    return dio.put<T>(path, data: data);
+  }
+
+  Future<void> clearSession() async {
+    await cookieJar.deleteAll();
+  }
 }

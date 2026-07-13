@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../home/presentation/main_tabs.dart';
 
 class DocumentsScreen extends StatelessWidget {
@@ -320,11 +322,12 @@ class SupportScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -336,32 +339,46 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Center(child: Text('Demo Client', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
-        const Center(child: Text('demo@mkgenterprisescorp.com', style: TextStyle(color: MkgColors.textGrey))),
+        Center(child: Text(user?.displayName ?? 'Client', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
+        Center(child: Text(user?.email ?? '', style: const TextStyle(color: MkgColors.textGrey))),
+        if (user?.phone != null) ...[
+          const SizedBox(height: 4),
+          Center(child: Text(user!.phone!, style: const TextStyle(color: MkgColors.textGrey))),
+        ],
         const SizedBox(height: 8),
-        const Center(child: StatusChip(label: 'ID verification pending', color: MkgColors.orange)),
+        Center(child: StatusChip(label: 'KYC: ${user?.kycStatus ?? 'unknown'}', color: MkgColors.orange)),
         const SizedBox(height: 20),
         Card(
           child: Column(
             children: [
               ListTile(
                 leading: const Icon(Icons.verified_user_outlined),
-                title: const Text('Verify Profile (Jumio)'),
+                title: const Text('Verify identity'),
+                subtitle: const Text('Uses financemkgtaxpro /api/kyc/*'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Jumio ID verification will be wired later.')),
+                  const SnackBar(content: Text('KYC camera flow coming next.')),
                 ),
               ),
               const Divider(height: 1),
-              const ListTile(leading: Icon(Icons.lock_outline), title: Text('Change password'), trailing: Icon(Icons.chevron_right)),
-              const Divider(height: 1),
-              const ListTile(leading: Icon(Icons.card_giftcard_outlined), title: Text('Referral code'), subtitle: Text('MKG-DEMO-2025'), trailing: Icon(Icons.copy)),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Update profile'),
+                subtitle: const Text('PUT /api/user/profile'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile editor coming next.')),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
-          onPressed: () => context.go('/login'),
+          onPressed: () async {
+            await ref.read(authProvider.notifier).logout();
+            if (context.mounted) context.go('/login');
+          },
           child: const Text('Logout'),
         ),
       ],

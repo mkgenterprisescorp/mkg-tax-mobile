@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/auth_repository.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
   bool _remember = true;
-  String? _error;
 
   @override
   void dispose() {
@@ -24,25 +26,36 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final email = _email.text.trim();
     final password = _password.text;
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = 'Enter a valid email address.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid email address.')),
+      );
       return;
     }
     if (password.length < 4) {
-      setState(() => _error = 'Enter your password.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your password.')),
+      );
       return;
     }
-    // Demo session only — Laravel Sanctum will own auth in a later PR.
-    context.go('/forms');
+    final ok = await ref.read(authProvider.notifier).login(email, password);
+    if (!mounted) return;
+    if (ok) {
+      context.go('/forms');
+    } else {
+      final err = ref.read(authProvider).error ?? 'Login failed';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
     return AuthScaffold(
-      title: 'Sign in to your account',
+      title: 'Sign in to financemkgtax.com',
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -95,14 +108,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          if (_error != null) ...[
-            Text(_error!, style: const TextStyle(color: MkgColors.red)),
-            const SizedBox(height: 8),
-          ],
-          FilledButton(onPressed: _submit, child: const Text('Log In')),
+          FilledButton(
+            onPressed: auth.loading ? null : _submit,
+            child: auth.loading
+                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Log In'),
+          ),
           const SizedBox(height: 12),
           const Text(
-            'Demo UI — tap Log In to explore the app. Production auth will use Laravel Sanctum/MFA.',
+            'Sends credentials to financemkgtaxpro (financemkgtax.com) using the same session cookie API as the web portal.',
             textAlign: TextAlign.center,
             style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
           ),

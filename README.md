@@ -2,19 +2,20 @@
 
 Flutter single source of truth for MKG Tax Consultants iOS and Android.
 
-## Stack
+## Architecture
 
-Flutter, Dart, Riverpod, go_router, dio, freezed, json_serializable, flutter_secure_storage.
+- **UI to clone:** `financemkgtaxpro` web portal (green/gold brand)
+- **API host:** `https://financemkgtax.com` (`POST /api/login`, `/api/register`, `/api/auth/user`, …)
+- Session cookies via Dio + cookie_jar (same model as the web `credentials: "include"` client)
+- Details: `docs/mobile/financemkgtaxpro-integration.md`
 
-## Config
-
-Public only:
+## Run
 
 ```bash
-flutter run --dart-define=API_BASE_URL=https://api.example.com/api/v1
+flutter pub get
+flutter run --dart-define=API_BASE_URL=https://financemkgtax.com
+flutter build apk --debug --dart-define=API_BASE_URL=https://financemkgtax.com
 ```
-
-No secrets in the app. Laravel is authoritative.
 
 ## Branch
 
@@ -24,8 +25,6 @@ No secrets in the app. Laravel is authoritative.
 
 **Not production-ready yet.**
 
-- Draft-only: GitHub remote/PR pending org repo creation
-- Demo auth UI (does not yet call Laravel Sanctum/MFA as authority)
-- Debug signing only (`app-debug.apk`)
-- Android debug build succeeds in this environment
-- **No iOS device/simulator build here** (Linux VM — needs macOS + Xcode)
+- Draft PR; debug signing only
+- Login/register call live financemkgtaxpro; organizer/KYC/payments still partial
+- **No iOS build on Linux** (needs macOS + Xcode)

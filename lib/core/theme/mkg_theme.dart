@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 
-/// Legacy MKG Tax Consultants brand tokens (Android parity).
+/// Brand tokens cloned from financemkgtaxpro web portal (index.css).
+/// Primary green HSL(142,76%,26%) · accent gold HSL(45,93%,47%).
 abstract final class MkgColors {
-  static const Color primary = Color(0xFF006FCD);
-  static const Color dark = Color(0xFF0B1824);
-  static const Color textGrey = Color(0xFF666666);
-  static const Color grey = Color(0xFFB8B8B8);
-  static const Color lightPrimary = Color(0x1A006FCD);
+  static const Color primary = Color(0xFF0F7A3A);
+  static const Color primaryDark = Color(0xFF0A5C2B);
+  static const Color accent = Color(0xFFE8B90A);
+  static const Color dark = Color(0xFF122018);
+  static const Color textGrey = Color(0xFF5C6B63);
+  static const Color grey = Color(0xFFB8C0BA);
+  static const Color lightPrimary = Color(0x1A0F7A3A);
   static const Color bottomInactive = Color(0xFF707070);
-  static const Color surfaceGrey = Color(0xFFF1F5F8);
-  static const Color green = Color(0xFF0BAA12);
-  static const Color red = Color(0xFFFF0000);
-  static const Color orange = Color(0xFFFFAE50);
+  static const Color surfaceGrey = Color(0xFFF3F7F4);
+  static const Color green = Color(0xFF16A34A);
+  static const Color red = Color(0xFFDC2626);
+  static const Color orange = Color(0xFFCA8A04);
 }
 
 ThemeData buildMkgTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: MkgColors.primary,
     primary: MkgColors.primary,
+    secondary: MkgColors.accent,
     surface: Colors.white,
     onSurface: MkgColors.dark,
   );
@@ -35,7 +39,7 @@ ThemeData buildMkgTheme() {
         color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        letterSpacing: 0.4,
+        letterSpacing: 0.3,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -79,7 +83,7 @@ ThemeData buildMkgTheme() {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFE6EEF5)),
+        side: const BorderSide(color: Color(0xFFE2EDE6)),
       ),
     ),
   );

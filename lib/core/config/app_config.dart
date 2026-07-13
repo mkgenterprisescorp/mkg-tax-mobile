@@ -1,8 +1,12 @@
-/// Public runtime config only. Never store secrets here.
+/// Public compile-time config. Never put secrets here.
 class AppConfig {
-  /// Public API base URL for Laravel (`API_BASE_URL`).
-  static const apiBaseUrl = String.fromEnvironment(
+  /// Production TaxPro / financemkgtaxpro portal.
+  static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000/api/v1',
+    defaultValue: 'https://financemkgtax.com',
   );
+
+  static String get apiRoot => apiBaseUrl.endsWith('/')
+      ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
+      : apiBaseUrl;
 }

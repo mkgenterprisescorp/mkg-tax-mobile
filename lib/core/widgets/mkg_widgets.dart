@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/mkg_theme.dart';
 
-/// Blue header + white rounded card used on auth screens (legacy layout).
+/// Green branded header + white rounded card (financemkgtax.com web parity).
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
