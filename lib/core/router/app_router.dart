@@ -4,12 +4,16 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
 import '../../features/more/presentation/feature_screens.dart';
+import '../../features/onboarding/presentation/splash_onboarding.dart';
+import '../../features/organizer/presentation/organizer_screen.dart';
 import '../../features/shell/app_shell.dart';
 
 GoRouter createRouter() {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     routes: [
+      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/complete-profile', builder: (context, state) => const CompleteProfileScreen()),

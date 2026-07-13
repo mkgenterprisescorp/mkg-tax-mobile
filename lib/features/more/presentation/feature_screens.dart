@@ -45,55 +45,12 @@ class DocumentsScreen extends StatelessWidget {
   }
 }
 
-class OrganizerScreen extends StatelessWidget {
-  const OrganizerScreen({super.key});
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final steps = const [
-      ('Taxpayer information', true),
-      ('SSN / ITIN', true),
-      ('Address & contact', false),
-      ('Banking for refund', false),
-      ('Dependents', false),
-      ('Income sources', false),
-      ('Review & sign', false),
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const SectionHeader('Client Data Sheet'),
-        LinearProgressIndicator(
-          value: 2 / 7,
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        const SizedBox(height: 8),
-        const Text('Step 2 of 7', style: TextStyle(color: MkgColors.textGrey)),
-        const SizedBox(height: 16),
-        for (var i = 0; i < steps.length; i++)
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: steps[i].$2 ? MkgColors.green : MkgColors.surfaceGrey,
-                foregroundColor: steps[i].$2 ? Colors.white : MkgColors.textGrey,
-                child: Text('${i + 1}'),
-              ),
-              title: Text(steps[i].$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-              trailing: Icon(steps[i].$2 ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: steps[i].$2 ? MkgColors.green : MkgColors.grey),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Open step: ${steps[i].$1}')),
-                );
-              },
-            ),
-          ),
-        const SizedBox(height: 12),
-        FilledButton(onPressed: () => context.go('/forms'), child: const Text('Save & return to Forms')),
-      ],
-    );
+    return const AccountOverviewScreen();
   }
 }
 
@@ -399,14 +356,5 @@ class EngagementsScreen extends StatelessWidget {
         Card(child: ListTile(title: Text('Monthly Bookkeeping',), subtitle: Text('BOOK · Assigned'), trailing: StatusChip(label: 'Active', color: MkgColors.green))),
       ],
     );
-  }
-}
-
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const AccountOverviewScreen();
   }
 }

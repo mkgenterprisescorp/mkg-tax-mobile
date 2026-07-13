@@ -161,7 +161,7 @@ class AuthState {
 
 class AuthNotifier extends Notifier<AuthState> {
   @override
-  AuthState build() => const AuthState(loading: true);
+  AuthState build() => const AuthState(loading: false);
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 

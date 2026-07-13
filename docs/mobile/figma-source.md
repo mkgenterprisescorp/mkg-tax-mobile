@@ -2,17 +2,24 @@
 
 - **File:** [tax-filling-app-v2](https://www.figma.com/design/7qoVoDkkHlANDeXChDESSK/tax-filling-app-v2?node-id=19-2&t=AKGTVqjY25mXMaQi-1)
 - **File key:** `7qoVoDkkHlANDeXChDESSK`
-- **Entry node:** `19:2` (URL `node-id=19-2`)
+- **Entry node:** `19:2`
+- **Access:** link viewable without login (confirmed)
 
-## Usage for Flutter SoT
-1. Visual layouts, spacing, typography, and component states come from this Figma file.
-2. Runtime data and auth still go to **financemkgtaxpro** at `https://financemkgtax.com/api/*`.
-3. Agents need a Figma personal access token secret `FIGMA_TOKEN` (scope: file content read) to export frames via the Figma REST API.
+## Extracted tokens (visual sampling)
+- Primary blue: `#007AFF` (NEXT / SUBMIT / headers)
+- Background: white / `#F5F7FA`
+- Pages: `ui design`, `ui-old`, `UI STATUS`, `splashes`
 
-## Export commands (once FIGMA_TOKEN is set)
-```bash
-curl -sH "X-Figma-Token: $FIGMA_TOKEN" \
-  "https://api.figma.com/v1/files/7qoVoDkkHlANDeXChDESSK?depth=2" | head
-curl -sH "X-Figma-Token: $FIGMA_TOKEN" \
-  "https://api.figma.com/v1/images/7qoVoDkkHlANDeXChDESSK?ids=19:2&format=png&scale=2"
-```
+## Flows mirrored in Flutter (partial)
+| Figma | Flutter route |
+|-------|---------------|
+| Splash / onboarding-wel | `/splash`, `/onboarding` |
+| Login / register | `/login`, `/register` → API financemkgtax.com |
+| Consent to Use / Disclose | `/organizer` steps 1–2 |
+| Schedule A medical / taxes / contributions | `/organizer` steps 3–4 |
+| SUBMIT | PUT `/api/tax-returns/:id` with `data.mobileOrganizer` |
+
+## Still outstanding vs full Figma canvas (~50+ frames)
+TILA disclosure, borrower signatures, full client data sheet, upload-doc-1, plan cards, filing status drawer, etc.
+
+Optional: set secret `FIGMA_TOKEN` for precise Dev Mode inspect / PNG export via API.
