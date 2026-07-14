@@ -43,6 +43,8 @@ dependencies:
   cookie_jar: ^4.0.9
   dio_cookie_manager: ^3.4.0
   path_provider: ^2.1.6
+  file_picker: ^10.3.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

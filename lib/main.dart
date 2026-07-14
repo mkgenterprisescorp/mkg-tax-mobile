@@ -28,22 +28,22 @@ class MkgTaxApp extends ConsumerStatefulWidget {
 }
 
 class _MkgTaxAppState extends ConsumerState<MkgTaxApp> {
-  late final GoRouter _router;
+  GoRouter? _router;
 
   @override
   void initState() {
     super.initState();
-    _router = createRouter();
     Future.microtask(() => ref.read(authProvider.notifier).restoreSession());
   }
 
   @override
   Widget build(BuildContext context) {
+    _router ??= createRouterFromRef(ref);
     return MaterialApp.router(
       title: 'MKG Tax Consultants',
       debugShowCheckedModeBanner: false,
       theme: buildMkgTheme(),
-      routerConfig: _router,
+      routerConfig: _router!,
     );
   }
 }

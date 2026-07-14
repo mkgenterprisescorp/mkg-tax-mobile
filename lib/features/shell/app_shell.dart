@@ -10,26 +10,27 @@ class AppShell extends ConsumerWidget {
 
   final Widget child;
 
+  /// Aligned to web client primary destinations.
   static const _tabs = <({String path, String label, IconData icon})>[
-    (path: '/financial', label: 'Financial', icon: Icons.payments_outlined),
-    (path: '/account', label: 'Account', icon: Icons.notifications_outlined),
     (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
-    (path: '/banking', label: 'Banking', icon: Icons.account_balance_outlined),
-    (path: '/blogs', label: 'Learn', icon: Icons.article_outlined),
+    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
+    (path: '/organizer', label: 'Organizer', icon: Icons.assignment_outlined),
+    (path: '/financial', label: 'Money', icon: Icons.payments_outlined),
+    (path: '/profile', label: 'Profile', icon: Icons.person_outline),
   ];
 
   int _indexFor(String location) {
     for (var i = 0; i < _tabs.length; i++) {
       if (location.startsWith(_tabs[i].path)) return i;
     }
-    return 2;
+    return 0;
   }
 
   String _titleFor(String location) {
     if (location.startsWith('/documents')) return 'DOCUMENTS';
-    if (location.startsWith('/messages')) return 'MESSAGES';
-    if (location.startsWith('/tessa')) return 'TAXPRO ASSIST';
-    if (location.startsWith('/billing')) return 'PAYMENTS';
+    if (location.startsWith('/messages') || location.startsWith('/chat')) return 'MESSAGES';
+    if (location.startsWith('/tessa') || location.startsWith('/ai-assistant')) return 'TAXPRO ASSIST';
+    if (location.startsWith('/billing') || location.startsWith('/payments')) return 'PAYMENTS';
     if (location.startsWith('/bookkeeping')) return 'BOOKKEEPING';
     if (location.startsWith('/organizer')) return 'TAX ORGANIZER';
     if (location.startsWith('/profile')) return 'PROFILE';
@@ -39,6 +40,7 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/account')) return 'ACCOUNT';
     if (location.startsWith('/banking')) return 'BANKING';
     if (location.startsWith('/blogs')) return 'LEARN';
+    if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
     return 'DASHBOARD';
   }
 
@@ -46,7 +48,6 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.toString();
     final index = _indexFor(location);
-    final showBottomNav = _tabs.any((t) => location.startsWith(t.path));
     final user = ref.watch(authProvider).user;
 
     return Scaffold(
@@ -70,23 +71,20 @@ class AppShell extends ConsumerWidget {
             icon: const Icon(Icons.chat_bubble_outline),
           ),
           IconButton(
-            tooltip: 'Profile',
-            onPressed: () => context.go('/profile'),
-            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'TaxPro Assist',
+            onPressed: () => context.go('/tessa'),
+            icon: const Icon(Icons.smart_toy_outlined),
           ),
         ],
       ),
       body: child,
-      bottomNavigationBar: showBottomNav
-          ? NavigationBar(
-              selectedIndex: index,
-              onDestinationSelected: (i) => context.go(_tabs[i].path),
-              destinations: [
-                for (final tab in _tabs)
-                  NavigationDestination(icon: Icon(tab.icon), label: tab.label),
-              ],
-            )
-          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i) => context.go(_tabs[i].path),
+        destinations: [
+          for (final tab in _tabs) NavigationDestination(icon: Icon(tab.icon), label: tab.label),
+        ],
+      ),
     );
   }
 }
@@ -118,10 +116,9 @@ class _AppDrawer extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: MkgColors.primary, size: 32),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset('assets/brand/mkg_tax_logo.png', width: 48, height: 48, fit: BoxFit.cover),
                   ),
                   const SizedBox(height: 12),
                   Text(userName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
@@ -132,12 +129,15 @@ class _AppDrawer extends ConsumerWidget {
             item(Icons.dashboard_outlined, 'Dashboard', '/forms'),
             item(Icons.folder_outlined, 'Documents', '/documents'),
             item(Icons.assignment_outlined, 'Tax Organizer', '/organizer'),
+            item(Icons.payments_outlined, 'Financials', '/financial'),
             item(Icons.receipt_long_outlined, 'Payments', '/billing'),
-            item(Icons.menu_book_outlined, 'Bookkeeping', '/bookkeeping'),
+            item(Icons.chat_bubble_outline, 'Messages', '/messages'),
             item(Icons.smart_toy_outlined, 'TaxPro Assist', '/tessa'),
+            item(Icons.track_changes_outlined, 'Refund Tracker', '/refund-tracker'),
+            item(Icons.menu_book_outlined, 'Bookkeeping', '/bookkeeping'),
             item(Icons.build_outlined, 'Tax Tools', '/tools'),
             item(Icons.support_agent_outlined, 'Support', '/support'),
-            item(Icons.person_outline, 'Profile', '/profile'),
+            item(Icons.person_outline, 'Profile / KYC', '/profile'),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: MkgColors.red),

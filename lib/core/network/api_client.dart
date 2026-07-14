@@ -57,12 +57,27 @@ class ApiClient {
     return dio.get<T>(path, queryParameters: query);
   }
 
-  Future<Response<T>> post<T>(String path, {Object? data}) {
-    return dio.post<T>(path, data: data);
+  Future<Response<T>> post<T>(String path, {Object? data, Options? options}) {
+    return dio.post<T>(path, data: data, options: options);
   }
 
   Future<Response<T>> put<T>(String path, {Object? data}) {
     return dio.put<T>(path, data: data);
+  }
+
+  Future<Response<T>> delete<T>(String path) {
+    return dio.delete<T>(path);
+  }
+
+  Future<Response<T>> postMultipart<T>(
+    String path, {
+    required FormData formData,
+  }) {
+    return dio.post<T>(
+      path,
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
   }
 
   Future<void> clearSession() async {

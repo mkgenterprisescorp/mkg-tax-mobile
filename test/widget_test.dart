@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mkg_tax_mobile/core/network/api_client.dart';
 import 'package:mkg_tax_mobile/core/router/app_router.dart';
 import 'package:mkg_tax_mobile/core/theme/mkg_theme.dart';
+import 'package:mkg_tax_mobile/features/auth/data/auth_repository.dart';
 import 'package:mkg_tax_mobile/features/auth/presentation/login_screen.dart';
 
 void main() {
@@ -24,8 +25,11 @@ void main() {
     expect(Theme.of(tester.element(find.text('Log In'))).colorScheme.primary, const Color(0xFF1A5632));
   });
 
-  testWidgets('router starts at splash', (tester) async {
-    final router = createRouter();
+  test('router starts at splash', () {
+    final router = createRouter(
+      refreshListenable: AuthRouterRefresh(),
+      authReader: () => const AuthState(),
+    );
     expect(router.routeInformationProvider.value.uri.path, '/splash');
   });
 }

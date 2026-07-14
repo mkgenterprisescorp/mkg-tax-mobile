@@ -1,46 +1,173 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../core/api/portal_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../home/presentation/main_tabs.dart';
 
-class DocumentsScreen extends StatelessWidget {
+class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final docs = const [
-      ('W-2 · ACME Corp', 'Uploaded', Icons.picture_as_pdf),
-      ('1099-NEC · Consulting', 'Needs review', Icons.description_outlined),
-      ('Driver license', 'Verified', Icons.badge_outlined),
-      ('Prior year return', 'Requested', Icons.request_page_outlined),
-    ];
+  ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
+}
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        FilledButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Demo: document scanner / upload next.')),
-            );
-          },
-          icon: const Icon(Icons.upload_file),
-          label: const Text('Upload or scan document'),
-        ),
-        const SectionHeader('My documents'),
-        for (final d in docs)
-          Card(
-            child: ListTile(
-              leading: Icon(d.$3, color: MkgColors.primary),
-              title: Text(d.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(d.$2),
-              trailing: const Icon(Icons.more_vert),
-            ),
+class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
+  List<Map<String, dynamic>> _docs = const [];
+  dynamic _returnId;
+  bool _loading = true;
+  bool _uploading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final portal = ref.read(portalRepositoryProvider);
+      var current = await portal.currentTaxReturn();
+      current ??= (await portal.listTaxReturns()).cast<Map<String, dynamic>?>().firstOrNull;
+      if (current == null) {
+        current = await portal.createTaxReturn();
+      }
+      final id = current['id'];
+      final docs = id == null ? <Map<String, dynamic>>[] : await portal.listDocuments(id);
+      if (!mounted) return;
+      setState(() {
+        _returnId = id;
+        _docs = docs;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _pickAndUpload() async {
+    if (_returnId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tax return available yet.')),
+      );
+      return;
+    }
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'heic'],
+      withData: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null) return;
+    setState(() => _uploading = true);
+    try {
+      await ref.read(portalRepositoryProvider).uploadDocument(
+            file: File(path),
+            taxReturnId: _returnId,
+            type: 'other',
+          );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document uploaded & scanned.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          FilledButton.icon(
+            onPressed: _uploading ? null : _pickAndUpload,
+            icon: _uploading
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.upload_file),
+            label: Text(_uploading ? 'Uploading…' : 'Upload or scan document'),
           ),
-      ],
+          const SizedBox(height: 8),
+          const Text(
+            'PDF, PNG, JPG up to 15MB · mirrors web Document Center',
+            style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+          ),
+          const SectionHeader('My documents'),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_error != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.error_outline, color: MkgColors.red),
+                title: Text(_error!),
+                trailing: TextButton(onPressed: _load, child: const Text('Retry')),
+              ),
+            )
+          else if (_docs.isEmpty)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.folder_open_outlined),
+                title: Text('No documents yet'),
+                subtitle: Text('Upload W-2s, 1099s, ID, and prior returns.'),
+              ),
+            )
+          else
+            for (final d in _docs)
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    (d['type']?.toString().toLowerCase().contains('w2') ?? false)
+                        ? Icons.picture_as_pdf
+                        : Icons.description_outlined,
+                    color: MkgColors.primary,
+                  ),
+                  title: Text(
+                    (d['originalName'] ?? d['filename'] ?? d['name'] ?? 'Document').toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text('Type: ${(d['type'] ?? 'other')} · ID ${(d['id'] ?? '—')}'),
+                  trailing: IconButton(
+                    tooltip: 'Secure download (OTP on web)',
+                    onPressed: () async {
+                      final id = d['id'];
+                      if (id == null) return;
+                      final uri = Uri.parse('https://financemkgtax.com/api/documents/$id/secure-download');
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    icon: const Icon(Icons.download_outlined),
+                  ),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }
@@ -49,53 +176,156 @@ class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const AccountOverviewScreen();
-  }
+  Widget build(BuildContext context) => const AccountOverviewScreen();
 }
 
-class MessagesScreen extends StatelessWidget {
+class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
 
   @override
+  ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends ConsumerState<MessagesScreen> {
+  List<Map<String, dynamic>> _rooms = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final rooms = await ref.read(portalRepositoryProvider).listChatRooms();
+      if (!mounted) return;
+      setState(() {
+        _rooms = rooms;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        SectionHeader('Secure messages'),
-        Card(
-          child: ListTile(
-            leading: CircleAvatar(child: Icon(Icons.support_agent)),
-            title: Text('MKG Support'),
-            subtitle: Text('We received your W-2. Please confirm employer name.'),
-            trailing: Text('Today'),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: CircleAvatar(child: Icon(Icons.smart_toy_outlined)),
-            title: Text('Tessa'),
-            subtitle: Text('I can help you finish the Client Data Sheet.'),
-            trailing: Text('Mon'),
-          ),
-        ),
-      ],
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const SectionHeader('Secure messages'),
+          if (_loading)
+            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+          else if (_error != null)
+            Card(
+              child: ListTile(
+                title: Text(_error!),
+                trailing: TextButton(onPressed: _load, child: const Text('Retry')),
+              ),
+            )
+          else if (_rooms.isEmpty)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.forum_outlined),
+                title: Text('No message threads yet'),
+                subtitle: Text('Your preparer conversations will appear here.'),
+              ),
+            )
+          else
+            for (final room in _rooms)
+              Card(
+                child: ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.support_agent)),
+                  title: Text(
+                    (room['title'] ?? room['name'] ?? 'Conversation').toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text((room['lastMessage'] ?? room['preview'] ?? 'Open thread').toString()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Room ${(room['id'] ?? '')} — full thread UI next.')),
+                    );
+                  },
+                ),
+              ),
+        ],
+      ),
     );
   }
 }
 
-class TessaScreen extends StatefulWidget {
+class TessaScreen extends ConsumerStatefulWidget {
   const TessaScreen({super.key});
 
   @override
-  State<TessaScreen> createState() => _TessaScreenState();
+  ConsumerState<TessaScreen> createState() => _TessaScreenState();
 }
 
-class _TessaScreenState extends State<TessaScreen> {
+class _TessaScreenState extends ConsumerState<TessaScreen> {
   final _controller = TextEditingController();
-  final _messages = <(bool isUser, String text)>[
-    (false, 'Hi — I am Tessa. Ask me about your organizer, documents, or refund status. (Demo replies only.)'),
-  ];
+  final _messages = <(bool isUser, String text)>[];
+  dynamic _conversationId;
+  bool _ready = false;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final portal = ref.read(portalRepositoryProvider);
+      final existing = await portal.listConversations();
+      Map<String, dynamic> convo;
+      if (existing.isNotEmpty) {
+        convo = existing.first;
+      } else {
+        convo = await portal.createConversation(title: 'Mobile TaxPro Assist');
+      }
+      final id = convo['id'];
+      if (id != null) {
+        final full = await portal.getConversation(id);
+        final history = (full?['messages'] as List?) ?? const [];
+        for (final m in history) {
+          if (m is! Map) continue;
+          final role = (m['role'] ?? '').toString();
+          final content = (m['content'] ?? '').toString();
+          if (content.isEmpty) continue;
+          _messages.add((role == 'user', content));
+        }
+      }
+      if (_messages.isEmpty) {
+        _messages.add((
+          false,
+          'Hi — I am TaxPro Assist (Tessa). Ask about your organizer, documents, or refunds.',
+        ));
+      }
+      if (mounted) {
+        setState(() {
+          _conversationId = id;
+          _ready = true;
+        });
+      }
+    } catch (e) {
+      _messages.add((false, 'Could not connect to AI assistant: $e'));
+      if (mounted) setState(() => _ready = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -103,18 +333,35 @@ class _TessaScreenState extends State<TessaScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _sending) return;
+    if (_conversationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conversation not ready yet.')),
+      );
+      return;
+    }
     setState(() {
       _messages.add((true, text));
-      _messages.add((false, 'Thanks! In production I will call /api/v1/tessa. For now this is a UI demo.'));
       _controller.clear();
+      _sending = true;
     });
+    try {
+      final reply = await ref.read(portalRepositoryProvider).sendAiMessage(_conversationId, text);
+      if (mounted) setState(() => _messages.add((false, reply)));
+    } catch (e) {
+      if (mounted) setState(() => _messages.add((false, 'Error: $e')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Column(
       children: [
         Expanded(
@@ -139,6 +386,7 @@ class _TessaScreenState extends State<TessaScreen> {
             },
           ),
         ),
+        if (_sending) const LinearProgressIndicator(minHeight: 2),
         SafeArea(
           top: false,
           child: Padding(
@@ -148,12 +396,12 @@ class _TessaScreenState extends State<TessaScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(hintText: 'Ask Tessa...'),
+                    decoration: const InputDecoration(hintText: 'Ask TaxPro Assist...'),
                     onSubmitted: (_) => _send(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(onPressed: _send, icon: const Icon(Icons.send)),
+                IconButton.filled(onPressed: _sending ? null : _send, icon: const Icon(Icons.send)),
               ],
             ),
           ),
@@ -163,30 +411,97 @@ class _TessaScreenState extends State<TessaScreen> {
   }
 }
 
-class BillingScreen extends StatelessWidget {
+class BillingScreen extends ConsumerStatefulWidget {
   const BillingScreen({super.key});
 
   @override
+  ConsumerState<BillingScreen> createState() => _BillingScreenState();
+}
+
+class _BillingScreenState extends ConsumerState<BillingScreen> {
+  List<Map<String, dynamic>> _invoices = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final invoices = await ref.read(portalRepositoryProvider).listInvoices();
+      if (!mounted) return;
+      setState(() {
+        _invoices = invoices;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        SectionHeader('Technology fee'),
-        Card(
-          child: ListTile(
-            title: Text('2025 Tax Prep Package'),
-            subtitle: Text('Invoice #1042 · Due on filing'),
-            trailing: StatusChip(label: 'Unpaid', color: MkgColors.orange),
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const SectionHeader('Invoices & payments'),
+          OutlinedButton.icon(
+            onPressed: () => launchUrl(
+              Uri.parse('https://financemkgtax.com/payments'),
+              mode: LaunchMode.externalApplication,
+            ),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open Stripe portal on web'),
           ),
-        ),
-        Card(
-          child: ListTile(
-            title: Text('Prior year balance'),
-            subtitle: Text('Invoice #981'),
-            trailing: StatusChip(label: 'Paid', color: MkgColors.green),
-          ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_error != null)
+            Card(
+              child: ListTile(
+                title: Text(_error!),
+                trailing: TextButton(onPressed: _load, child: const Text('Retry')),
+              ),
+            )
+          else if (_invoices.isEmpty)
+            const Card(
+              child: ListTile(
+                title: Text('No invoices yet'),
+                subtitle: Text('Technology fees and prep invoices will show here.'),
+              ),
+            )
+          else
+            for (final inv in _invoices)
+              Card(
+                child: ListTile(
+                  title: Text(
+                    (inv['description'] ?? inv['title'] ?? 'Invoice #${inv['id'] ?? ''}').toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text('Status: ${(inv['status'] ?? 'unknown')} · Amount: ${inv['amount'] ?? inv['total'] ?? '—'}'),
+                  trailing: StatusChip(
+                    label: (inv['status'] ?? 'open').toString(),
+                    color: (inv['status']?.toString().toLowerCase() == 'paid')
+                        ? MkgColors.green
+                        : MkgColors.orange,
+                  ),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }
@@ -200,9 +515,8 @@ class BookkeepingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: const [
         SectionHeader('Bookkeeping'),
-        Card(child: ListTile(title: Text('Monthly close'), subtitle: Text('March · In review'), trailing: Icon(Icons.chevron_right))),
-        Card(child: ListTile(title: Text('Transactions to categorize'), subtitle: Text('18 pending'), trailing: Icon(Icons.chevron_right))),
-        Card(child: ListTile(title: Text('P&L snapshot'), subtitle: Text('YTD demo numbers'), trailing: Icon(Icons.chevron_right))),
+        Card(child: ListTile(title: Text('Monthly close'), subtitle: Text('Complete intake on web for full workflow'), trailing: Icon(Icons.chevron_right))),
+        Card(child: ListTile(title: Text('Transactions to categorize'), subtitle: Text('Synced from portal when available'), trailing: Icon(Icons.chevron_right))),
       ],
     );
   }
@@ -219,16 +533,28 @@ class ToolsScreen extends StatelessWidget {
         const SectionHeader('Tax tools'),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.calculate_outlined, color: MkgColors.primary),
-            title: const Text('Loan calculator'),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calculator demo'))),
+            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
+            title: const Text('Refund advance calculator'),
+            subtitle: const Text('Uses /api/loans/calculate'),
+            onTap: () => context.go('/financial'),
           ),
         ),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.percent, color: MkgColors.primary),
-            title: const Text('Estimated refund helper'),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refund helper demo'))),
+            leading: const Icon(Icons.track_changes_outlined, color: MkgColors.primary),
+            title: const Text('Refund tracker'),
+            onTap: () => context.go('/refund-tracker'),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.open_in_browser, color: MkgColors.primary),
+            title: const Text('More calculators on web'),
+            subtitle: const Text('Budget, paycheck, overtime, withholding'),
+            onTap: () => launchUrl(
+              Uri.parse('https://financemkgtax.com/dashboard'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
         ),
       ],
@@ -247,31 +573,33 @@ class SupportScreen extends StatelessWidget {
         const SectionHeader('Support'),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.video_camera_front_outlined, color: MkgColors.primary),
-            title: const Text('Schedule Zoom'),
-            subtitle: const Text('Talk with an MKG specialist'),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zoom scheduling demo'))),
-          ),
-        ),
-        Card(
-          child: ListTile(
             leading: const Icon(Icons.chat_outlined, color: MkgColors.primary),
-            title: const Text('Live chat / Messenger'),
+            title: const Text('Secure messages'),
             onTap: () => context.go('/messages'),
           ),
         ),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.help_outline, color: MkgColors.primary),
-            title: const Text('FAQs'),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('FAQ demo'))),
+            leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
+            title: const Text('TaxPro Assist'),
+            onTap: () => context.go('/tessa'),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.language, color: MkgColors.primary),
+            title: const Text('Open web portal'),
+            onTap: () => launchUrl(
+              Uri.parse('https://financemkgtax.com'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
         ),
         const Card(
           child: ListTile(
             leading: Icon(Icons.phone, color: MkgColors.primary),
             title: Text('Call office'),
-            subtitle: Text('Demo contact card'),
+            subtitle: Text('Use contact info from your engagement letter'),
           ),
         ),
       ],
@@ -279,11 +607,79 @@ class SupportScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  late final TextEditingController _phone;
+  late final TextEditingController _address;
+  late final TextEditingController _city;
+  late final TextEditingController _state;
+  late final TextEditingController _zip;
+  late final TextEditingController _ssn;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = ref.read(authProvider).user;
+    _phone = TextEditingController(text: user?.phone ?? '');
+    _address = TextEditingController(text: user?.address ?? '');
+    _city = TextEditingController(text: user?.city ?? '');
+    _state = TextEditingController(text: user?.state ?? '');
+    _zip = TextEditingController(text: user?.zipCode ?? '');
+    _ssn = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    _address.dispose();
+    _city.dispose();
+    _state.dispose();
+    _zip.dispose();
+    _ssn.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitKyc() async {
+    setState(() => _saving = true);
+    try {
+      final portal = ref.read(portalRepositoryProvider);
+      final updated = await portal.submitKyc({
+        'role': 'client',
+        'phone': _phone.text.trim(),
+        'address': _address.text.trim(),
+        'city': _city.text.trim(),
+        'state': _state.text.trim().toUpperCase(),
+        'zipCode': _zip.text.trim(),
+      });
+      final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length == 9) {
+        await portal.saveSsn(digits);
+      }
+      final user = PortalUser.fromJson(updated);
+      await ref.read(authProvider.notifier).setUser(user);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile submitted for review.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -298,37 +694,50 @@ class ProfileScreen extends ConsumerWidget {
         const SizedBox(height: 12),
         Center(child: Text(user?.displayName ?? 'Client', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
         Center(child: Text(user?.email ?? '', style: const TextStyle(color: MkgColors.textGrey))),
-        if (user?.phone != null) ...[
-          const SizedBox(height: 4),
-          Center(child: Text(user!.phone!, style: const TextStyle(color: MkgColors.textGrey))),
-        ],
         const SizedBox(height: 8),
         Center(child: StatusChip(label: 'KYC: ${user?.kycStatus ?? 'unknown'}', color: MkgColors.orange)),
-        const SizedBox(height: 20),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.verified_user_outlined),
-                title: const Text('Verify identity'),
-                subtitle: const Text('Uses financemkgtaxpro /api/kyc/*'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('KYC camera flow coming next.')),
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Update profile'),
-                subtitle: const Text('PUT /api/user/profile'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile editor coming next.')),
-                ),
-              ),
-            ],
+        if (user?.approvalStatus != null) ...[
+          const SizedBox(height: 6),
+          Center(child: StatusChip(label: 'Approval: ${user!.approvalStatus}', color: MkgColors.primary)),
+        ],
+        if (user?.kycStatus == 'submitted' && user?.approvalStatus == 'pending') ...[
+          const SizedBox(height: 12),
+          Card(
+            color: const Color(0xFFFFF8E1),
+            child: const ListTile(
+              leading: Icon(Icons.hourglass_top, color: MkgColors.orange),
+              title: Text('Profile under review'),
+              subtitle: Text('You will be notified once approved.'),
+            ),
           ),
+        ],
+        const SectionHeader('KYC / profile details'),
+        TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone),
+        const SizedBox(height: 10),
+        TextField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
+        const SizedBox(height: 10),
+        TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: TextField(controller: _state, decoration: const InputDecoration(labelText: 'State'), textCapitalization: TextCapitalization.characters)),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: _zip, decoration: const InputDecoration(labelText: 'ZIP'), keyboardType: TextInputType.number)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _ssn,
+          decoration: InputDecoration(
+            labelText: user?.last4ssn != null ? 'SSN (saved ••••${user!.last4ssn})' : 'Full SSN (optional)',
+          ),
+          keyboardType: TextInputType.number,
+          obscureText: true,
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: _saving ? null : _submitKyc,
+          child: Text(_saving ? 'Submitting…' : 'Submit profile for review'),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
@@ -350,11 +759,65 @@ class EngagementsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: const [
-        SectionHeader('Engagements'),
-        Card(child: ListTile(title: Text('2025 Individual Tax'), subtitle: Text('TAX · Assigned'), trailing: StatusChip(label: 'Active', color: MkgColors.green))),
-        Card(child: ListTile(title: Text('Monthly Bookkeeping',), subtitle: Text('BOOK · Assigned'), trailing: StatusChip(label: 'Active', color: MkgColors.green))),
+      children: [
+        const SectionHeader('Engagements'),
+        Card(
+          child: ListTile(
+            title: const Text('Active tax engagement'),
+            subtitle: const Text('Managed with your assigned preparer'),
+            trailing: const StatusChip(label: 'Active', color: MkgColors.green),
+          ),
+        ),
       ],
     );
   }
+}
+
+class RefundTrackerScreen extends StatelessWidget {
+  const RefundTrackerScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const SectionHeader('Refund tracker'),
+        const Text('Check official IRS and state status (same links as the web portal).'),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.account_balance, color: MkgColors.primary),
+            title: const Text('IRS Where\'s My Refund'),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => launchUrl(
+              Uri.parse('https://www.irs.gov/refunds'),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.map_outlined, color: MkgColors.primary),
+            title: const Text('California FTB refund status'),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => launchUrl(
+              Uri.parse('https://www.ftb.ca.gov/about-ftb/newsroom/news-articles/wheres-my-refund.html'),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
+            title: const Text('Refund advance calculator'),
+            onTap: () => context.go('/financial'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+extension<E> on List<E> {
+  E? get firstOrNull => isEmpty ? null : first;
 }

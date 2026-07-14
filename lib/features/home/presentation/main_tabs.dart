@@ -1,9 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/api/portal_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 
-class FinancialScreen extends StatelessWidget {
+class FinancialScreen extends ConsumerStatefulWidget {
   const FinancialScreen({super.key});
+
+  @override
+  ConsumerState<FinancialScreen> createState() => _FinancialScreenState();
+}
+
+class _FinancialScreenState extends ConsumerState<FinancialScreen> {
+  final _amount = TextEditingController(text: '3000');
+  Map<String, dynamic>? _quote;
+  bool _calculating = false;
+  bool _applying = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _calculate() async {
+    final value = num.tryParse(_amount.text.replaceAll(',', '').trim());
+    if (value == null || value <= 0) {
+      setState(() => _error = 'Enter a valid refund advance amount');
+      return;
+    }
+    setState(() {
+      _calculating = true;
+      _error = null;
+    });
+    try {
+      final quote = await ref.read(portalRepositoryProvider).calculateLoan(value);
+      if (!mounted) return;
+      setState(() {
+        _quote = quote;
+        _calculating = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _calculating = false;
+      });
+    }
+  }
+
+  Future<void> _apply() async {
+    final value = num.tryParse(_amount.text.replaceAll(',', '').trim());
+    if (value == null) return;
+    setState(() => _applying = true);
+    try {
+      await ref.read(portalRepositoryProvider).applyLoan({
+        'amount': value,
+        ...?_quote,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Loan application submitted.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _applying = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +90,7 @@ class FinancialScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Container(
-          height: 160,
+          height: 140,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: const LinearGradient(
@@ -34,32 +104,58 @@ class FinancialScreen extends StatelessWidget {
               Text('Financial services', style: TextStyle(color: Colors.white70)),
               SizedBox(height: 8),
               Text(
-                'Payments, loans & wealth tools',
+                'Refund advances & wealth tools',
                 style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: () => _toast(context, 'Cash App Send/Receive (demo)'),
-                icon: const Icon(Icons.south_west),
-                label: const Text('Send / Receive'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _toast(context, 'Venmo loan payment (demo)'),
-                icon: const Icon(Icons.north_east),
-                label: const Text('Loan Payment'),
-              ),
-            ),
-          ],
+        const SectionHeader('Refund advance calculator'),
+        TextField(
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Desired advance amount',
+            prefixText: '\$ ',
+          ),
         ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _calculating ? null : _calculate,
+          icon: _calculating
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.calculate_outlined),
+          label: Text(_calculating ? 'Calculating…' : 'Calculate'),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: const TextStyle(color: MkgColors.red)),
+        ],
+        if (_quote != null) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quote', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  for (final entry in _quote!.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text('${entry.key}: ${entry.value}'),
+                    ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _applying ? null : _apply,
+                    child: Text(_applying ? 'Submitting…' : 'Apply for advance'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SectionHeader('Products'),
         ...products.map(
           (p) => Card(
@@ -69,18 +165,14 @@ class FinancialScreen extends StatelessWidget {
                 child: Icon(p.$2, color: MkgColors.primary),
               ),
               title: Text(p.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: const Text('Tap to learn more'),
+              subtitle: const Text('Ask your advisor or open web Financials'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _toast(context, '${p.$1} details coming soon'),
+              onTap: () => context.go('/support'),
             ),
           ),
         ),
       ],
     );
-  }
-
-  void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 
@@ -90,24 +182,17 @@ class AccountOverviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final alerts = const [
-      ('IRS Funding Update', 'Reviewed', MkgColors.green),
-      ('E-File Status', 'Accepted', MkgColors.primary),
-      ('Audit Notice', 'None', MkgColors.textGrey),
-      ('State Funding', 'Pending', MkgColors.orange),
-      ('Secure Messages', '2 new', MkgColors.primary),
+      ('IRS Funding Update', 'Check refund tracker', MkgColors.green),
+      ('E-File Status', 'See tax return on dashboard', MkgColors.primary),
+      ('Secure Messages', 'Open Messages', MkgColors.primary),
+      ('Profile / KYC', 'Keep verification current', MkgColors.orange),
     ];
 
     return DefaultTabController(
       length: 2,
       child: Column(
         children: [
-          const TabBar(
-            labelColor: MkgColors.primary,
-            tabs: [
-              Tab(text: 'Notification Center'),
-              Tab(text: 'Account Activity'),
-            ],
-          ),
+          const TabBar(tabs: [Tab(text: 'Alerts'), Tab(text: 'Activity')]),
           Expanded(
             child: TabBarView(
               children: [
@@ -117,9 +202,20 @@ class AccountOverviewScreen extends StatelessWidget {
                     for (final a in alerts)
                       Card(
                         child: ListTile(
-                          leading: const Icon(Icons.notifications_active_outlined, color: MkgColors.primary),
                           title: Text(a.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          trailing: StatusChip(label: a.$2, color: a.$3),
+                          subtitle: Text(a.$2),
+                          trailing: StatusChip(label: 'Live', color: a.$3),
+                          onTap: () {
+                            if (a.$1.contains('Messages')) {
+                              context.go('/messages');
+                            } else if (a.$1.contains('Profile')) {
+                              context.go('/profile');
+                            } else if (a.$1.contains('IRS') || a.$1.contains('E-File')) {
+                              context.go('/refund-tracker');
+                            } else {
+                              context.go('/forms');
+                            }
+                          },
                         ),
                       ),
                   ],
@@ -127,24 +223,8 @@ class AccountOverviewScreen extends StatelessWidget {
                 ListView(
                   padding: const EdgeInsets.all(16),
                   children: const [
-                    Card(
-                      child: ListTile(
-                        title: Text('Profile updated'),
-                        subtitle: Text('Yesterday · Demo activity feed'),
-                      ),
-                    ),
-                    Card(
-                      child: ListTile(
-                        title: Text('Document uploaded'),
-                        subtitle: Text('2 days ago · W-2.pdf'),
-                      ),
-                    ),
-                    Card(
-                      child: ListTile(
-                        title: Text('Form started'),
-                        subtitle: Text('3 days ago · Client Data Sheet'),
-                      ),
-                    ),
+                    Card(child: ListTile(title: Text('Portal sync'), subtitle: Text('Pull to refresh on Dashboard for latest returns'))),
+                    Card(child: ListTile(title: Text('Documents'), subtitle: Text('Upload W-2 / 1099 from Documents tab'))),
                   ],
                 ),
               ],
@@ -164,73 +244,23 @@ class BankingScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const SectionHeader('Banking'),
         Card(
-          color: MkgColors.primary,
-          child: const Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('DDA / Refund account', style: TextStyle(color: Colors.white70)),
-                SizedBox(height: 8),
-                Text('•••• 4281', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
-                SizedBox(height: 8),
-                Text('Bank verification: Pending', style: TextStyle(color: Colors.white)),
-              ],
-            ),
+          child: ListTile(
+            leading: const Icon(Icons.account_balance_outlined, color: MkgColors.primary),
+            title: const Text('Link bank (Plaid)'),
+            subtitle: const Text('Complete on web portal for Plaid Link'),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => context.go('/support'),
           ),
         ),
-        const SectionHeader('Banking details'),
-        const TextField(decoration: InputDecoration(labelText: 'Routing number', prefixIcon: Icon(Icons.tag))),
-        const SizedBox(height: 12),
-        const TextField(decoration: InputDecoration(labelText: 'Account number', prefixIcon: Icon(Icons.credit_card))),
-        const SizedBox(height: 12),
-        const TextField(decoration: InputDecoration(labelText: 'Debit card (optional)', prefixIcon: Icon(Icons.payment))),
-        const SizedBox(height: 16),
-        const SectionHeader('Mobile check deposit'),
-        Row(
-          children: [
-            Expanded(child: _UploadTile(label: 'Front of check', icon: Icons.photo_camera_front_outlined)),
-            const SizedBox(width: 12),
-            Expanded(child: _UploadTile(label: 'Back of check', icon: Icons.photo_camera_back_outlined)),
-          ],
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Demo: banking submit will call Laravel API.')),
-            );
-          },
-          child: const Text('Submit'),
+        const Card(
+          child: ListTile(
+            title: Text('Direct deposit'),
+            subtitle: Text('Routing & account collected during organizer / profile'),
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _UploadTile extends StatelessWidget {
-  const _UploadTile({required this.label, required this.icon});
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: MkgColors.surfaceGrey,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE6EEF5)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: MkgColors.primary, size: 32),
-          const SizedBox(height: 8),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
     );
   }
 }
@@ -240,37 +270,12 @@ class BlogsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final posts = const [
-      ('Tax season checklist for 2025', 'Planning', '5 min read'),
-      ('What documents should I upload?', 'Documents', '3 min read'),
-      ('Understanding your refund timeline', 'Refunds', '4 min read'),
-    ];
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const SectionHeader('Latest News'),
-        for (final p in posts)
-          Card(
-            child: ListTile(
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: MkgColors.lightPrimary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.article, color: MkgColors.primary),
-              ),
-              title: Text(p.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('${p.$2} · ${p.$3}'),
-              trailing: const Icon(Icons.bookmark_border),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening “${p.$1}” (demo)')),
-                );
-              },
-            ),
-          ),
+      children: const [
+        SectionHeader('Learn'),
+        Card(child: ListTile(title: Text('Tax filing tips'), subtitle: Text('See video tutorials on the web portal'))),
+        Card(child: ListTile(title: Text('Document checklist'), subtitle: Text('W-2, 1099, ID, prior year return'))),
       ],
     );
   }

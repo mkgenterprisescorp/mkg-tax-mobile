@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -13,6 +14,14 @@ class PortalUser {
     this.role,
     this.kycStatus,
     this.approvalStatus,
+    this.address,
+    this.city,
+    this.state,
+    this.zipCode,
+    this.last4ssn,
+    this.createdAt,
+    this.enochAcknowledged,
+    this.tutorialWatched,
   });
 
   final dynamic id;
@@ -23,6 +32,14 @@ class PortalUser {
   final String? role;
   final String? kycStatus;
   final String? approvalStatus;
+  final String? address;
+  final String? city;
+  final String? state;
+  final String? zipCode;
+  final String? last4ssn;
+  final String? createdAt;
+  final bool? enochAcknowledged;
+  final bool? tutorialWatched;
 
   String get displayName {
     final name = '$firstName $lastName'.trim();
@@ -39,6 +56,14 @@ class PortalUser {
       role: json['role']?.toString(),
       kycStatus: json['kycStatus']?.toString(),
       approvalStatus: json['approvalStatus']?.toString(),
+      address: json['address']?.toString(),
+      city: json['city']?.toString(),
+      state: json['state']?.toString(),
+      zipCode: json['zipCode']?.toString(),
+      last4ssn: json['last4ssn']?.toString(),
+      createdAt: json['createdAt']?.toString(),
+      enochAcknowledged: json['enochAcknowledged'] as bool?,
+      tutorialWatched: json['tutorialWatched'] as bool?,
     );
   }
 }
@@ -136,7 +161,22 @@ class AuthRepository {
     if (res.statusCode == 200) return Map<String, dynamic>.from(data);
     throw AuthException((data['message'] ?? 'Profile update failed').toString());
   }
+
+  Future<PortalUser> refreshUser() async {
+    final user = await currentUser();
+    if (user == null) throw AuthException('Not authenticated');
+    return user;
+  }
 }
+
+/// Lets [GoRouter] rebuild redirects when auth state changes.
+class AuthRouterRefresh extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
+final authRouterRefreshProvider = Provider<AuthRouterRefresh>((ref) {
+  return AuthRouterRefresh();
+});
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(ref.watch(apiClientProvider));
@@ -165,6 +205,10 @@ class AuthNotifier extends Notifier<AuthState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
+  void _pingRouter() {
+    ref.read(authRouterRefreshProvider).ping();
+  }
+
   Future<void> restoreSession() async {
     state = state.copyWith(loading: true, error: null);
     try {
@@ -173,6 +217,7 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (_) {
       state = const AuthState(loading: false);
     }
+    _pingRouter();
   }
 
   Future<bool> login(String email, String password) async {
@@ -180,12 +225,15 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final user = await _repo.login(email: email, password: password);
       state = AuthState(user: user, loading: false);
+      _pingRouter();
       return true;
     } on AuthException catch (e) {
       state = AuthState(loading: false, error: e.message);
+      _pingRouter();
       return false;
     } catch (e) {
       state = AuthState(loading: false, error: e.toString());
+      _pingRouter();
       return false;
     }
   }
@@ -209,19 +257,28 @@ class AuthNotifier extends Notifier<AuthState> {
         referralCode: referralCode,
       );
       state = AuthState(user: user, loading: false);
+      _pingRouter();
       return true;
     } on AuthException catch (e) {
       state = AuthState(loading: false, error: e.message);
+      _pingRouter();
       return false;
     } catch (e) {
       state = AuthState(loading: false, error: e.toString());
+      _pingRouter();
       return false;
     }
+  }
+
+  Future<void> setUser(PortalUser user) async {
+    state = AuthState(user: user, loading: false);
+    _pingRouter();
   }
 
   Future<void> logout() async {
     await _repo.logout();
     state = const AuthState();
+    _pingRouter();
   }
 }
 

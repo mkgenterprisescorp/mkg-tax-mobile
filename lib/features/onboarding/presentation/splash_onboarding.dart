@@ -1,22 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/mkg_theme.dart';
+import '../../auth/data/auth_repository.dart';
 
 /// Figma `splashes` / onboarding-welcome entry.
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 1600), () {
-      if (mounted) context.go('/onboarding');
-    });
+    Future<void>.delayed(const Duration(milliseconds: 900), _navigate);
+  }
+
+  void _navigate() {
+    if (!mounted) return;
+    final auth = ref.read(authProvider);
+    if (auth.loading) {
+      Future<void>.delayed(const Duration(milliseconds: 400), _navigate);
+      return;
+    }
+    if (auth.isAuthenticated) {
+      context.go('/forms');
+    } else {
+      context.go('/onboarding');
+    }
   }
 
   @override
