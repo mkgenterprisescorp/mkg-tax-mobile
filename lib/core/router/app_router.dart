@@ -9,12 +9,15 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/clients/presentation/my_clients_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
+import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
 import '../../features/iero/presentation/iero_extraction_screen.dart';
 import '../../features/more/presentation/feature_screens.dart';
+import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
 import '../../features/returns/presentation/all_returns_screen.dart';
+import '../../features/returns/presentation/tax_returns_workspace_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../auth/app_roles.dart';
 
@@ -44,17 +47,16 @@ GoRouter createRouter({
       }
 
       if (loc == '/splash' || loc == '/onboarding' || loc == '/login' || loc == '/register') {
-        return '/forms';
+        return '/home';
       }
 
-      // Legacy chat removed — Tessa AI is the only chat surface.
+      if (loc == '/forms' || loc == '/dashboard') return '/home';
       if (loc == '/messages' || loc == '/chat') return '/tessa';
 
-      // Professional-only tools: send consumers home.
       final role = auth.user?.role;
       final caps = capabilitiesFor(role);
       if (caps.isConsumer && (loc == '/my-clients' || loc == '/iero')) {
-        return '/forms';
+        return '/home';
       }
 
       final user = auth.user;
@@ -62,13 +64,16 @@ GoRouter createRouter({
         final kycIncomplete = (user.kycStatus ?? 'incomplete') == 'incomplete';
         final pendingApproval =
             user.approvalStatus == 'pending' && user.kycStatus == 'submitted';
-        final allowedWhilePending = loc == '/profile' || loc == '/forms' || loc == '/dashboard';
+        final allowedWhilePending =
+            loc == '/profile' || loc == '/home' || loc == '/forms' || loc == '/dashboard' || loc == '/more';
         if (pendingApproval && !allowedWhilePending) {
           return '/profile';
         }
         final created = user.createdAt != null ? DateTime.tryParse(user.createdAt!) : null;
         final isNew = created != null && !created.isBefore(DateTime.utc(2026, 2, 22));
-        if (isNew && kycIncomplete && !(loc == '/profile' || loc == '/forms' || loc == '/dashboard')) {
+        if (isNew &&
+            kycIncomplete &&
+            !(loc == '/profile' || loc == '/home' || loc == '/forms' || loc == '/dashboard' || loc == '/more')) {
           return '/profile';
         }
       }
@@ -84,8 +89,10 @@ GoRouter createRouter({
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
+          GoRoute(path: '/home', builder: (context, state) => const HomeDashboardScreen()),
           GoRoute(path: '/forms', builder: (context, state) => const FormsListScreen()),
-          GoRoute(path: '/dashboard', redirect: (context, state) => '/forms'),
+          GoRoute(path: '/dashboard', redirect: (context, state) => '/home'),
+          GoRoute(path: '/returns', builder: (context, state) => const TaxReturnsWorkspaceScreen()),
           GoRoute(path: '/financial', builder: (context, state) => const FinancialScreen()),
           GoRoute(path: '/financials', redirect: (context, state) => '/financial'),
           GoRoute(path: '/account', builder: (context, state) => const AccountOverviewScreen()),
@@ -109,6 +116,7 @@ GoRouter createRouter({
           GoRoute(path: '/all-returns', builder: (context, state) => const AllReturnsScreen()),
           GoRoute(path: '/my-clients', builder: (context, state) => const MyClientsScreen()),
           GoRoute(path: '/iero', builder: (context, state) => const IeroExtractionScreen()),
+          GoRoute(path: '/more', builder: (context, state) => const MoreHubScreen()),
         ],
       ),
     ],

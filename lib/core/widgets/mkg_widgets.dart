@@ -142,3 +142,20 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
+
+class MkgCard extends StatelessWidget {
+  const MkgCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+}

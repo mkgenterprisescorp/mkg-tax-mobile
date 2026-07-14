@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
+import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 
@@ -105,7 +107,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Saved to financemkgtaxpro tax return.')),
           );
-          context.go('/forms');
+          context.go('/home');
           return;
         }
       }
@@ -123,47 +125,61 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    final tax = ref.watch(taxYearProvider);
+    final year = tax.selectedYear ?? tax.currentFilingYear;
+    return Column(
       children: [
-        LinearProgressIndicator(
-          value: (_step + 1) / _titles.length,
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        const SizedBox(height: 8),
-        Text('Step ${_step + 1} of ${_titles.length} · ${_titles[_step]}',
-            style: const TextStyle(color: MkgColors.textGrey, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 16),
-        ..._buildStep(),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            if (_step > 0)
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _saving ? null : () => setState(() => _step--),
-                  child: const Text('BACK'),
-                ),
+        const TaxYearSelectorBar(dense: true),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                'Tax year ${year ?? '—'} · Organizer ${tax.workspace?.organizerCompletionPercentage ?? 0}%',
+                style: const TextStyle(color: MkgColors.textGrey, fontWeight: FontWeight.w600),
               ),
-            if (_step > 0) const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _saving
-                    ? null
-                    : () {
-                        if (_step < _titles.length - 1) {
-                          setState(() => _step++);
-                        } else {
-                          _submit();
-                        }
-                      },
-                child: _saving
-                    ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(_step < _titles.length - 1 ? 'NEXT' : 'SUBMIT'),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: (_step + 1) / _titles.length,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text('Step ${_step + 1} of ${_titles.length} · ${_titles[_step]}',
+                  style: const TextStyle(color: MkgColors.textGrey, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+              ..._buildStep(),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  if (_step > 0)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _saving ? null : () => setState(() => _step--),
+                        child: const Text('BACK'),
+                      ),
+                    ),
+                  if (_step > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving
+                          ? null
+                          : () {
+                              if (_step < _titles.length - 1) {
+                                setState(() => _step++);
+                              } else {
+                                _submit();
+                              }
+                            },
+                      child: _saving
+                          ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(_step < _titles.length - 1 ? 'NEXT' : 'SUBMIT'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );

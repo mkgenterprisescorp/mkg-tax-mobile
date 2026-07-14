@@ -6,60 +6,57 @@ import '../../core/auth/app_roles.dart';
 import '../../core/theme/mkg_theme.dart';
 import '../auth/data/auth_repository.dart';
 
+/// Final recommended IA:
+/// Home | Tax Returns | Organizer | Documents | TESSA | More
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
-  static const _consumerTabs = <({String path, String label, IconData icon})>[
-    (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
+  static const tabs = <({String path, String label, IconData icon})>[
+    (path: '/home', label: 'Home', icon: Icons.home_outlined),
+    (path: '/returns', label: 'Returns', icon: Icons.description_outlined),
     (path: '/organizer', label: 'Organizer', icon: Icons.assignment_outlined),
-    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
-    (path: '/financial', label: 'Money', icon: Icons.payments_outlined),
-    (path: '/profile', label: 'Profile', icon: Icons.person_outline),
+    (path: '/documents', label: 'Documents', icon: Icons.folder_outlined),
+    (path: '/tessa', label: 'TESSA', icon: Icons.smart_toy_outlined),
+    (path: '/more', label: 'More', icon: Icons.menu_outlined),
   ];
 
-  static const _professionalTabs = <({String path, String label, IconData icon})>[
-    (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
-    (path: '/my-clients', label: 'Clients', icon: Icons.groups_outlined),
-    (path: '/all-returns', label: 'Returns', icon: Icons.description_outlined),
-    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
-    (path: '/profile', label: 'Profile', icon: Icons.person_outline),
-  ];
-
-  int _indexFor(List<({String path, String label, IconData icon})> tabs, String location) {
+  int _indexFor(String location) {
     for (var i = 0; i < tabs.length; i++) {
-      if (location.startsWith(tabs[i].path)) return i;
+      if (location == tabs[i].path || location.startsWith('${tabs[i].path}/')) return i;
+    }
+    // Legacy aliases map into primary tabs.
+    if (location.startsWith('/forms') || location.startsWith('/dashboard')) return 0;
+    if (location.startsWith('/all-returns')) return 1;
+    if (location.startsWith('/profile') ||
+        location.startsWith('/financial') ||
+        location.startsWith('/billing') ||
+        location.startsWith('/my-clients') ||
+        location.startsWith('/iero')) {
+      return 5;
     }
     return 0;
   }
 
   String _titleFor(String location, RoleCapabilities caps) {
-    if (location.startsWith('/my-clients')) return 'MY CLIENTS';
-    if (location.startsWith('/all-returns')) {
-      return caps.isProfessional ? 'ALL TAX RETURNS' : 'MY TAX RETURNS';
-    }
-    if (location.startsWith('/iero')) return 'IRS iERO';
+    if (location.startsWith('/returns') || location.startsWith('/all-returns')) return 'TAX RETURNS';
+    if (location.startsWith('/organizer')) return 'TAX ORGANIZER';
     if (location.startsWith('/documents')) return 'DOCUMENTS';
-    if (location.startsWith('/tessa') || location.startsWith('/ai-assistant') || location.startsWith('/messages') || location.startsWith('/chat')) {
+    if (location.startsWith('/tessa') || location.startsWith('/ai-assistant') || location.startsWith('/messages')) {
       return 'TESSA AI';
     }
+    if (location.startsWith('/more')) return 'MORE';
+    if (location.startsWith('/my-clients')) return 'MY CLIENTS';
+    if (location.startsWith('/iero')) return 'IRS iERO';
     if (location.startsWith('/billing') || location.startsWith('/payments')) return 'PAYMENTS';
     if (location.startsWith('/bookkeeping')) return 'BOOKKEEPING';
-    if (location.startsWith('/organizer')) return 'TAX ORGANIZER';
     if (location.startsWith('/profile')) return 'PROFILE';
     if (location.startsWith('/support')) return 'SUPPORT';
     if (location.startsWith('/tools')) return 'TAX TOOLS';
     if (location.startsWith('/financial')) return 'FINANCIALS';
-    if (location.startsWith('/account')) return 'ACCOUNT';
-    if (location.startsWith('/banking')) return 'BANKING';
-    if (location.startsWith('/blogs')) return 'LEARN';
     if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
-    return caps.isProfessional ? 'PRO DASHBOARD' : 'DASHBOARD';
-  }
-
-  bool _hideAskAiFab(String location) {
-    return location.startsWith('/tessa') || location.startsWith('/ai-assistant');
+    return caps.isProfessional ? 'PRO HOME' : 'HOME';
   }
 
   @override
@@ -67,8 +64,7 @@ class AppShell extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.toString();
     final user = ref.watch(authProvider).user;
     final caps = capabilitiesFor(user?.role);
-    final tabs = caps.isProfessional ? _professionalTabs : _consumerTabs;
-    final index = _indexFor(tabs, location);
+    final index = _indexFor(location);
 
     return Scaffold(
       drawer: _AppDrawer(
@@ -90,7 +86,7 @@ class AppShell extends ConsumerWidget {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 4),
+            padding: const EdgeInsets.only(right: 8),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -105,35 +101,64 @@ class AppShell extends ConsumerWidget {
               ),
             ),
           ),
-          IconButton(
-            tooltip: 'Tessa AI',
-            onPressed: () => context.go('/tessa'),
-            icon: const Icon(Icons.smart_toy_outlined),
-          ),
-          IconButton(
-            tooltip: 'Profile',
-            onPressed: () => context.go('/profile'),
-            icon: const Icon(Icons.account_circle_outlined),
-          ),
         ],
       ),
       body: child,
-      floatingActionButton: _hideAskAiFab(location)
+      floatingActionButton: location.startsWith('/tessa')
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () => context.go('/tessa'),
+          : FloatingActionButton(
+              onPressed: () => _showQuickActions(context, caps),
               backgroundColor: MkgColors.primary,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.smart_toy_outlined),
-              label: const Text('Ask AI'),
+              child: const Icon(Icons.add),
             ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
+        selectedIndex: index.clamp(0, tabs.length - 1),
         onDestinationSelected: (i) => context.go(tabs[i].path),
         destinations: [
           for (final tab in tabs) NavigationDestination(icon: Icon(tab.icon), label: tab.label),
         ],
       ),
+    );
+  }
+
+  void _showQuickActions(BuildContext context, RoleCapabilities caps) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        Widget tile(IconData icon, String label, String path) {
+          return ListTile(
+            leading: Icon(icon, color: MkgColors.primary),
+            title: Text(label),
+            minVerticalPadding: 16,
+            onTap: () {
+              Navigator.pop(ctx);
+              context.go(path);
+            },
+          );
+        }
+
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              ),
+              tile(Icons.upload_file_outlined, 'Upload Document', '/documents'),
+              tile(Icons.document_scanner_outlined, 'Scan Receipt', '/documents'),
+              tile(Icons.smart_toy_outlined, 'Ask TESSA', '/tessa'),
+              tile(Icons.assignment_outlined, 'Start Tax Organizer', '/organizer'),
+              tile(Icons.description_outlined, 'Continue Tax Return', '/returns'),
+              tile(Icons.history_edu_outlined, 'File a Prior Year', '/returns'),
+              tile(Icons.event_outlined, 'Schedule Appointment', '/more'),
+              tile(Icons.home_work_outlined, 'Apply for Mortgage', '/financial'),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -186,21 +211,19 @@ class _AppDrawer extends ConsumerWidget {
                 ],
               ),
             ),
-            item(Icons.dashboard_outlined, 'Dashboard', '/forms'),
-            if (caps.canManageClients) item(Icons.groups_outlined, 'My Clients', '/my-clients'),
-            if (caps.canManageAllReturns) item(Icons.description_outlined, 'All Tax Returns', '/all-returns'),
-            if (caps.isConsumer) item(Icons.description_outlined, 'My Tax Returns', '/all-returns'),
+            item(Icons.home_outlined, 'Home', '/home'),
+            item(Icons.description_outlined, 'Tax Returns', '/returns'),
             item(Icons.assignment_outlined, 'Tax Organizer', '/organizer'),
             item(Icons.folder_outlined, 'Documents', '/documents'),
+            item(Icons.smart_toy_outlined, 'TESSA AI', '/tessa'),
+            item(Icons.menu_outlined, 'More', '/more'),
+            const Divider(),
+            if (caps.canManageClients) item(Icons.groups_outlined, 'My Clients', '/my-clients'),
             if (caps.canUseIeroTools) item(Icons.travel_explore_outlined, 'IRS iERO Extraction', '/iero'),
             item(Icons.payments_outlined, 'Financials', '/financial'),
             item(Icons.receipt_long_outlined, 'Payments', '/billing'),
-            item(Icons.smart_toy_outlined, 'Tessa AI', '/tessa'),
-            item(Icons.track_changes_outlined, 'Refund Tracker', '/refund-tracker'),
-            item(Icons.menu_book_outlined, 'Bookkeeping', '/bookkeeping'),
-            item(Icons.build_outlined, 'Tax Tools', '/tools'),
-            item(Icons.support_agent_outlined, 'Support', '/support'),
             item(Icons.person_outline, 'Profile / KYC', '/profile'),
+            item(Icons.support_agent_outlined, 'Support', '/support'),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: MkgColors.red),

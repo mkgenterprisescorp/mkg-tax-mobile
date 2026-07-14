@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
+import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -100,74 +102,88 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          FilledButton.icon(
-            onPressed: _uploading ? null : _pickAndUpload,
-            icon: _uploading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.upload_file),
-            label: Text(_uploading ? 'Uploading…' : 'Upload or scan document'),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'PDF, PNG, JPG up to 15MB · mirrors web Document Center',
-            style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
-          ),
-          const SectionHeader('My documents'),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_error != null)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.error_outline, color: MkgColors.red),
-                title: Text(_error!),
-                trailing: TextButton(onPressed: _load, child: const Text('Retry')),
-              ),
-            )
-          else if (_docs.isEmpty)
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.folder_open_outlined),
-                title: Text('No documents yet'),
-                subtitle: Text('Upload W-2s, 1099s, ID, and prior returns.'),
-              ),
-            )
-          else
-            for (final d in _docs)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    (d['type']?.toString().toLowerCase().contains('w2') ?? false)
-                        ? Icons.picture_as_pdf
-                        : Icons.description_outlined,
-                    color: MkgColors.primary,
-                  ),
-                  title: Text(
-                    (d['originalName'] ?? d['filename'] ?? d['name'] ?? 'Document').toString(),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text('Type: ${(d['type'] ?? 'other')} · ID ${(d['id'] ?? '—')}'),
-                  trailing: IconButton(
-                    tooltip: 'Secure download (OTP on web)',
-                    onPressed: () async {
-                      final id = d['id'];
-                      if (id == null) return;
-                      final uri = Uri.parse('https://financemkgtax.com/api/documents/$id/secure-download');
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    },
-                    icon: const Icon(Icons.download_outlined),
-                  ),
+    final tax = ref.watch(taxYearProvider);
+    final year = tax.selectedYear ?? tax.currentFilingYear;
+    return Column(
+      children: [
+        const TaxYearSelectorBar(dense: true),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  'Documents for tax year ${year ?? '—'} · confirm year before assigning uploads.',
+                  style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
                 ),
-              ),
-        ],
-      ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _uploading ? null : _pickAndUpload,
+                  icon: _uploading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.upload_file),
+                  label: Text(_uploading ? 'Uploading…' : 'Upload or scan document'),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'PDF, PNG, JPG up to 15MB · mirrors web Document Center',
+                  style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                ),
+                const SectionHeader('My documents'),
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_error != null)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.error_outline, color: MkgColors.red),
+                      title: Text(_error!),
+                      trailing: TextButton(onPressed: _load, child: const Text('Retry')),
+                    ),
+                  )
+                else if (_docs.isEmpty)
+                  const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.folder_open_outlined),
+                      title: Text('No documents yet'),
+                      subtitle: Text('Upload W-2s, 1099s, ID, and prior returns.'),
+                    ),
+                  )
+                else
+                  for (final d in _docs)
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          (d['type']?.toString().toLowerCase().contains('w2') ?? false)
+                              ? Icons.picture_as_pdf
+                              : Icons.description_outlined,
+                          color: MkgColors.primary,
+                        ),
+                        title: Text(
+                          (d['originalName'] ?? d['filename'] ?? d['name'] ?? 'Document').toString(),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text('Type: ${(d['type'] ?? 'other')} · ID ${(d['id'] ?? '—')}'),
+                        trailing: IconButton(
+                          tooltip: 'Secure download (OTP on web)',
+                          onPressed: () async {
+                            final id = d['id'];
+                            if (id == null) return;
+                            final uri = Uri.parse('https://financemkgtax.com/api/documents/$id/secure-download');
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          },
+                          icon: const Icon(Icons.download_outlined),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

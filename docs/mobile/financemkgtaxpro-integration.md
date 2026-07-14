@@ -10,35 +10,33 @@
 ## Dual edition (one binary)
 | Edition | Portal roles | Primary mobile surfaces |
 |---------|--------------|-------------------------|
-| **Consumer** | `client` | Organizer, documents, financials, payments, KYC, Tessa AI |
-| **Professional** | preparer / EA / CPA / admin / manager / ERO staff, etc. | My Clients, All Tax Returns, iERO, lock controls, Tessa AI |
+| **Consumer** | `client` | Home, Tax Returns, Organizer, Documents, TESSA, More |
+| **Professional** | preparer / EA / CPA / admin / manager / ERO staff, etc. | Same 6 tabs; Clients / iERO under **More** |
 
-Edition is derived from `user.role` after cookie login (`lib/core/auth/app_roles.dart`). Bottom nav, drawer, and dashboard tiles switch automatically.
+Edition is derived from `user.role` after cookie login (`lib/core/auth/app_roles.dart`). Bottom nav is unified; professional tools live in More + drawer.
 
-## Auth model
-Web uses **cookie sessions** (`credentials: "include"`), not Bearer tokens.
+## Auth + API boundary
+Web portal still uses **cookie sessions** on `API_BASE_URL` (default `https://financemkgtax.com`).
+Tax-year workspace APIs are on **Laravel** (`LARAVEL_API_BASE_URL`) at `/api/mobile/tax-years/*`.
+**Flutter never connects to Neon.** See `docs/mobile/tax-year-workspace.md`.
+
 Flutter must:
-1. Point Dio at `https://financemkgtax.com`
+1. Point Dio portal client at `https://financemkgtax.com` (transitional)
 2. Persist cookies with `cookie_jar` + `dio_cookie_manager`
-3. Call `POST /api/login` / `POST /api/register` / `GET /api/auth/user` / `POST /api/logout`
+3. Call Laravel for tax-year catalog / workspace when configured
 4. Honor soft KYC / pending-approval redirects (same cutoff as web: users created on/after 2026-02-22)
 
 ## Client flows wired (MVP parity)
-| Web route | Mobile route | API |
+| Web / product surface | Mobile route | API |
 |-----------|--------------|-----|
+| Home dashboard | `/home` | Laravel tax-year + portal status |
+| Tax Returns workspace | `/returns` | `/api/mobile/tax-years/{year}/*` |
 | `/login`, `/register` | `/login`, `/register` | `/api/login`, `/api/register` |
 | Forgot password | `/forgot-password` | `POST /api/forgot-password` → code → `POST /api/reset-password` |
-| `/dashboard` | `/forms` | `/api/tax-returns`, `/api/user/verification-status` |
-| `/organizer` | `/organizer` | `/api/tax-returns/current`, `PUT /api/tax-returns/:id` |
-| `/documents` | `/documents` | `GET /api/tax-returns/:id/documents`, `POST /api/documents/upload` |
-| `/profile` | `/profile` | `POST /api/user/kyc-submit`, `POST /api/user/ssn` |
-| `/ai-assistant` | `/tessa` | `/api/conversations` (+ SSE) — **Tessa AI replaces legacy chat** |
-| `/chat` | redirects → `/tessa` | Legacy human chat UI removed from mobile |
-| `/all-returns` | `/all-returns` | `/api/tax-returns/all` (+ lock via `/api/tax-returns/:id/toggle-lock`) |
-| iERO extraction | `/iero` | `/api/bureau/ero-efin`, `/api/bureau/preparers` + chain filters |
-| `/payments` | `/billing` | `/api/invoicing/invoices` |
-| `/financials` | `/financial` | `/api/loans/calculate`, `/api/loans/apply` |
-| `/refund-tracker` | `/refund-tracker` | External IRS/FTB links |
+| Organizer | `/organizer` | Laravel organizer + portal Schedule A slice |
+| Documents | `/documents` | Year-scoped UI + portal upload |
+| TESSA | `/tessa` | `/api/conversations` (+ SSE) |
+| More hub | `/more` | Profile, billing, pro tools, support |
 
 ## Branding
 - Primary green `#1A5632`, accent gold `#C9A84C`
