@@ -21,7 +21,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('MKG Tax Consultants'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
-    expect(Theme.of(tester.element(find.text('Log In'))).colorScheme.primary, const Color(0xFF007AFF));
+    expect(Theme.of(tester.element(find.text('Log In'))).colorScheme.primary, const Color(0xFF1A5632));
   });
 
   testWidgets('router starts at splash', (tester) async {

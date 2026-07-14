@@ -52,7 +52,17 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       drawer: _AppDrawer(userName: user?.displayName ?? 'Client', userEmail: user?.email ?? ''),
       appBar: AppBar(
-        title: Text(_titleFor(location)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset('assets/brand/mkg_tax_logo.png', width: 28, height: 28, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 8),
+            Flexible(child: Text(_titleFor(location), overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Messages',

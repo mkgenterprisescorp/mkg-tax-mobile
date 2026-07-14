@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="mkg_tax_mobile"
+        android:label="MKG Tax"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

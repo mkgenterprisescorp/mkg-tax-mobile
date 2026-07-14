@@ -27,7 +27,15 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance, size: 72, color: Colors.white),
+            ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(22)),
+              child: Image(
+                image: AssetImage('assets/brand/mkg_tax_logo.png'),
+                width: 96,
+                height: 96,
+                fit: BoxFit.cover,
+              ),
+            ),
             SizedBox(height: 16),
             Text(
               'MKG Tax Consultants',
@@ -97,7 +105,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             color: MkgColors.lightPrimary,
                             borderRadius: BorderRadius.circular(28),
                           ),
-                          child: Icon(p.$1, size: 56, color: MkgColors.primary),
+                          clipBehavior: Clip.antiAlias,
+                          child: i == 0
+                              ? Image.asset('assets/brand/mkg_tax_logo.png', fit: BoxFit.cover)
+                              : Icon(p.$1, size: 56, color: MkgColors.primary),
                         ),
                         const SizedBox(height: 28),
                         Text(p.$2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),

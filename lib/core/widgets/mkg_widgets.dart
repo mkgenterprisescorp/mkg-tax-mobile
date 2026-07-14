@@ -27,17 +27,13 @@ class AuthScaffold extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(
-                        Icons.account_balance,
-                        size: 40,
-                        color: MkgColors.primary,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.asset(
+                        'assets/brand/mkg_tax_logo.png',
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(height: 16),

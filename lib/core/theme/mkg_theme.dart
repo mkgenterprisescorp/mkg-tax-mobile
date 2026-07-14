@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Tokens from Figma `tax-filling-app-v2` (file 7qoVoDkkHlANDeXChDESSK).
-/// Primary action/header blue sampled as #007AFF.
+/// MKG Tax brand — green / gold / white (financemkgtax.com favicon + portal).
 abstract final class MkgColors {
-  static const Color primary = Color(0xFF007AFF);
-  static const Color primaryDark = Color(0xFF0056B3);
-  static const Color accent = Color(0xFFFFAE50);
-  static const Color dark = Color(0xFF111827);
-  static const Color textGrey = Color(0xFF6B7280);
-  static const Color grey = Color(0xFFB8B8B8);
-  static const Color lightPrimary = Color(0x1A007AFF);
+  static const Color primary = Color(0xFF1A5632);
+  static const Color primaryDark = Color(0xFF0D3B1F);
+  static const Color accent = Color(0xFFC9A84C);
+  static const Color dark = Color(0xFF122018);
+  static const Color textGrey = Color(0xFF5C6B63);
+  static const Color grey = Color(0xFFB8C0BA);
+  static const Color lightPrimary = Color(0x1A1A5632);
   static const Color bottomInactive = Color(0xFF707070);
-  static const Color surfaceGrey = Color(0xFFF5F7FA);
+  static const Color surfaceGrey = Color(0xFFF3F7F4);
   static const Color green = Color(0xFF16A34A);
   static const Color red = Color(0xFFDC2626);
-  static const Color orange = Color(0xFFFFAE50);
+  static const Color orange = Color(0xFFC9A84C);
 }
 
 ThemeData buildMkgTheme() {
@@ -90,7 +89,7 @@ ThemeData buildMkgTheme() {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: const BorderSide(color: Color(0xFFE2EDE6)),
       ),
     ),
   );
