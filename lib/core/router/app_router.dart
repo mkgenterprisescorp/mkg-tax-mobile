@@ -18,6 +18,10 @@ import '../../features/more/presentation/feature_screens.dart';
 import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
+import '../../features/refund_advance/presentation/loan_estimate_screen.dart';
+import '../../features/refund_advance/presentation/refund_advance_hub_screen.dart';
+import '../../features/refund_advance/presentation/refund_advance_info_screens.dart';
+import '../../features/refund_advance/presentation/tila_disclosure_screen.dart';
 import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/returns/presentation/tax_returns_workspace_screen.dart';
 import '../../features/shell/app_shell.dart';
@@ -111,8 +115,13 @@ GoRouter createRouter({
           GoRoute(path: '/forms', builder: (context, state) => const FormsListScreen()),
           GoRoute(path: '/dashboard', redirect: (context, state) => '/home'),
           GoRoute(path: '/returns', builder: (context, state) => const TaxReturnsWorkspaceScreen()),
-          GoRoute(path: '/financial', builder: (context, state) => const FinancialScreen()),
-          GoRoute(path: '/financials', redirect: (context, state) => '/financial'),
+          GoRoute(path: '/financial', builder: (context, state) => const RefundAdvanceHubScreen()),
+          GoRoute(path: '/financials', redirect: (context, state) => '/refund-advance'),
+          GoRoute(path: '/refund-advance', builder: (context, state) => const RefundAdvanceHubScreen()),
+          GoRoute(path: '/refund-advance/overview', builder: (context, state) => const RefundAdvanceOverviewScreen()),
+          GoRoute(path: '/refund-advance/loan-estimate', builder: (context, state) => const LoanEstimateScreen()),
+          GoRoute(path: '/refund-advance/tila', builder: (context, state) => const TilaDisclosureScreen()),
+          GoRoute(path: '/refund-advance/guarantee', builder: (context, state) => const WrittenGuaranteeScreen()),
           GoRoute(path: '/account', builder: (context, state) => const AccountOverviewScreen()),
           GoRoute(path: '/banking', builder: (context, state) => const BankingScreen()),
           GoRoute(path: '/blogs', builder: (context, state) => const BlogsScreen()),

@@ -3,9 +3,19 @@
 ## Cursor Cloud specific instructions
 
 ### Product topology
-- Flutter app (`mkg-tax-mobile`) is the mobile SoT for iOS/Android.
+- **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
 - One Laravel API (`api.financemkgtax.com` → `/api/v1`) backs web + mobile; transitional web host is `financemkgtax.com`.
 - Until `api.financemkgtax.com` DNS is live, device builds may point `API_BASE_URL` at `https://financemkgtax.com` (cookie/session auth). Sanctum bearer path activates when `API_BASE_URL` contains `/api/v1`.
+
+### Brand assets
+- Official mark: **circular MKG Tax Consultants seal** (Fast Refunds 8–21 days / Accurate / Secure / Year-Round Support) at `assets/brand/mkg_tax_logo.png`.
+- Use `BoxFit.contain` on a white plate over green chrome for splash/auth/app bar.
+
+### Tax Refund Advances (Flutter)
+- Hub: `/refund-advance` (also `/financial`).
+- Walkthrough icons: Overview → **Loan Estimate** (0% \$250/\$500/\$1k; **36% APR** at 25/50/75%) → **TILA** → apply.
+- APIs: `POST /api/loans/calculate`, `POST /api/loans/apply` (web parity: `financemkgtaxpro` `Financials.tsx`, Pathward N.A.).
+- Written Guarantee: `/refund-advance/guarantee`.
 
 ### Tax Organizer (web parity)
 - Mobile `/organizer` opens an **icon hub** of sections first; tap a tile to walk through that section, then return to the hub.
@@ -15,9 +25,6 @@
 - Schedule E in organizer uses `scheduleE.rentalProperties[]` (web Organizer shape). Standalone web `/schedule-e` uses `properties[]` — merge carefully.
 - Save: `PUT /api/tax-returns/:id` with `{ year, status, filingStatus, data }` after deep-merge load.
 - Tax Center also uses a 2-column icon grid for the main sections to complete.
-
-### Brand assets
-- Splash/auth logo is the MKG Insurance Agency & Tax Consultants lockup from web `11zon_cropped_(1)_…` (replaces the old solid green MKG/TAX tile). Use `BoxFit.contain` on a white plate over the green chrome.
 
 ### Commands
 - Analyze: `flutter analyze`

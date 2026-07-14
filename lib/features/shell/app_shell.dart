@@ -35,6 +35,7 @@ class AppShell extends ConsumerWidget {
       return 1;
     }
     if (location.startsWith('/financial') ||
+        location.startsWith('/refund-advance') ||
         location.startsWith('/bookkeeping') ||
         location.startsWith('/billing') ||
         location.startsWith('/payments')) {
@@ -72,7 +73,9 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/profile')) return 'PROFILE';
     if (location.startsWith('/support')) return 'SUPPORT';
     if (location.startsWith('/tools')) return 'TAX TOOLS';
-    if (location.startsWith('/financial')) return 'FINANCIAL PLANNING';
+    if (location.startsWith('/financial') || location.startsWith('/refund-advance')) {
+      return 'REFUND ADVANCE';
+    }
     if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
     return caps.isProfessional ? 'PRO HOME' : 'HOME';
   }

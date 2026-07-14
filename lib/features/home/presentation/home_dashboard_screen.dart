@@ -136,9 +136,9 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _QuickIcon(
-                      icon: Icons.description_outlined,
-                      label: 'Returns',
-                      onTap: () => context.go('/returns'),
+                      icon: Icons.payments_outlined,
+                      label: 'Advance',
+                      onTap: () => context.go('/refund-advance'),
                     ),
                   ),
                   const SizedBox(width: 10),

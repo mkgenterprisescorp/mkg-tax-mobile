@@ -48,20 +48,20 @@ class TaxCenterScreen extends ConsumerWidget {
         done: (ws?.documentsCount ?? 0) > 0,
       ),
       _TaxSection(
+        title: 'Refund Advance',
+        cue: 'Loan Estimate · TILA · 36% APR',
+        icon: Icons.payments_outlined,
+        path: '/refund-advance',
+        accent: MkgColors.accent,
+        progressLabel: '0% / 36%',
+      ),
+      _TaxSection(
         title: 'Refund Tracker',
         cue: 'IRS & FTB status',
         icon: Icons.track_changes_outlined,
         path: '/refund-tracker',
         accent: MkgColors.green,
         progressLabel: 'Check',
-      ),
-      _TaxSection(
-        title: 'Tax Tools',
-        cue: 'Calculators & references',
-        icon: Icons.calculate_outlined,
-        path: '/tools',
-        accent: MkgColors.primary,
-        progressLabel: 'Open',
       ),
       _TaxSection(
         title: 'Tax Consulting',
