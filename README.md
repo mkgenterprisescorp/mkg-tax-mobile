@@ -1,6 +1,16 @@
-# mkg-tax-mobile
+# mkg_tax_mobile
 
-Flutter single source of truth for MKG Tax Consultants iOS and Android.
+Flutter single source of truth for **MKG Tax Consultants** on iOS and Android.
+
+## Why Flutter
+
+| Advantage | What it means for MKG Tax |
+|-----------|---------------------------|
+| **Third-party ecosystem** | Large pub.dev catalog of cross-platform plugins (HTTP, secure storage, file pickers, routing, state) — one integration for iOS + Android instead of separate Swift/Kotlin SDKs. |
+| **Hot Reload** | Change UI/logic and see updates instantly without a full rebuild — faster organizer, Tax Center, and Refund Advance iteration. |
+| **One codebase** | Shared Dart UI + business logic ships to both stores; legacy native Swift/Kotlin apps are historical only. |
+
+Current pub packages in use include `flutter_riverpod`, `go_router`, `dio`, `flutter_secure_storage`, `file_picker`, `url_launcher`, and cookie session helpers.
 
 ## Architecture
 
@@ -13,22 +23,21 @@ Web     → https://financemkgtax.com (DigitalOcean) → Laravel API → Neon
 - Public config: `API_BASE_URL=https://api.financemkgtax.com/api/v1`, `WEB_BASE_URL=https://financemkgtax.com`
 - Details: `docs/mobile/financemkgtaxpro-integration.md`
 
-## Run / build
+## Run / build (Hot Reload)
 
 ```bash
 flutter pub get
+
+# Dev with Hot Reload (r = hot reload, R = hot restart in the terminal)
+flutter run --dart-define=API_BASE_URL=https://financemkgtax.com \
+  --dart-define=WEB_BASE_URL=https://financemkgtax.com
 
 # Production target (requires api.financemkgtax.com DNS + Laravel on DigitalOcean)
 flutter run --dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1 \
   --dart-define=WEB_BASE_URL=https://financemkgtax.com
 
-flutter build apk --release --build-name=1.0.0 --build-number=11 \
+flutter build apk --release --build-name=1.0.0 --build-number=15 \
   --dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1 \
-  --dart-define=WEB_BASE_URL=https://financemkgtax.com
-
-# Transitional device-verify (portal cookie login while API DNS is pending)
-flutter build apk --release --build-name=1.0.0 --build-number=11 \
-  --dart-define=API_BASE_URL=https://financemkgtax.com \
   --dart-define=WEB_BASE_URL=https://financemkgtax.com
 ```
 
@@ -41,4 +50,5 @@ flutter build apk --release --build-name=1.0.0 --build-number=11 \
 - Dual-brand IA: Home | Tax Center | Advisory | Chat | More
 - Device display name: **MKG Tax**
 - Sanctum auth when `API_BASE_URL` targets `/api/v1`; cookie portal auth when pointing at `financemkgtax.com`
+- Tax Organizer + Refund Advance (Loan Estimate / TILA / 36% APR) icon hubs
 - **No iOS build on Linux** (needs macOS + Xcode)
