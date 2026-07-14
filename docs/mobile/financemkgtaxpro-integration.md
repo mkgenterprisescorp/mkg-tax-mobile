@@ -2,9 +2,10 @@
 
 ## Source of truth
 - **Web UI to clone:** `mkgenterprisescorp/financemkgtaxpro` (production portal)
-- **Live host:** `https://financemkgtax.com`
+- **Live host:** `https://financemkgtax.com` (DigitalOcean; Replit is sunset)
+- **Production DB:** Neon Postgres via the DigitalOcean app `DATABASE_URL` (portal `users` / tax returns). Flutter never connects to Neon directly.
 - **API:** same origin `/api/*` on that host (Express + session cookies)
-- **Not the API target:** legacy `finance.mkgtaxconsultants.com` native endpoints, or the draft Laravel `mkg-tax-backend` (Chinese Wall platform work is separate)
+- **Not the API target:** legacy `finance.mkgtaxconsultants.com` native endpoints, or the draft Laravel `mkg-tax-backend` (Chinese Wall platform Neon is separate)
 - **Flutter SoT repo:** this package (`mkg-tax-mobile`). Mirror into `legacy-android-app/mkg-tax-mobile` when publishing monorepo syncs.
 
 ## Dual edition (one binary)
