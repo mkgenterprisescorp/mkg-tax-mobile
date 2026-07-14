@@ -49,6 +49,18 @@ class PortalRepository {
     throw PortalException(_message(res.data, 'Failed to load preparers'));
   }
 
+  /// Professional client roster (`GET /api/clients/list`).
+  Future<({List<Map<String, dynamic>> clients, String scope})> listClients() async {
+    final res = await _api.get<dynamic>('/api/clients/list');
+    if (res.statusCode != 200) {
+      throw PortalException(_message(res.data, 'Failed to load clients'));
+    }
+    final data = _asMap(res.data) ?? {};
+    final clients = _asMapList(data['clients'] ?? data);
+    final scope = (data['scope'] ?? 'unknown').toString();
+    return (clients: clients, scope: scope);
+  }
+
   Future<Map<String, dynamic>?> currentTaxReturn() async {
     final res = await _api.get<dynamic>('/api/tax-returns/current');
     if (res.statusCode != 200 || res.data == null) return null;

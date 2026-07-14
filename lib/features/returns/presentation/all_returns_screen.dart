@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/auth/app_roles.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -24,24 +25,6 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
   String _year = 'all';
   String _status = 'all';
   int? _selectedId;
-
-  static const _staffRoles = {
-    'super_user',
-    'admin',
-    'manager',
-    'regional_manager',
-    'district_manager',
-    'office_manager',
-    'tax_preparer',
-    'ea',
-    'cpa',
-    'loan_officer',
-    'processor',
-    'tax_attorney',
-    'realtor',
-    'insurance_agent',
-    'ero',
-  };
 
   @override
   void initState() {
@@ -71,8 +54,7 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
   }
 
   bool get _isStaff {
-    final role = ref.read(authProvider).user?.role ?? 'client';
-    return _staffRoles.contains(role);
+    return capabilitiesFor(ref.read(authProvider).user?.role).isProfessional;
   }
 
   bool _isLocked(Map<String, dynamic> r) {

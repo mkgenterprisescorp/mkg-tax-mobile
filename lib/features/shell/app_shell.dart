@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/app_roles.dart';
 import '../../core/theme/mkg_theme.dart';
 import '../auth/data/auth_repository.dart';
 
@@ -10,24 +11,34 @@ class AppShell extends ConsumerWidget {
 
   final Widget child;
 
-  static const _tabs = <({String path, String label, IconData icon})>[
+  static const _consumerTabs = <({String path, String label, IconData icon})>[
     (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
-    (path: '/all-returns', label: 'Returns', icon: Icons.description_outlined),
     (path: '/organizer', label: 'Organizer', icon: Icons.assignment_outlined),
+    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
+    (path: '/financial', label: 'Money', icon: Icons.payments_outlined),
+    (path: '/profile', label: 'Profile', icon: Icons.person_outline),
+  ];
+
+  static const _professionalTabs = <({String path, String label, IconData icon})>[
+    (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
+    (path: '/my-clients', label: 'Clients', icon: Icons.groups_outlined),
+    (path: '/all-returns', label: 'Returns', icon: Icons.description_outlined),
     (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
     (path: '/profile', label: 'Profile', icon: Icons.person_outline),
   ];
 
-  int _indexFor(String location) {
-    for (var i = 0; i < _tabs.length; i++) {
-      if (location.startsWith(_tabs[i].path)) return i;
+  int _indexFor(List<({String path, String label, IconData icon})> tabs, String location) {
+    for (var i = 0; i < tabs.length; i++) {
+      if (location.startsWith(tabs[i].path)) return i;
     }
-    if (location.startsWith('/financial') || location.startsWith('/billing')) return 0;
     return 0;
   }
 
-  String _titleFor(String location) {
-    if (location.startsWith('/all-returns')) return 'ALL TAX RETURNS';
+  String _titleFor(String location, RoleCapabilities caps) {
+    if (location.startsWith('/my-clients')) return 'MY CLIENTS';
+    if (location.startsWith('/all-returns')) {
+      return caps.isProfessional ? 'ALL TAX RETURNS' : 'MY TAX RETURNS';
+    }
     if (location.startsWith('/iero')) return 'IRS iERO';
     if (location.startsWith('/documents')) return 'DOCUMENTS';
     if (location.startsWith('/tessa') || location.startsWith('/ai-assistant') || location.startsWith('/messages') || location.startsWith('/chat')) {
@@ -44,7 +55,7 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/banking')) return 'BANKING';
     if (location.startsWith('/blogs')) return 'LEARN';
     if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
-    return 'DASHBOARD';
+    return caps.isProfessional ? 'PRO DASHBOARD' : 'DASHBOARD';
   }
 
   bool _hideAskAiFab(String location) {
@@ -54,11 +65,17 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.toString();
-    final index = _indexFor(location);
     final user = ref.watch(authProvider).user;
+    final caps = capabilitiesFor(user?.role);
+    final tabs = caps.isProfessional ? _professionalTabs : _consumerTabs;
+    final index = _indexFor(tabs, location);
 
     return Scaffold(
-      drawer: _AppDrawer(userName: user?.displayName ?? 'Client', userEmail: user?.email ?? ''),
+      drawer: _AppDrawer(
+        userName: user?.displayName ?? 'User',
+        userEmail: user?.email ?? '',
+        caps: caps,
+      ),
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -68,10 +85,26 @@ class AppShell extends ConsumerWidget {
               child: Image.asset('assets/brand/mkg_tax_logo.png', width: 28, height: 28, fit: BoxFit.cover),
             ),
             const SizedBox(width: 8),
-            Flexible(child: Text(_titleFor(location), overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text(_titleFor(location, caps), overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  caps.edition.label,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Tessa AI',
             onPressed: () => context.go('/tessa'),
@@ -96,9 +129,9 @@ class AppShell extends ConsumerWidget {
             ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) => context.go(_tabs[i].path),
+        onDestinationSelected: (i) => context.go(tabs[i].path),
         destinations: [
-          for (final tab in _tabs) NavigationDestination(icon: Icon(tab.icon), label: tab.label),
+          for (final tab in tabs) NavigationDestination(icon: Icon(tab.icon), label: tab.label),
         ],
       ),
     );
@@ -106,9 +139,15 @@ class AppShell extends ConsumerWidget {
 }
 
 class _AppDrawer extends ConsumerWidget {
-  const _AppDrawer({required this.userName, required this.userEmail});
+  const _AppDrawer({
+    required this.userName,
+    required this.userEmail,
+    required this.caps,
+  });
+
   final String userName;
   final String userEmail;
+  final RoleCapabilities caps;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -139,14 +178,21 @@ class _AppDrawer extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(userName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
                   Text(userEmail, style: const TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${caps.edition.label} · ${caps.role}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ),
             item(Icons.dashboard_outlined, 'Dashboard', '/forms'),
-            item(Icons.description_outlined, 'All Tax Returns', '/all-returns'),
+            if (caps.canManageClients) item(Icons.groups_outlined, 'My Clients', '/my-clients'),
+            if (caps.canManageAllReturns) item(Icons.description_outlined, 'All Tax Returns', '/all-returns'),
+            if (caps.isConsumer) item(Icons.description_outlined, 'My Tax Returns', '/all-returns'),
             item(Icons.assignment_outlined, 'Tax Organizer', '/organizer'),
             item(Icons.folder_outlined, 'Documents', '/documents'),
-            item(Icons.travel_explore_outlined, 'IRS iERO Extraction', '/iero'),
+            if (caps.canUseIeroTools) item(Icons.travel_explore_outlined, 'IRS iERO Extraction', '/iero'),
             item(Icons.payments_outlined, 'Financials', '/financial'),
             item(Icons.receipt_long_outlined, 'Payments', '/billing'),
             item(Icons.smart_toy_outlined, 'Tessa AI', '/tessa'),

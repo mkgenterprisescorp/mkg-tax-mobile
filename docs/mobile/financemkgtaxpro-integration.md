@@ -7,6 +7,14 @@
 - **Not the API target:** legacy `finance.mkgtaxconsultants.com` native endpoints, or the draft Laravel `mkg-tax-backend` (Chinese Wall platform work is separate)
 - **Flutter SoT repo:** this package (`mkg-tax-mobile`). Mirror into `legacy-android-app/mkg-tax-mobile` when publishing monorepo syncs.
 
+## Dual edition (one binary)
+| Edition | Portal roles | Primary mobile surfaces |
+|---------|--------------|-------------------------|
+| **Consumer** | `client` | Organizer, documents, financials, payments, KYC, Tessa AI |
+| **Professional** | preparer / EA / CPA / admin / manager / ERO staff, etc. | My Clients, All Tax Returns, iERO, lock controls, Tessa AI |
+
+Edition is derived from `user.role` after cookie login (`lib/core/auth/app_roles.dart`). Bottom nav, drawer, and dashboard tiles switch automatically.
+
 ## Auth model
 Web uses **cookie sessions** (`credentials: "include"`), not Bearer tokens.
 Flutter must:

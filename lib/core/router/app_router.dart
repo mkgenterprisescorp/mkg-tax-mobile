@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/clients/presentation/my_clients_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
 import '../../features/iero/presentation/iero_extraction_screen.dart';
@@ -14,6 +15,7 @@ import '../../features/onboarding/presentation/splash_onboarding.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
 import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/shell/app_shell.dart';
+import '../auth/app_roles.dart';
 
 GoRouter createRouter({
   required Listenable refreshListenable,
@@ -46,6 +48,13 @@ GoRouter createRouter({
 
       // Legacy chat removed — Tessa AI is the only chat surface.
       if (loc == '/messages' || loc == '/chat') return '/tessa';
+
+      // Professional-only tools: send consumers home.
+      final role = auth.user?.role;
+      final caps = capabilitiesFor(role);
+      if (caps.isConsumer && (loc == '/my-clients' || loc == '/iero')) {
+        return '/forms';
+      }
 
       final user = auth.user;
       if (user != null) {
@@ -97,6 +106,7 @@ GoRouter createRouter({
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/refund-tracker', builder: (context, state) => const RefundTrackerScreen()),
           GoRoute(path: '/all-returns', builder: (context, state) => const AllReturnsScreen()),
+          GoRoute(path: '/my-clients', builder: (context, state) => const MyClientsScreen()),
           GoRoute(path: '/iero', builder: (context, state) => const IeroExtractionScreen()),
         ],
       ),

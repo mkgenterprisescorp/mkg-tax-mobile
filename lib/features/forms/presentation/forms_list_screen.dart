@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/auth/app_roles.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 
-/// Mobile clone of financemkgtaxpro `/dashboard`.
+/// Mobile clone of financemkgtaxpro `/dashboard` (consumer + professional editions).
 class FormsListScreen extends ConsumerStatefulWidget {
   const FormsListScreen({super.key});
 
@@ -71,19 +72,25 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
 
   Map<String, dynamic>? get _current => _returns.isNotEmpty ? _returns.first : null;
 
-  @override
-  Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).user;
-    final current = _current;
-    final taxYear = (current?['year'] ?? current?['taxYear'] ?? DateTime.now().year).toString();
-    final status = (current?['status'] ?? 'none').toString();
-    final verified = _verification?['verified'] == true;
-
-    final actions = <_DashAction>[
-      _DashAction('All Tax Returns', Icons.description_outlined, '/all-returns', MkgColors.primary),
+  List<_DashAction> _actionsFor(RoleCapabilities caps) {
+    if (caps.isProfessional) {
+      return const [
+        _DashAction('My Clients', Icons.groups_outlined, '/my-clients', MkgColors.primary),
+        _DashAction('All Tax Returns', Icons.description_outlined, '/all-returns', MkgColors.primary),
+        _DashAction('Tax Organizer', Icons.assignment_outlined, '/organizer', MkgColors.green),
+        _DashAction('Documents', Icons.folder_outlined, '/documents', MkgColors.green),
+        _DashAction('IRS iERO', Icons.travel_explore_outlined, '/iero', MkgColors.orange),
+        _DashAction('Payments', Icons.receipt_long_outlined, '/billing', MkgColors.accent),
+        _DashAction('Tessa AI', Icons.smart_toy_outlined, '/tessa', MkgColors.green),
+        _DashAction('Tax Tools', Icons.calculate_outlined, '/tools', MkgColors.primary),
+        _DashAction('Support', Icons.support_agent_outlined, '/support', MkgColors.accent),
+        _DashAction('Profile', Icons.person_outline, '/profile', MkgColors.orange),
+      ];
+    }
+    return const [
       _DashAction('Tax Organizer', Icons.assignment_outlined, '/organizer', MkgColors.primary),
+      _DashAction('My Tax Returns', Icons.description_outlined, '/all-returns', MkgColors.primary),
       _DashAction('Documents', Icons.folder_outlined, '/documents', MkgColors.green),
-      _DashAction('IRS iERO', Icons.travel_explore_outlined, '/iero', MkgColors.orange),
       _DashAction('Financials', Icons.payments_outlined, '/financial', MkgColors.orange),
       _DashAction('Payments', Icons.receipt_long_outlined, '/billing', MkgColors.accent),
       _DashAction('Tessa AI', Icons.smart_toy_outlined, '/tessa', MkgColors.green),
@@ -92,6 +99,17 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
       _DashAction('Tax Tools', Icons.calculate_outlined, '/tools', MkgColors.green),
       _DashAction('Support', Icons.support_agent_outlined, '/support', MkgColors.accent),
     ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final caps = capabilitiesFor(user?.role);
+    final current = _current;
+    final taxYear = (current?['year'] ?? current?['taxYear'] ?? DateTime.now().year).toString();
+    final status = (current?['status'] ?? 'none').toString();
+    final verified = _verification?['verified'] == true;
+    final actions = _actionsFor(caps);
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -111,10 +129,13 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Welcome back', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(
+                  caps.isProfessional ? 'Professional workspace' : 'Welcome back',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  user?.displayName ?? 'Client',
+                  user?.displayName ?? (caps.isProfessional ? 'Tax Pro' : 'Client'),
                   style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
@@ -124,6 +145,8 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    StatusChip(label: caps.edition.label, color: MkgColors.accent),
+                    StatusChip(label: caps.role, color: Colors.white),
                     StatusChip(label: 'financemkgtax.com', color: Colors.white),
                     StatusChip(
                       label: verified ? 'Identity verified' : 'Verify identity',
@@ -131,8 +154,6 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                     ),
                     if (user?.kycStatus != null)
                       StatusChip(label: 'KYC: ${user!.kycStatus}', color: MkgColors.accent),
-                    if (user?.approvalStatus != null)
-                      StatusChip(label: 'Approval: ${user!.approvalStatus}', color: Colors.white),
                   ],
                 ),
               ],
@@ -152,7 +173,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
               ),
             ),
           ] else ...[
-            const SectionHeader('Your tax returns'),
+            SectionHeader(caps.isProfessional ? 'Practice overview' : 'Your tax returns'),
             if (_returns.isEmpty)
               Card(
                 child: Padding(
@@ -160,17 +181,31 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('No tax return yet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      const Text('Start a return to open the Tax Organizer and upload documents.'),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: _creating ? null : _createReturn,
-                        icon: _creating
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.add),
-                        label: Text(_creating ? 'Creating…' : 'Start $taxYear return'),
+                      Text(
+                        caps.isProfessional ? 'No personal returns loaded' : 'No tax return yet',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        caps.isProfessional
+                            ? 'Open My Clients or All Tax Returns to manage the firm queue.'
+                            : 'Start a return to open the Tax Organizer and upload documents.',
+                      ),
+                      const SizedBox(height: 12),
+                      if (caps.isProfessional)
+                        FilledButton.icon(
+                          onPressed: () => context.go('/my-clients'),
+                          icon: const Icon(Icons.groups_outlined),
+                          label: const Text('Open My Clients'),
+                        )
+                      else
+                        FilledButton.icon(
+                          onPressed: _creating ? null : _createReturn,
+                          icon: _creating
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.add),
+                          label: Text(_creating ? 'Creating…' : 'Start $taxYear return'),
+                        ),
                     ],
                   ),
                 ),
@@ -200,7 +235,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
               ),
             ],
           ],
-          const SectionHeader('Quick actions'),
+          SectionHeader(caps.isProfessional ? 'Professional tools' : 'Quick actions'),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
