@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/advisory/presentation/advisory_services_screen.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/chat/presentation/advisor_chat_screen.dart';
 import '../../features/clients/presentation/my_clients_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
@@ -19,6 +21,7 @@ import '../../features/organizer/presentation/organizer_screen.dart';
 import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/returns/presentation/tax_returns_workspace_screen.dart';
 import '../../features/shell/app_shell.dart';
+import '../../features/tax_center/presentation/tax_center_screen.dart';
 import '../auth/app_roles.dart';
 
 GoRouter createRouter({
@@ -51,7 +54,8 @@ GoRouter createRouter({
       }
 
       if (loc == '/forms' || loc == '/dashboard') return '/home';
-      if (loc == '/messages' || loc == '/chat') return '/tessa';
+      if (loc == '/messages') return '/chat';
+      if (loc == '/ai-assistant') return '/tessa';
 
       final role = auth.user?.role;
       final caps = capabilitiesFor(role);
@@ -64,11 +68,14 @@ GoRouter createRouter({
         final kycIncomplete = (user.kycStatus ?? 'incomplete') == 'incomplete';
         final pendingApproval =
             user.approvalStatus == 'pending' && user.kycStatus == 'submitted';
-        // Primary tax-year IA tabs stay reachable so clients can file while KYC is soft-gated.
+        // Primary dual-brand IA tabs stay reachable while KYC is soft-gated.
         const primaryIa = {
           '/home',
           '/forms',
           '/dashboard',
+          '/tax-center',
+          '/advisory',
+          '/chat',
           '/returns',
           '/organizer',
           '/documents',
@@ -98,6 +105,9 @@ GoRouter createRouter({
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (context, state) => const HomeDashboardScreen()),
+          GoRoute(path: '/tax-center', builder: (context, state) => const TaxCenterScreen()),
+          GoRoute(path: '/advisory', builder: (context, state) => const AdvisoryServicesScreen()),
+          GoRoute(path: '/chat', builder: (context, state) => const AdvisorChatScreen()),
           GoRoute(path: '/forms', builder: (context, state) => const FormsListScreen()),
           GoRoute(path: '/dashboard', redirect: (context, state) => '/home'),
           GoRoute(path: '/returns', builder: (context, state) => const TaxReturnsWorkspaceScreen()),
@@ -109,8 +119,7 @@ GoRouter createRouter({
           GoRoute(path: '/organizer', builder: (context, state) => const OrganizerScreen()),
           GoRoute(path: '/engagements', builder: (context, state) => const EngagementsScreen()),
           GoRoute(path: '/documents', builder: (context, state) => const DocumentsScreen()),
-          GoRoute(path: '/messages', redirect: (context, state) => '/tessa'),
-          GoRoute(path: '/chat', redirect: (context, state) => '/tessa'),
+          GoRoute(path: '/messages', redirect: (context, state) => '/chat'),
           GoRoute(path: '/tessa', builder: (context, state) => const TessaScreen()),
           GoRoute(path: '/ai-assistant', redirect: (context, state) => '/tessa'),
           GoRoute(path: '/billing', builder: (context, state) => const BillingScreen()),

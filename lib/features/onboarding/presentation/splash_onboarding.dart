@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/mkg_theme.dart';
+import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 
-/// Figma `splashes` / onboarding-welcome entry.
+/// Dual-brand splash: MKG Tax Consultants + Finance Advisors.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -16,7 +17,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 900), _navigate);
+    Future<void>.delayed(const Duration(milliseconds: 1100), _navigate);
   }
 
   void _navigate() {
@@ -27,7 +28,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
     if (auth.isAuthenticated) {
-      context.go('/forms');
+      context.go('/home');
     } else {
       context.go('/onboarding');
     }
@@ -38,26 +39,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return const Scaffold(
       backgroundColor: MkgColors.primary,
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.all(Radius.circular(22)),
-              child: Image(
-                image: AssetImage('assets/brand/mkg_tax_logo.png'),
-                width: 96,
-                height: 96,
-                fit: BoxFit.cover,
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'MKG Tax Consultants',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            SizedBox(height: 8),
-            Text('Tax Filing', style: TextStyle(color: Colors.white70, fontSize: 15)),
-          ],
+        child: DualBrandHeader(
+          compact: false,
+          subtitle: 'Tax · Advisory · Planning',
         ),
       ),
     );
@@ -76,9 +60,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _index = 0;
 
   static const _pages = [
-    (Icons.verified_user_outlined, 'Secure tax filing', 'File with MKG Tax Consultants using bank-grade encryption and compliance controls.'),
-    (Icons.description_outlined, 'Guided organizers', 'Complete consent forms, Schedule A deductions, and client data sheets step by step.'),
-    (Icons.cloud_upload_outlined, 'Upload & track', 'Send documents and refund information to financemkgtaxpro in real time.'),
+    (
+      Icons.verified_user_outlined,
+      'MKG Tax Consultants',
+      'Secure tax filing, organizers, and document vaults with bank-grade compliance controls.',
+    ),
+    (
+      Icons.account_balance_outlined,
+      'Finance Advisors',
+      'Financial planning, lending guidance, and advisory tools sit alongside your tax workspace.',
+    ),
+    (
+      Icons.forum_outlined,
+      'Advisor Chat',
+      'Ask TESSA AI or reach your MKG advisor for scheduling, document requests, and next steps.',
+    ),
   ];
 
   @override

@@ -23,39 +23,63 @@ class AuthScaffold extends StatelessWidget {
           children: [
             Expanded(
               flex: 3,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.asset(
-                        'assets/brand/mkg_tax_logo.png',
-                        width: 88,
-                        height: 88,
-                        fit: BoxFit.cover,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxHeight < 220;
+                  final logoSize = compact ? 56.0 : 88.0;
+                  return Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.asset(
+                                'assets/brand/mkg_tax_logo.png',
+                                width: logoSize,
+                                height: logoSize,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 8 : 16),
+                            const Text(
+                              'MKG Tax Consultants',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Finance Advisors',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: MkgColors.accent.withValues(alpha: 0.95),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'MKG Tax Consultants',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
             Expanded(
@@ -155,6 +179,70 @@ class MkgCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: child,
+      ),
+    );
+  }
+}
+
+/// Shared dual-brand mark used on splash and auth headers.
+class DualBrandHeader extends StatelessWidget {
+  const DualBrandHeader({
+    super.key,
+    this.compact = false,
+    this.subtitle,
+  });
+
+  final bool compact;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = compact ? 56.0 : 96.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(compact ? 16 : 22),
+            child: Image.asset(
+              'assets/brand/mkg_tax_logo.png',
+              width: logo,
+              height: logo,
+              fit: BoxFit.cover,
+            ),
+          ),
+          SizedBox(height: compact ? 12 : 22),
+          Text(
+            'MKG Tax Consultants',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: compact ? 20 : 26,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Finance Advisors',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: MkgColors.accent.withValues(alpha: 0.95),
+              fontSize: compact ? 14 : 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+            ),
+          ],
+        ],
       ),
     );
   }

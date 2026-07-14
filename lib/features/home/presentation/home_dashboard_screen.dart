@@ -9,7 +9,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 
-/// Personalized tax-year Home dashboard.
+/// Clean home dashboard with dual-brand service pillars.
 class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
 
@@ -42,7 +42,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         children: [
           const TaxYearSelectorBar(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -50,7 +50,16 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   caps.isProfessional ? 'Good day, $name' : 'Hi $name,',
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
+                const Text(
+                  'MKG Tax Consultants',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: MkgColors.primary),
+                ),
+                Text(
+                  'Finance Advisors',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: MkgColors.accent.withValues(alpha: 0.95)),
+                ),
+                const SizedBox(height: 6),
                 Text(
                   caps.isProfessional
                       ? 'Practice overview for tax year $year.'
@@ -67,7 +76,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             )
           else ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: MkgCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,89 +104,59 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                         _chip('Federal', ws?.federalReturnStatus ?? 'Not Started'),
                         _chip('Organizer', ws?.organizerStatus ?? 'Not Started'),
                         _chip('Docs', '${ws?.documentsCount ?? 0} on file'),
-                        _chip('States', '${ws?.stateReturns.length ?? 0} added'),
                       ],
                     ),
-                    if (ws != null) ...[
-                      Builder(builder: (context) {
-                        final info = tax.years.where((y) => y.taxYear == ws.taxYear).toList();
-                        if (info.isNotEmpty && info.first.paperFilingOnly) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 10),
-                            child: Text(
-                              'Electronic filing is unavailable for this year — paper filing may be required.',
-                              style: TextStyle(color: MkgColors.orange, fontSize: 12),
-                            ),
-                          );
-                        }
-                        if (info.isNotEmpty && !info.first.efileAvailable) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 10),
-                            child: Text(
-                              'E-file may be unavailable. Refund eligibility is not guaranteed by year visibility.',
-                              style: TextStyle(color: MkgColors.orange, fontSize: 12),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }),
-                    ],
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            _sectionTitle('Quick Actions'),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Text('Services', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
                 children: [
-                  for (final a in _quickActions(caps))
-                    SizedBox(
-                      width: MediaQuery.sizeOf(context).width / 2 - 18,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => context.go(a.path),
-                          child: Ink(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: a.color.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: a.color.withValues(alpha: 0.2)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(a.icon, color: a.color),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(a.label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  _ServicePillar(
+                    title: 'Tax Center',
+                    subtitle: 'Filings, documents, and tax consulting',
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: MkgColors.primary,
+                    onTap: () => context.go('/tax-center'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ServicePillar(
+                    title: 'Financial Planning',
+                    subtitle: 'Finance Advisors · lending · bookkeeping',
+                    icon: Icons.trending_up_outlined,
+                    color: MkgColors.accent,
+                    onTap: () => context.go('/advisory'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ServicePillar(
+                    title: 'Advisor Chat',
+                    subtitle: 'TESSA AI, scheduling, and contact us',
+                    icon: Icons.forum_outlined,
+                    color: MkgColors.green,
+                    onTap: () => context.go('/chat'),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            _sectionTitle('Outstanding tasks'),
-            if (tax.tasks.isEmpty)
+            if (tax.tasks.isNotEmpty) ...[
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text('No open tasks for this tax year yet.', style: TextStyle(color: MkgColors.textGrey)),
-              )
-            else
-              ...tax.tasks.map((t) {
-                final href = (t['href'] ?? 'returns').toString();
+                padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
+                child: Text('Outstanding tasks', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              ),
+              ...tax.tasks.take(3).map((t) {
+                final href = (t['href'] ?? 'tax-center').toString();
                 final path = switch (href) {
                   'organizer' => '/organizer',
                   'documents' => '/documents',
-                  'tessa' => '/tessa',
-                  _ => '/returns',
+                  'tessa' || 'chat' => '/chat',
+                  'returns' => '/returns',
+                  _ => '/tax-center',
                 };
                 return ListTile(
                   leading: const Icon(Icons.check_circle_outline, color: MkgColors.accent),
@@ -186,51 +165,19 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   onTap: () => context.go(path),
                 );
               }),
-            _sectionTitle('TESSA recommendations'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: MkgCard(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
-                  title: Text('Ask about your $year return'),
-                  subtitle: const Text('Missing documents, state filings, organizer help.'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go('/tessa'),
-                ),
-              ),
-            ),
-            _sectionTitle('Deadlines'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: MkgCard(
-                child: Column(
-                  children: [
-                    _deadlineRow('Federal filing', 'April 15, ${year + 1}'),
-                    const Divider(height: 20),
-                    _deadlineRow('Extension deadline', 'October 15, ${year + 1}'),
-                  ],
-                ),
-              ),
-            ),
-            if (tax.source == 'local-fallback')
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Tax-year catalog is using a local fallback. Point LARAVEL_API_BASE_URL at the Laravel API for server-authoritative years.',
-                  style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
-                ),
+            ],
+            if (caps.isProfessional)
+              ListTile(
+                leading: const Icon(Icons.groups_outlined, color: MkgColors.primary),
+                title: const Text('My Clients'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/my-clients'),
               ),
           ],
         ],
       ),
     );
   }
-
-  Widget _sectionTitle(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-        child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-      );
 
   Widget _chip(String label, String value) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -241,42 +188,55 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         ),
         child: Text('$label: $value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       );
-
-  Widget _deadlineRow(String label, String when) => Row(
-        children: [
-          const Icon(Icons.event_outlined, color: MkgColors.primary, size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
-          Text(when, style: const TextStyle(color: MkgColors.textGrey, fontSize: 13)),
-        ],
-      );
-
-  List<_QuickAction> _quickActions(RoleCapabilities caps) {
-    final base = <_QuickAction>[
-      const _QuickAction('Start Organizer', Icons.assignment_outlined, '/organizer', MkgColors.primary),
-      const _QuickAction('Continue Return', Icons.description_outlined, '/returns', MkgColors.primary),
-      const _QuickAction('Upload Document', Icons.upload_file_outlined, '/documents', MkgColors.green),
-      const _QuickAction('Add State Return', Icons.map_outlined, '/returns', MkgColors.orange),
-      const _QuickAction('File Prior Year', Icons.history_edu_outlined, '/returns', MkgColors.accent),
-      const _QuickAction('Ask TESSA', Icons.smart_toy_outlined, '/tessa', MkgColors.green),
-      const _QuickAction('Make a Payment', Icons.payments_outlined, '/billing', MkgColors.accent),
-      const _QuickAction('Profile / KYC', Icons.verified_user_outlined, '/profile', MkgColors.orange),
-    ];
-    if (caps.isProfessional) {
-      return [
-        const _QuickAction('My Clients', Icons.groups_outlined, '/my-clients', MkgColors.primary),
-        const _QuickAction('All Returns', Icons.library_books_outlined, '/all-returns', MkgColors.primary),
-        ...base,
-      ];
-    }
-    return base;
-  }
 }
 
-class _QuickAction {
-  const _QuickAction(this.label, this.icon, this.path, this.color);
-  final String label;
+class _ServicePillar extends StatelessWidget {
+  const _ServicePillar({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
   final IconData icon;
-  final String path;
   final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.18),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: const TextStyle(color: MkgColors.textGrey, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

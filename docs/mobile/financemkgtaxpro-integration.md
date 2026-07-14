@@ -10,10 +10,15 @@
 ## Dual edition (one binary)
 | Edition | Portal roles | Primary mobile surfaces |
 |---------|--------------|-------------------------|
-| **Consumer** | `client` | Home, Tax Returns, Organizer, Documents, TESSA, More |
-| **Professional** | preparer / EA / CPA / admin / manager / ERO staff, etc. | Same 6 tabs; Clients / iERO under **More** |
+| **Consumer** | `client` | Home, Tax Center, Advisory (Finance Advisors), Advisor Chat, More |
+| **Professional** | preparer / EA / CPA / admin / manager / ERO staff, etc. | Same primary tabs; Clients / iERO under **More** |
 
-Edition is derived from `user.role` after cookie login (`lib/core/auth/app_roles.dart`). Bottom nav is unified; professional tools live in More + drawer.
+Edition is derived from `user.role` after cookie login (`lib/core/auth/app_roles.dart`). Bottom nav is unified around dual branding; tax-year tools live under Tax Center.
+
+## Branding
+- Device display name: **MKG Tax** (`CFBundleDisplayName` / `app_name`) to avoid home-screen truncation
+- Splash / auth: **MKG Tax Consultants** primary + **Finance Advisors** secondary tagline
+- Primary nav: `Home | Tax Center | Advisory | Chat | More`
 
 ## Auth + API boundary
 Web portal still uses **cookie sessions** on `API_BASE_URL` (default `https://financemkgtax.com`).

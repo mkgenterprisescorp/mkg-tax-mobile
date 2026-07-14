@@ -58,10 +58,12 @@ class MoreHubScreen extends ConsumerWidget {
           _MoreItem('Notifications', Icons.notifications_outlined, '/notifications'),
         ]),
         section('Services', const [
+          _MoreItem('Tax Center', Icons.account_balance_wallet_outlined, '/tax-center'),
+          _MoreItem('Financial Planning', Icons.trending_up_outlined, '/advisory'),
+          _MoreItem('Advisor Chat', Icons.forum_outlined, '/chat'),
           _MoreItem('Individual & business taxes', Icons.description_outlined, '/returns'),
           _MoreItem('Bookkeeping', Icons.menu_book_outlined, '/bookkeeping'),
           _MoreItem('Financials / loans', Icons.payments_outlined, '/financial'),
-          _MoreItem('Mortgage lending', Icons.home_work_outlined, '/financial'),
           _MoreItem('Billing & payments', Icons.receipt_long_outlined, '/billing'),
           _MoreItem('Refund tracker', Icons.track_changes_outlined, '/refund-tracker'),
           _MoreItem('Tax tools', Icons.calculate_outlined, '/tools'),
@@ -74,7 +76,7 @@ class MoreHubScreen extends ConsumerWidget {
           ]),
         section('Support', const [
           _MoreItem('Ask TESSA', Icons.smart_toy_outlined, '/tessa'),
-          _MoreItem('Support', Icons.support_agent_outlined, '/support'),
+          _MoreItem('Support / Contact Us', Icons.support_agent_outlined, '/support'),
           _MoreItem('Terms & disclosures', Icons.policy_outlined, '/support'),
         ]),
         const Divider(),
