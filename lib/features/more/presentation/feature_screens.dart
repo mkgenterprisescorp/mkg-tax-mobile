@@ -179,91 +179,16 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) => const AccountOverviewScreen();
 }
 
-class MessagesScreen extends ConsumerStatefulWidget {
+class MessagesScreen extends StatelessWidget {
   const MessagesScreen({super.key});
 
   @override
-  ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
-}
-
-class _MessagesScreenState extends ConsumerState<MessagesScreen> {
-  List<Map<String, dynamic>> _rooms = const [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final rooms = await ref.read(portalRepositoryProvider).listChatRooms();
-      if (!mounted) return;
-      setState(() {
-        _rooms = rooms;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const SectionHeader('Secure messages'),
-          if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
-          else if (_error != null)
-            Card(
-              child: ListTile(
-                title: Text(_error!),
-                trailing: TextButton(onPressed: _load, child: const Text('Retry')),
-              ),
-            )
-          else if (_rooms.isEmpty)
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.forum_outlined),
-                title: Text('No message threads yet'),
-                subtitle: Text('Your preparer conversations will appear here.'),
-              ),
-            )
-          else
-            for (final room in _rooms)
-              Card(
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.support_agent)),
-                  title: Text(
-                    (room['title'] ?? room['name'] ?? 'Conversation').toString(),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text((room['lastMessage'] ?? room['preview'] ?? 'Open thread').toString()),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Room ${(room['id'] ?? '')} — full thread UI next.')),
-                    );
-                  },
-                ),
-              ),
-        ],
-      ),
-    );
+    // Legacy secure-messages chat removed — Tessa AI is the chat SoT.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) context.go('/tessa');
+    });
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
@@ -312,7 +237,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       if (_messages.isEmpty) {
         _messages.add((
           false,
-          'Hi — I am TaxPro Assist (Tessa). Ask about your organizer, documents, or refunds.',
+          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about organizers, documents, deductions, or refunds.',
         ));
       }
       if (mounted) {
@@ -396,7 +321,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(hintText: 'Ask TaxPro Assist...'),
+                    decoration: const InputDecoration(hintText: 'Ask Tessa AI...'),
                     onSubmitted: (_) => _send(),
                   ),
                 ),
@@ -573,15 +498,9 @@ class SupportScreen extends StatelessWidget {
         const SectionHeader('Support'),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.chat_outlined, color: MkgColors.primary),
-            title: const Text('Secure messages'),
-            onTap: () => context.go('/messages'),
-          ),
-        ),
-        Card(
-          child: ListTile(
             leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
-            title: const Text('TaxPro Assist'),
+            title: const Text('Tessa AI'),
+            subtitle: const Text('Replaces legacy chat'),
             onTap: () => context.go('/tessa'),
           ),
         ),

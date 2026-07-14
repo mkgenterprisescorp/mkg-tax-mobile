@@ -10,12 +10,11 @@ class AppShell extends ConsumerWidget {
 
   final Widget child;
 
-  /// Aligned to web client primary destinations.
   static const _tabs = <({String path, String label, IconData icon})>[
     (path: '/forms', label: 'Home', icon: Icons.dashboard_customize_outlined),
-    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
+    (path: '/all-returns', label: 'Returns', icon: Icons.description_outlined),
     (path: '/organizer', label: 'Organizer', icon: Icons.assignment_outlined),
-    (path: '/financial', label: 'Money', icon: Icons.payments_outlined),
+    (path: '/documents', label: 'Docs', icon: Icons.folder_outlined),
     (path: '/profile', label: 'Profile', icon: Icons.person_outline),
   ];
 
@@ -23,13 +22,17 @@ class AppShell extends ConsumerWidget {
     for (var i = 0; i < _tabs.length; i++) {
       if (location.startsWith(_tabs[i].path)) return i;
     }
+    if (location.startsWith('/financial') || location.startsWith('/billing')) return 0;
     return 0;
   }
 
   String _titleFor(String location) {
+    if (location.startsWith('/all-returns')) return 'ALL TAX RETURNS';
+    if (location.startsWith('/iero')) return 'IRS iERO';
     if (location.startsWith('/documents')) return 'DOCUMENTS';
-    if (location.startsWith('/messages') || location.startsWith('/chat')) return 'MESSAGES';
-    if (location.startsWith('/tessa') || location.startsWith('/ai-assistant')) return 'TAXPRO ASSIST';
+    if (location.startsWith('/tessa') || location.startsWith('/ai-assistant') || location.startsWith('/messages') || location.startsWith('/chat')) {
+      return 'TESSA AI';
+    }
     if (location.startsWith('/billing') || location.startsWith('/payments')) return 'PAYMENTS';
     if (location.startsWith('/bookkeeping')) return 'BOOKKEEPING';
     if (location.startsWith('/organizer')) return 'TAX ORGANIZER';
@@ -42,6 +45,10 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/blogs')) return 'LEARN';
     if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
     return 'DASHBOARD';
+  }
+
+  bool _hideAskAiFab(String location) {
+    return location.startsWith('/tessa') || location.startsWith('/ai-assistant');
   }
 
   @override
@@ -66,18 +73,27 @@ class AppShell extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            tooltip: 'Messages',
-            onPressed: () => context.go('/messages'),
-            icon: const Icon(Icons.chat_bubble_outline),
-          ),
-          IconButton(
-            tooltip: 'TaxPro Assist',
+            tooltip: 'Tessa AI',
             onPressed: () => context.go('/tessa'),
             icon: const Icon(Icons.smart_toy_outlined),
+          ),
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () => context.go('/profile'),
+            icon: const Icon(Icons.account_circle_outlined),
           ),
         ],
       ),
       body: child,
+      floatingActionButton: _hideAskAiFab(location)
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.go('/tessa'),
+              backgroundColor: MkgColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.smart_toy_outlined),
+              label: const Text('Ask AI'),
+            ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => context.go(_tabs[i].path),
@@ -127,12 +143,13 @@ class _AppDrawer extends ConsumerWidget {
               ),
             ),
             item(Icons.dashboard_outlined, 'Dashboard', '/forms'),
-            item(Icons.folder_outlined, 'Documents', '/documents'),
+            item(Icons.description_outlined, 'All Tax Returns', '/all-returns'),
             item(Icons.assignment_outlined, 'Tax Organizer', '/organizer'),
+            item(Icons.folder_outlined, 'Documents', '/documents'),
+            item(Icons.travel_explore_outlined, 'IRS iERO Extraction', '/iero'),
             item(Icons.payments_outlined, 'Financials', '/financial'),
             item(Icons.receipt_long_outlined, 'Payments', '/billing'),
-            item(Icons.chat_bubble_outline, 'Messages', '/messages'),
-            item(Icons.smart_toy_outlined, 'TaxPro Assist', '/tessa'),
+            item(Icons.smart_toy_outlined, 'Tessa AI', '/tessa'),
             item(Icons.track_changes_outlined, 'Refund Tracker', '/refund-tracker'),
             item(Icons.menu_book_outlined, 'Bookkeeping', '/bookkeeping'),
             item(Icons.build_outlined, 'Tax Tools', '/tools'),

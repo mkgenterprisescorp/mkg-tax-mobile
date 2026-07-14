@@ -23,8 +23,10 @@ Flutter must:
 | `/organizer` | `/organizer` | `/api/tax-returns/current`, `PUT /api/tax-returns/:id` |
 | `/documents` | `/documents` | `GET /api/tax-returns/:id/documents`, `POST /api/documents/upload` |
 | `/profile` | `/profile` | `POST /api/user/kyc-submit`, `POST /api/user/ssn` |
-| `/ai-assistant` | `/tessa` | `/api/conversations` (+ SSE message stream) |
-| `/chat` | `/messages` | `/api/chat/rooms` |
+| `/ai-assistant` | `/tessa` | `/api/conversations` (+ SSE) — **Tessa AI replaces legacy chat** |
+| `/chat` | redirects → `/tessa` | Legacy human chat UI removed from mobile |
+| `/all-returns` | `/all-returns` | `/api/tax-returns/all` (+ lock via `/api/tax-returns/:id/toggle-lock`) |
+| iERO extraction | `/iero` | `/api/bureau/ero-efin`, `/api/bureau/preparers` + chain filters |
 | `/payments` | `/billing` | `/api/invoicing/invoices` |
 | `/financials` | `/financial` | `/api/loans/calculate`, `/api/loans/apply` |
 | `/refund-tracker` | `/refund-tracker` | External IRS/FTB links |

@@ -184,7 +184,7 @@ class AccountOverviewScreen extends StatelessWidget {
     final alerts = const [
       ('IRS Funding Update', 'Check refund tracker', MkgColors.green),
       ('E-File Status', 'See tax return on dashboard', MkgColors.primary),
-      ('Secure Messages', 'Open Messages', MkgColors.primary),
+      ('Secure Messages', 'Open Tessa AI', MkgColors.primary),
       ('Profile / KYC', 'Keep verification current', MkgColors.orange),
     ];
 
@@ -206,8 +206,8 @@ class AccountOverviewScreen extends StatelessWidget {
                           subtitle: Text(a.$2),
                           trailing: StatusChip(label: 'Live', color: a.$3),
                           onTap: () {
-                            if (a.$1.contains('Messages')) {
-                              context.go('/messages');
+                            if (a.$1.contains('Messages') || a.$1.contains('Secure')) {
+                              context.go('/tessa');
                             } else if (a.$1.contains('Profile')) {
                               context.go('/profile');
                             } else if (a.$1.contains('IRS') || a.$1.contains('E-File')) {

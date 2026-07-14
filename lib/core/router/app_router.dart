@@ -8,9 +8,11 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
+import '../../features/iero/presentation/iero_extraction_screen.dart';
 import '../../features/more/presentation/feature_screens.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
+import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/shell/app_shell.dart';
 
 GoRouter createRouter({
@@ -41,6 +43,9 @@ GoRouter createRouter({
       if (loc == '/splash' || loc == '/onboarding' || loc == '/login' || loc == '/register') {
         return '/forms';
       }
+
+      // Legacy chat removed — Tessa AI is the only chat surface.
+      if (loc == '/messages' || loc == '/chat') return '/tessa';
 
       final user = auth.user;
       if (user != null) {
@@ -79,8 +84,8 @@ GoRouter createRouter({
           GoRoute(path: '/organizer', builder: (context, state) => const OrganizerScreen()),
           GoRoute(path: '/engagements', builder: (context, state) => const EngagementsScreen()),
           GoRoute(path: '/documents', builder: (context, state) => const DocumentsScreen()),
-          GoRoute(path: '/messages', builder: (context, state) => const MessagesScreen()),
-          GoRoute(path: '/chat', redirect: (context, state) => '/messages'),
+          GoRoute(path: '/messages', redirect: (context, state) => '/tessa'),
+          GoRoute(path: '/chat', redirect: (context, state) => '/tessa'),
           GoRoute(path: '/tessa', builder: (context, state) => const TessaScreen()),
           GoRoute(path: '/ai-assistant', redirect: (context, state) => '/tessa'),
           GoRoute(path: '/billing', builder: (context, state) => const BillingScreen()),
@@ -91,6 +96,8 @@ GoRouter createRouter({
           GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/refund-tracker', builder: (context, state) => const RefundTrackerScreen()),
+          GoRoute(path: '/all-returns', builder: (context, state) => const AllReturnsScreen()),
+          GoRoute(path: '/iero', builder: (context, state) => const IeroExtractionScreen()),
         ],
       ),
     ],

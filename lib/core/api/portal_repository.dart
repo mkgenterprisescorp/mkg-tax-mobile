@@ -16,6 +16,39 @@ class PortalRepository {
     return _asMapList(res.data);
   }
 
+  /// Staff/professional queue (`GET /api/tax-returns/all`). Falls back to own returns on 403.
+  Future<List<Map<String, dynamic>>> listAllTaxReturns() async {
+    final res = await _api.get<dynamic>('/api/tax-returns/all');
+    if (res.statusCode == 200) return _asMapList(res.data);
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      return listTaxReturns();
+    }
+    throw PortalException(_message(res.data, 'Failed to load tax returns'));
+  }
+
+  Future<Map<String, dynamic>> toggleReturnLock(dynamic id, {required bool lock}) async {
+    final res = await _api.post<dynamic>(
+      '/api/tax-returns/$id/toggle-lock',
+      data: {'action': lock ? 'lock' : 'unlock'},
+    );
+    if (res.statusCode == 200) return _asMap(res.data) ?? {};
+    throw PortalException(_message(res.data, 'Failed to update lock'));
+  }
+
+  Future<List<Map<String, dynamic>>> listEroEfinDirectory() async {
+    final res = await _api.get<dynamic>('/api/bureau/ero-efin');
+    if (res.statusCode == 200) return _asMapList(res.data);
+    if (res.statusCode == 401 || res.statusCode == 403) return const [];
+    throw PortalException(_message(res.data, 'Failed to load ERO directory'));
+  }
+
+  Future<List<Map<String, dynamic>>> listBureauPreparers() async {
+    final res = await _api.get<dynamic>('/api/bureau/preparers');
+    if (res.statusCode == 200) return _asMapList(res.data);
+    if (res.statusCode == 401 || res.statusCode == 403) return const [];
+    throw PortalException(_message(res.data, 'Failed to load preparers'));
+  }
+
   Future<Map<String, dynamic>?> currentTaxReturn() async {
     final res = await _api.get<dynamic>('/api/tax-returns/current');
     if (res.statusCode != 200 || res.data == null) return null;

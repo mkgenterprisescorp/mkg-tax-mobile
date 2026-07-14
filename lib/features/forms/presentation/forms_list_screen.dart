@@ -80,12 +80,13 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
     final verified = _verification?['verified'] == true;
 
     final actions = <_DashAction>[
+      _DashAction('All Tax Returns', Icons.description_outlined, '/all-returns', MkgColors.primary),
       _DashAction('Tax Organizer', Icons.assignment_outlined, '/organizer', MkgColors.primary),
       _DashAction('Documents', Icons.folder_outlined, '/documents', MkgColors.green),
+      _DashAction('IRS iERO', Icons.travel_explore_outlined, '/iero', MkgColors.orange),
       _DashAction('Financials', Icons.payments_outlined, '/financial', MkgColors.orange),
       _DashAction('Payments', Icons.receipt_long_outlined, '/billing', MkgColors.accent),
-      _DashAction('Messages', Icons.chat_bubble_outline, '/messages', MkgColors.primary),
-      _DashAction('TaxPro Assist', Icons.smart_toy_outlined, '/tessa', MkgColors.green),
+      _DashAction('Tessa AI', Icons.smart_toy_outlined, '/tessa', MkgColors.green),
       _DashAction('Profile / KYC', Icons.verified_user_outlined, '/profile', MkgColors.orange),
       _DashAction('Refund Tracker', Icons.track_changes_outlined, '/refund-tracker', MkgColors.primary),
       _DashAction('Tax Tools', Icons.calculate_outlined, '/tools', MkgColors.green),
