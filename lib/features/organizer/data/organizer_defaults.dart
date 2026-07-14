@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Web-parity step labels (financemkgtaxpro Organizer.tsx).
@@ -13,6 +14,91 @@ const personalOrganizerSteps = <String>[
   'Direct Deposit',
   'Review & Sign',
 ];
+
+/// Icon + short cue for each walkthrough section (hub tiles).
+IconData iconForOrganizerStep(String step) {
+  if (step == 'Filing Info') return Icons.flag_outlined;
+  if (step == 'Personal Info') return Icons.person_outline;
+  if (step == 'Income (1040)') return Icons.payments_outlined;
+  if (step == 'Credits & Deductions') return Icons.savings_outlined;
+  if (step == 'Schedule C') return Icons.storefront_outlined;
+  if (step == 'CA 540 State Tax') return Icons.map_outlined;
+  if (step == 'Direct Deposit') return Icons.account_balance_outlined;
+  if (step == 'Review & Sign') return Icons.draw_outlined;
+  if (step.contains('1120-S') || step.contains('1120')) return Icons.apartment_outlined;
+  if (step.contains('1065')) return Icons.groups_outlined;
+  if (step.contains('1041')) return Icons.account_balance_outlined;
+  if (step.contains('990')) return Icons.volunteer_activism_outlined;
+  return Icons.description_outlined;
+}
+
+String cueForOrganizerStep(String step) {
+  if (step == 'Filing Info') return 'Choose personal or business filing';
+  if (step == 'Personal Info') return 'Name, SSN, address, dependents';
+  if (step == 'Income (1040)') return 'Wages, interest, Schedule E rentals';
+  if (step == 'Credits & Deductions') return 'Credits and Schedule A';
+  if (step == 'Schedule C') return 'Sole prop / gig profit & loss';
+  if (step == 'CA 540 State Tax') return 'California Form 540';
+  if (step == 'Direct Deposit') return 'Bank routing & account';
+  if (step == 'Review & Sign') return 'Consent and submit';
+  if (step.startsWith('Form ')) return 'Entity return details';
+  return 'Complete this section';
+}
+
+/// Lightweight completion heuristics for hub checkmarks.
+bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
+  String root(String k) => '${data[k] ?? ''}'.trim();
+  String nested(Map<String, dynamic> map, String k) => '${map[k] ?? ''}'.trim();
+  num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+  Map<String, dynamic> m(String k) => Map<String, dynamic>.from((data[k] as Map?) ?? {});
+
+  if (step == 'Filing Info') {
+    return root('prepType').isNotEmpty && root('filingStatus').isNotEmpty;
+  }
+  if (step == 'Personal Info') {
+    return root('firstName').isNotEmpty && root('lastName').isNotEmpty;
+  }
+  if (step == 'Income (1040)') {
+    final rentals = (m('scheduleE')['rentalProperties'] as List?) ?? const [];
+    return n(data['wages']) > 0 ||
+        n(data['interestIncome']) > 0 ||
+        n(data['businessIncome']) > 0 ||
+        n(data['otherIncome']) > 0 ||
+        rentals.isNotEmpty;
+  }
+  if (step == 'Credits & Deductions') {
+    return data['itemizeDeductions'] == true ||
+        n(data['educatorExpenses']) > 0 ||
+        n(data['studentLoanInterest']) > 0 ||
+        n(data['iraDeduction']) > 0;
+  }
+  if (step == 'Schedule C') {
+    final sc = m('scheduleC');
+    return nested(sc, 'businessName').isNotEmpty || n(sc['grossReceipts']) > 0;
+  }
+  if (step == 'CA 540 State Tax') {
+    final ca = m('ca540');
+    return ca.isNotEmpty && (n(ca['caWages']) > 0 || nested(ca, 'residencyStatus').isNotEmpty);
+  }
+  if (step == 'Direct Deposit') {
+    return root('routingNumber').isNotEmpty && root('accountNumber').isNotEmpty;
+  }
+  if (step == 'Review & Sign') {
+    return data['consentPerjury'] == true &&
+        data['consentToEFile'] == true &&
+        (root('typedSignature').isNotEmpty || root('printedName').isNotEmpty);
+  }
+  for (final prep in businessEntityTypes) {
+    if (step == (businessFormLabels[prep] ?? '')) {
+      final form = m(prep);
+      final name =
+          '${form['corporationName'] ?? form['partnershipName'] ?? form['organizationName'] ?? form['trustName'] ?? ''}'
+              .trim();
+      return name.isNotEmpty;
+    }
+  }
+  return false;
+}
 
 const businessEntityTypes = <String>[
   'form1041',

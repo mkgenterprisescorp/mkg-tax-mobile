@@ -112,6 +112,48 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Text('Quick walkthrough', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _QuickIcon(
+                      icon: Icons.assignment_outlined,
+                      label: 'Organizer',
+                      onTap: () => context.go('/organizer'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _QuickIcon(
+                      icon: Icons.folder_outlined,
+                      label: 'Documents',
+                      onTap: () => context.go('/documents'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _QuickIcon(
+                      icon: Icons.description_outlined,
+                      label: 'Returns',
+                      onTap: () => context.go('/returns'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _QuickIcon(
+                      icon: Icons.support_agent_outlined,
+                      label: 'Help',
+                      onTap: () => context.go('/chat'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
               child: Text('Services', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             ),
             Padding(
@@ -233,6 +275,49 @@ class _ServicePillar extends StatelessWidget {
                 ),
               ),
               const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickIcon extends StatelessWidget {
+  const _QuickIcon({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: MkgColors.surfaceGrey,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: MkgColors.primary.withValues(alpha: 0.18)),
+                ),
+                child: Icon(icon, color: MkgColors.primary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
             ],
           ),
         ),

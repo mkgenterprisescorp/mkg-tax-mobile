@@ -26,6 +26,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   int _year = DateTime.now().year - 1;
   String _status = 'draft';
   int _step = 0;
+  /// Hub = icon grid of sections; detail = walk through one section.
+  bool _showHub = true;
   Map<String, dynamic> _data = {};
 
   List<String> get _steps {
@@ -36,6 +38,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     }
     return steps;
   }
+
+  int get _completedCount => _steps.where((s) => isOrganizerStepComplete(s, _data)).length;
 
   @override
   void initState() {
@@ -120,15 +124,26 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       await _save(submit: true);
       return;
     }
-    setState(() => _step += 1);
+    // Return to icon hub so the client can pick the next section.
+    setState(() {
+      _step += 1;
+      _showHub = true;
+    });
   }
 
   void _back() {
-    if (_step == 0) {
-      context.go('/tax-center');
+    if (!_showHub) {
+      setState(() => _showHub = true);
       return;
     }
-    setState(() => _step -= 1);
+    context.go('/tax-center');
+  }
+
+  void _openStep(int index) {
+    setState(() {
+      _step = index;
+      _showHub = false;
+    });
   }
 
   @override
@@ -155,26 +170,36 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final title = steps[stepIndex];
     final locked = _status == 'processing' || _status == 'completed' || _status == 'filed' || _status == 'accepted';
 
+    if (_showHub) {
+      return _buildHub(steps: steps, locked: locked);
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
       children: [
         Row(
           children: [
+            IconButton(
+              tooltip: 'All sections',
+              onPressed: () => setState(() => _showHub = true),
+              icon: const Icon(Icons.grid_view_rounded, color: MkgColors.primary),
+            ),
             Expanded(
               child: Text(
-                'Tax Organizer · TY $_year',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                title,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
             ),
             TextButton(onPressed: locked || _saving ? null : () => _save(), child: const Text('Save')),
           ],
         ),
-        Text('Status: $_status · Return #$_returnId', style: const TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+        Text(
+          'Section ${stepIndex + 1} of ${steps.length} · TY $_year',
+          style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        ),
         const SizedBox(height: 12),
         _StepProgress(steps: steps, index: stepIndex),
         const SizedBox(height: 16),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: MkgColors.primary)),
-        const SizedBox(height: 12),
         AbsorbPointer(
           absorbing: locked,
           child: KeyedSubtree(
@@ -188,7 +213,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             Expanded(
               child: OutlinedButton(
                 onPressed: _saving ? null : _back,
-                child: Text(stepIndex == 0 ? 'Tax Center' : 'Back'),
+                child: const Text('Sections'),
               ),
             ),
             const SizedBox(width: 12),
@@ -205,6 +230,99 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHub({required List<String> steps, required bool locked}) {
+    final done = _completedCount;
+    final pct = steps.isEmpty ? 0.0 : done / steps.length;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+      children: [
+        const Text('Tax Organizer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text(
+          'Tap a section to walk through and complete · TY $_year',
+          style: const TextStyle(color: MkgColors.textGrey),
+        ),
+        const SizedBox(height: 14),
+        MkgCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$done of ${steps.length} sections complete',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  StatusChip(
+                    label: _status,
+                    color: locked ? MkgColors.green : MkgColors.accent,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: pct,
+                  minHeight: 8,
+                  backgroundColor: MkgColors.surfaceGrey,
+                  color: MkgColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Walk through',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: MkgColors.dark),
+        ),
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: steps.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.05,
+          ),
+          itemBuilder: (context, index) {
+            final step = steps[index];
+            final complete = isOrganizerStepComplete(step, _data);
+            return _SectionTile(
+              index: index + 1,
+              title: step,
+              cue: cueForOrganizerStep(step),
+              icon: iconForOrganizerStep(step),
+              complete: complete,
+              onTap: () => _openStep(index),
+            );
+          },
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: locked
+              ? null
+              : () {
+                  final nextIncomplete = steps.indexWhere((s) => !isOrganizerStepComplete(s, _data));
+                  _openStep(nextIncomplete < 0 ? 0 : nextIncomplete);
+                },
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: Text(done == 0 ? 'Start walkthrough' : done >= steps.length ? 'Review & submit' : 'Continue walkthrough'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: () => context.go('/tax-center'),
+          child: const Text('Back to Tax Center'),
         ),
       ],
     );
@@ -658,6 +776,81 @@ class _StepProgress extends StatelessWidget {
           style: const TextStyle(fontSize: 12, color: MkgColors.textGrey, fontWeight: FontWeight.w600),
         ),
       ],
+    );
+  }
+}
+
+class _SectionTile extends StatelessWidget {
+  const _SectionTile({
+    required this.index,
+    required this.title,
+    required this.cue,
+    required this.icon,
+    required this.complete,
+    required this.onTap,
+  });
+
+  final int index;
+  final String title;
+  final String cue;
+  final IconData icon;
+  final bool complete;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = complete ? MkgColors.green : MkgColors.primary;
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color.withValues(alpha: 0.25)),
+                    ),
+                    child: Icon(icon, color: color, size: 22),
+                  ),
+                  const Spacer(),
+                  if (complete)
+                    const Icon(Icons.check_circle, color: MkgColors.green, size: 22)
+                  else
+                    Text(
+                      '$index',
+                      style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, height: 1.2),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                cue,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 11, height: 1.25),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
