@@ -64,16 +64,24 @@ GoRouter createRouter({
         final kycIncomplete = (user.kycStatus ?? 'incomplete') == 'incomplete';
         final pendingApproval =
             user.approvalStatus == 'pending' && user.kycStatus == 'submitted';
-        final allowedWhilePending =
-            loc == '/profile' || loc == '/home' || loc == '/forms' || loc == '/dashboard' || loc == '/more';
-        if (pendingApproval && !allowedWhilePending) {
+        // Primary tax-year IA tabs stay reachable so clients can file while KYC is soft-gated.
+        const primaryIa = {
+          '/home',
+          '/forms',
+          '/dashboard',
+          '/returns',
+          '/organizer',
+          '/documents',
+          '/tessa',
+          '/more',
+          '/profile',
+        };
+        if (pendingApproval && !primaryIa.contains(loc) && !loc.startsWith('/profile')) {
           return '/profile';
         }
         final created = user.createdAt != null ? DateTime.tryParse(user.createdAt!) : null;
         final isNew = created != null && !created.isBefore(DateTime.utc(2026, 2, 22));
-        if (isNew &&
-            kycIncomplete &&
-            !(loc == '/profile' || loc == '/home' || loc == '/forms' || loc == '/dashboard' || loc == '/more')) {
+        if (isNew && kycIncomplete && !primaryIa.contains(loc) && !loc.startsWith('/profile')) {
           return '/profile';
         }
       }

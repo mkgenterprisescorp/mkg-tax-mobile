@@ -82,126 +82,138 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     final ws = tax.workspace;
     final yearInfo = tax.years.where((y) => y.taxYear == year).toList();
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 96),
       children: [
         const TaxYearSelectorBar(),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-            children: [
-              MkgCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: MkgCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Federal return · TY ${year ?? '—'}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 8),
+                Text(ws?.federalReturnStatus ?? 'Not Started', style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  'Organizer: ${ws?.organizerStatus ?? 'Not Started'} · ${ws?.organizerCompletionPercentage ?? 0}%',
+                  style: const TextStyle(color: MkgColors.textGrey),
+                ),
+                if (yearInfo.isNotEmpty && !yearInfo.first.efileAvailable) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Warning: e-file may be unavailable. Year visibility does not guarantee a claimable refund.',
+                    style: TextStyle(color: MkgColors.orange, fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
                   children: [
-                    Text('Federal return · TY ${year ?? '—'}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                    const SizedBox(height: 8),
-                    Text(ws?.federalReturnStatus ?? 'Not Started', style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Organizer: ${ws?.organizerStatus ?? 'Not Started'} · ${ws?.organizerCompletionPercentage ?? 0}%',
-                      style: const TextStyle(color: MkgColors.textGrey),
+                    FilledButton(
+                      onPressed: () => context.go('/organizer'),
+                      child: const Text('Open Organizer'),
                     ),
-                    if (yearInfo.isNotEmpty && !yearInfo.first.efileAvailable) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Warning: e-file may be unavailable. Year visibility does not guarantee a claimable refund.',
-                        style: TextStyle(color: MkgColors.orange, fontSize: 12),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        FilledButton(
-                          onPressed: () => context.go('/organizer'),
-                          child: const Text('Open Organizer'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () => context.go('/documents'),
-                          child: const Text('Documents'),
-                        ),
-                      ],
+                    OutlinedButton(
+                      onPressed: () => context.go('/documents'),
+                      child: const Text('Documents'),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text('State returns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('State returns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                  ),
-                  TextButton(
-                    onPressed: _busy ? null : _priorYear,
-                    child: const Text('File a Prior Year'),
-                  ),
-                ],
+              TextButton(
+                onPressed: _busy ? null : _priorYear,
+                child: const Text('File a Prior Year'),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 72,
-                    child: TextField(
-                      controller: _stateCode,
-                      textCapitalization: TextCapitalization.characters,
-                      maxLength: 2,
-                      decoration: const InputDecoration(labelText: 'State', counterText: ''),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.tonal(
-                    onPressed: _busy ? null : _addState,
-                    child: const Text('Add State'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if ((ws?.stateReturns ?? const []).isEmpty)
-                const Text('No state returns yet. Add residency / work / rental states for review.', style: TextStyle(color: MkgColors.textGrey))
-              else
-                ...ws!.stateReturns.map((s) {
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
-                        child: Text((s['state_code'] ?? '?').toString(), style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w800)),
-                      ),
-                      title: Text('${s['state_code']} · ${s['residency_type'] ?? 'resident'}'),
-                      subtitle: Text('Status: ${s['filing_status'] ?? 'Not Started'}'),
-                      trailing: Text((s['return_type'] ?? 'original').toString()),
-                    ),
-                  );
-                }),
-              const SizedBox(height: 16),
-              const Text('Workspace sections', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(height: 8),
-              for (final item in const [
-                ('Tax Organizer', Icons.assignment_outlined, '/organizer'),
-                ('Documents', Icons.folder_outlined, '/documents'),
-                ('Tasks', Icons.checklist_outlined, '/home'),
-                ('Payments', Icons.payments_outlined, '/billing'),
-                ('Messages / TESSA', Icons.smart_toy_outlined, '/tessa'),
-                ('Return Summary', Icons.summarize_outlined, '/home'),
-              ])
-                ListTile(
-                  leading: Icon(item.$2, color: MkgColors.primary),
-                  title: Text(item.$1),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go(item.$3),
-                ),
-              if (tax.source == 'local-fallback')
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Text(
-                    'Laravel workspace APIs require LARAVEL_API_BASE_URL + Sanctum token. Catalog may still render locally.',
-                    style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
-                  ),
-                ),
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 72,
+                child: TextField(
+                  controller: _stateCode,
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 2,
+                  decoration: const InputDecoration(labelText: 'State', counterText: ''),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonal(
+                onPressed: _busy ? null : _addState,
+                child: const Text('Add State'),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: (ws?.stateReturns ?? const []).isEmpty
+              ? const Text(
+                  'No state returns yet. Add residency / work / rental states for review.',
+                  style: TextStyle(color: MkgColors.textGrey),
+                )
+              : Column(
+                  children: [
+                    for (final s in ws!.stateReturns)
+                      Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                            child: Text(
+                              (s['state_code'] ?? '?').toString(),
+                              style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          title: Text('${s['state_code']} · ${s['residency_type'] ?? 'resident'}'),
+                          subtitle: Text('Status: ${s['filing_status'] ?? 'Not Started'}'),
+                          trailing: Text((s['return_type'] ?? 'original').toString()),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text('Workspace sections', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        ),
+        for (final item in const [
+          ('Tax Organizer', Icons.assignment_outlined, '/organizer'),
+          ('Documents', Icons.folder_outlined, '/documents'),
+          ('Tasks', Icons.checklist_outlined, '/home'),
+          ('Payments', Icons.payments_outlined, '/billing'),
+          ('Messages / TESSA', Icons.smart_toy_outlined, '/tessa'),
+          ('Return Summary', Icons.summarize_outlined, '/home'),
+        ])
+          ListTile(
+            leading: Icon(item.$2, color: MkgColors.primary),
+            title: Text(item.$1),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(item.$3),
+          ),
+        if (tax.source == 'local-fallback')
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Laravel workspace APIs require LARAVEL_API_BASE_URL + Sanctum token. Catalog may still render locally.',
+              style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
