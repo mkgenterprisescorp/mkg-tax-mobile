@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/portal_repository.dart';
+import '../config/app_config.dart';
 import '../network/laravel_api_client.dart';
 
 class TaxYearInfo {
@@ -45,6 +47,7 @@ class TaxYearWorkspace {
     this.estimatedBalanceDue,
     this.stateReturns = const [],
     this.documentsCount = 0,
+    this.taxReturnId,
   });
 
   final int taxYear;
@@ -55,6 +58,7 @@ class TaxYearWorkspace {
   final num? estimatedBalanceDue;
   final List<Map<String, dynamic>> stateReturns;
   final int documentsCount;
+  final dynamic taxReturnId;
 
   factory TaxYearWorkspace.fromJson(Map<String, dynamic> json) {
     return TaxYearWorkspace(
@@ -70,8 +74,63 @@ class TaxYearWorkspace {
               .toList() ??
           const [],
       documentsCount: (json['documents_count'] as num?)?.toInt() ?? 0,
+      taxReturnId: json['tax_return_id'] ?? json['taxReturnId'] ?? json['id'],
     );
   }
+
+  /// Derive progress from a portal `tax_returns` row (cookie-auth builds).
+  factory TaxYearWorkspace.fromPortalReturn(
+    Map<String, dynamic> row, {
+    int documentsCount = 0,
+  }) {
+    final year = (row['year'] as num?)?.toInt() ?? 0;
+    final status = (row['status'] ?? 'draft').toString();
+    final data = Map<String, dynamic>.from((row['data'] as Map?) ?? {});
+    final pct = _estimateOrganizerPct(data, status);
+    return TaxYearWorkspace(
+      taxYear: year,
+      federalReturnStatus: status,
+      organizerStatus: pct >= 100
+          ? 'Complete'
+          : pct > 0
+              ? 'In Progress'
+              : 'Not Started',
+      organizerCompletionPercentage: pct,
+      documentsCount: documentsCount,
+      taxReturnId: row['id'],
+    );
+  }
+}
+
+int _estimateOrganizerPct(Map<String, dynamic> data, String status) {
+  if (status == 'processing' || status == 'filed' || status == 'accepted' || status == 'completed') {
+    return 100;
+  }
+  var score = 0;
+  var total = 8;
+  if ('${data['prepType'] ?? ''}'.isNotEmpty) score++;
+  if ('${data['firstName'] ?? ''}'.trim().isNotEmpty && '${data['lastName'] ?? ''}'.trim().isNotEmpty) score++;
+  final wages = data['wages'];
+  final hasIncome = (wages is num && wages > 0) ||
+      ((data['w2Forms'] as List?)?.isNotEmpty ?? false) ||
+      ((data['scheduleE'] is Map) &&
+          ((data['scheduleE']['rentalProperties'] as List?)?.isNotEmpty ?? false));
+  if (hasIncome) score++;
+  if (data['itemizeDeductions'] == true || (data['scheduleA'] is Map)) score++;
+  final sc = data['scheduleC'];
+  if (sc is Map && '${sc['businessName'] ?? ''}'.trim().isNotEmpty) score++;
+  if (data['ca540'] is Map) score++;
+  if ('${data['routingNumber'] ?? ''}'.trim().isNotEmpty) score++;
+  if (data['consentPerjury'] == true || data['consentToEFile'] == true) score++;
+  // Entity prep
+  for (final k in ['form1120', 'form1120S', 'form1065', 'form990EZ', 'form990', 'form1041']) {
+    final m = data[k];
+    if (m is Map && m.values.any((v) => v != null && '$v'.trim().isNotEmpty && v != 0)) {
+      score = (score + 2).clamp(0, total);
+      break;
+    }
+  }
+  return ((score / total) * 100).round().clamp(0, 100);
 }
 
 class TaxYearRepository {
@@ -285,9 +344,35 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   Future<void> refreshWorkspace() async {
     final year = state.selectedYear;
     if (year == null) return;
-    final workspace = await _repo.getWorkspace(year) ?? await _repo.activateWorkspace(year);
-    final tasks = await _repo.listTasks(year);
-    state = state.copyWith(workspace: workspace, tasks: tasks);
+
+    // Prefer Laravel mobile workspace when Sanctum is configured + token present.
+    if (AppConfig.usesLaravelAuth) {
+      final workspace = await _repo.getWorkspace(year) ?? await _repo.activateWorkspace(year);
+      final tasks = await _repo.listTasks(year);
+      if (workspace != null) {
+        state = state.copyWith(workspace: workspace, tasks: tasks);
+        return;
+      }
+    }
+
+    // Cookie-portal fallback: derive progress from tax_returns for the selected year.
+    try {
+      final portal = ref.read(portalRepositoryProvider);
+      final row = await portal.getOrCreateReturnForYear(year);
+      var docsCount = 0;
+      try {
+        if (row['id'] != null) {
+          docsCount = (await portal.listDocuments(row['id'])).length;
+        }
+      } catch (_) {}
+      state = state.copyWith(
+        workspace: TaxYearWorkspace.fromPortalReturn(row, documentsCount: docsCount),
+        tasks: const [],
+        source: state.source == 'laravel' ? state.source : 'portal-returns',
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
   }
 }
 

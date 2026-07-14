@@ -15,11 +15,34 @@ void main() {
     expect(data['scheduleC'], isA<Map>());
     expect(data['scheduleC']['businessName'], '');
     expect(data['scheduleE']['rentalProperties'], isA<List>());
+    expect(data['dependents'], isA<List>());
+    expect(data['w2Forms'], isA<List>());
+    expect(data['w2Forms'], isNotEmpty);
+    expect(data['w2Forms'][0]['box1_wagesTips'], 0);
     expect(data['form1120'], isA<Map>());
     expect(data['form1120S'], isA<Map>());
     expect(data['form1065'], isA<Map>());
     expect(data['form990EZ'], isA<Map>());
     expect(data['scheduleA']['medicalExpenses'], 0);
+  });
+
+  test('empty dependent and w2 helpers match web keys', () {
+    final dep = emptyDependent();
+    expect(dep.keys, containsAll(['name', 'ssn', 'ssnType', 'relationship', 'dob']));
+    final w2 = emptyW2Form(employeeFirstName: 'Pat');
+    expect(w2['employeeFirstName'], 'Pat');
+    expect(w2['box1_wagesTips'], 0);
+  });
+
+  test('income completion recognizes w2Forms', () {
+    expect(
+      isOrganizerStepComplete('Income (1040)', {
+        'w2Forms': [
+          {'employerName': 'Acme', 'box1_wagesTips': 100},
+        ],
+      }),
+      isTrue,
+    );
   });
 
   test('prepType steps match web Organizer', () {

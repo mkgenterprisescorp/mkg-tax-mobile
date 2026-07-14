@@ -51,5 +51,6 @@ flutter build apk --release --build-name=1.0.0 --build-number=15 \
 - Dual-brand IA: Home | Tax Center | Advisory | Chat | More
 - Device display name: **MKG Tax**
 - Sanctum auth when `API_BASE_URL` targets `/api/v1`; cookie portal auth when pointing at `financemkgtax.com`
-- Tax Organizer + Refund Advance (Loan Estimate / TILA / 36% APR) icon hubs
+- Tax Organizer (personal dependents/W-2 + business Schedule C/entity) + Documents vault + Refund Advance (Loan Estimate / TILA / 36% APR)
+- Advisor chat rooms + TESSA AI
 - **No iOS build on Linux** (needs macOS + Xcode)

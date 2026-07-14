@@ -60,7 +60,13 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
   }
   if (step == 'Income (1040)') {
     final rentals = (m('scheduleE')['rentalProperties'] as List?) ?? const [];
+    final w2s = (data['w2Forms'] as List?) ?? const [];
+    final hasW2 = w2s.any((e) {
+      if (e is! Map) return false;
+      return n(e['box1_wagesTips']) > 0 || '${e['employerName'] ?? ''}'.trim().isNotEmpty;
+    });
     return n(data['wages']) > 0 ||
+        hasW2 ||
         n(data['interestIncome']) > 0 ||
         n(data['businessIncome']) > 0 ||
         n(data['otherIncome']) > 0 ||
@@ -150,6 +156,80 @@ Map<String, dynamic> emptyRentalProperty() => {
       'mortgage': 0,
       'otherExpenses': 0,
     };
+
+/// Web Organizer dependent row: `{ name, ssn, ssnType, relationship, dob }`.
+Map<String, dynamic> emptyDependent() => {
+      'name': '',
+      'ssn': '',
+      'ssnType': 'ssn',
+      'relationship': '',
+      'dob': '',
+    };
+
+/// Minimal W-2 form matching financemkgtaxpro `defaultW2Data` keys used on mobile.
+Map<String, dynamic> emptyW2Form({
+  String employeeSSN = '',
+  String employeeFirstName = '',
+  String employeeLastName = '',
+  String employeeAddress = '',
+  String employeeCity = '',
+  String employeeState = '',
+  String employeeZip = '',
+}) =>
+    {
+      'employeeSSN': employeeSSN,
+      'employerEIN': '',
+      'employerName': '',
+      'employerAddress': '',
+      'employerCity': '',
+      'employerState': '',
+      'employerZip': '',
+      'controlNumber': '',
+      'employeeFirstName': employeeFirstName,
+      'employeeMiddleInitial': '',
+      'employeeLastName': employeeLastName,
+      'employeeSuffix': '',
+      'employeeAddress': employeeAddress,
+      'employeeCity': employeeCity,
+      'employeeState': employeeState,
+      'employeeZip': employeeZip,
+      'box1_wagesTips': 0,
+      'box2_fedTaxWithheld': 0,
+      'box3_ssWages': 0,
+      'box4_ssTaxWithheld': 0,
+      'box5_medicareWages': 0,
+      'box6_medicareTaxWithheld': 0,
+      'box7_ssTips': 0,
+      'box8_allocatedTips': 0,
+      'box10_dependentCareBenefits': 0,
+      'box11_nonqualifiedPlans': 0,
+      'box12a_code': '',
+      'box12a_amount': 0,
+      'box13_statutory': false,
+      'box13_retirementPlan': false,
+      'box13_thirdPartySickPay': false,
+      'box14_other': '',
+      'box15_state': '',
+      'box15_stateId': '',
+      'box16_stateWages': 0,
+      'box17_stateTax': 0,
+      'box18_localWages': 0,
+      'box19_localTax': 0,
+      'box20_localityName': '',
+    };
+
+const dependentRelationshipOptions = <(String, String)>[
+  ('son', 'Son'),
+  ('daughter', 'Daughter'),
+  ('stepson', 'Stepson'),
+  ('stepdaughter', 'Stepdaughter'),
+  ('foster_child', 'Foster child'),
+  ('brother', 'Brother'),
+  ('sister', 'Sister'),
+  ('parent', 'Parent'),
+  ('grandchild', 'Grandchild'),
+  ('other', 'Other qualifying relative'),
+];
 
 List<String> stepsForPrepType(String prepType) {
   if (businessEntityTypes.contains(prepType)) {

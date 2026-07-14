@@ -67,20 +67,58 @@ class PortalRepository {
     return _asMap(res.data);
   }
 
-  Future<Map<String, dynamic>> createTaxReturn({int? taxYear}) async {
-    final year = taxYear ?? DateTime.now().year;
+  Future<Map<String, dynamic>> createTaxReturn({
+    int? taxYear,
+    String filingStatus = 'single',
+    Map<String, dynamic>? data,
+  }) async {
+    final year = taxYear ?? DateTime.now().year - 1;
     final res = await _api.post<dynamic>(
       '/api/tax-returns',
       data: {
         'year': year,
         'status': 'draft',
-        'data': {'filingYear': '$year', 'source': 'mkg-tax-mobile'},
+        'filingStatus': filingStatus,
+        'data': data ?? {'filingYear': year, 'source': 'mkg-tax-mobile'},
       },
     );
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
     throw PortalException(_message(res.data, 'Failed to create tax return'));
+  }
+
+  /// Find return for [year] or create a draft.
+  Future<Map<String, dynamic>> getOrCreateReturnForYear(int year) async {
+    final all = await listTaxReturns();
+    for (final row in all) {
+      if ((row['year'] as num?)?.toInt() == year) return row;
+    }
+    return createTaxReturn(taxYear: year);
+  }
+
+  Future<List<int>> downloadDocumentBytes(dynamic documentId) async {
+    final res = await _api.dio.get<List<int>>(
+      '/api/documents/$documentId/download',
+      options: Options(
+        responseType: ResponseType.bytes,
+        validateStatus: (c) => c != null && c < 500,
+      ),
+    );
+    if (res.statusCode == 200 && res.data != null) return res.data!;
+    // Fallback secure-download may require OTP — surface clear error.
+    final secure = await _api.dio.get<List<int>>(
+      '/api/documents/$documentId/secure-download',
+      options: Options(
+        responseType: ResponseType.bytes,
+        validateStatus: (c) => c != null && c < 500,
+        followRedirects: true,
+      ),
+    );
+    if (secure.statusCode == 200 && secure.data != null) return secure.data!;
+    throw PortalException(
+      _message(secure.data, 'Download failed (${res.statusCode}/${secure.statusCode}). OTP may be required on web.'),
+    );
   }
 
   Future<Map<String, dynamic>> updateTaxReturn(

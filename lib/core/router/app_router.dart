@@ -10,6 +10,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/chat/presentation/advisor_chat_screen.dart';
 import '../../features/clients/presentation/my_clients_screen.dart';
+import '../../features/documents/presentation/documents_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';

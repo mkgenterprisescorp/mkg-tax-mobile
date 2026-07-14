@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -386,7 +387,19 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () => context.go('/organizer'),
+                      onPressed: () async {
+                        final id = r['id'];
+                        final year = (r['year'] as num?)?.toInt();
+                        if (year != null) {
+                          await ref.read(taxYearProvider.notifier).selectYear(year);
+                        }
+                        if (!mounted) return;
+                        if (id == null) {
+                          context.go('/organizer');
+                        } else {
+                          context.go('/organizer?returnId=$id');
+                        }
+                      },
                       icon: const Icon(Icons.folder_open, size: 18),
                       label: const Text('Open Return'),
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),

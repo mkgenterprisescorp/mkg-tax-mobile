@@ -34,9 +34,18 @@
 - Writes **canonical** `tax_returns.data` keys shared with `financemkgtaxpro` `Organizer.tsx` (not only `mobileOrganizer`).
 - Defaults live in `assets/organizer/default_form_data.json` (exported from web `defaultFormData`).
 - `prepType` drives steps: `personal` / `business` → personal 1040 flow (Schedule C when `business` or `businessIncome > 0`); entity types `form1041|form1065|form1120S|form1120|form990|form990EZ` → 4-step entity flow.
+- Personal depth: **dependents[]** (name/ssn/relationship/dob) + **w2Forms[]** (boxes 1–2/3/5/15–17; wages roll up).
 - Schedule E in organizer uses `scheduleE.rentalProperties[]` (web Organizer shape). Standalone web `/schedule-e` uses `properties[]` — merge carefully.
+- Load/create is **year-scoped** via tax-year selector; staff can open `/organizer?returnId=<id>` from All Returns.
 - Save: `PUT /api/tax-returns/:id` with `{ year, status, filingStatus, data }` after deep-merge load.
 - Tax Center also uses a 2-column icon grid for the main sections to complete.
+
+### Documents
+- `/documents` is year-scoped: `getOrCreateReturnForYear` → list/upload with document type picker.
+- Cookie download tries `/api/documents/:id/download` then secure-download; OTP may still require web vault.
+
+### Advisor Chat
+- `/chat` lists portal rooms (`GET /api/chat/rooms`) and supports send (`POST .../messages`); TESSA remains `/tessa`.
 
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
@@ -45,3 +54,6 @@
 - Hot Reload dev: `flutter run` then `r` (reload) / `R` (restart)
 - Debug APK: `flutter build apk --debug`
 - Dev run needs Android SDK + JDK 21 for Flutter Gradle.
+
+### Cookie-auth progress
+- When `API_BASE_URL` is portal (no `/api/v1`), Home/Tax Center workspace progress comes from portal `tax_returns` via `TaxYearWorkspace.fromPortalReturn` — not Laravel `/api/mobile/tax-years`.

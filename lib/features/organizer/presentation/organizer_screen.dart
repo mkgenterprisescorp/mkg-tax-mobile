@@ -55,7 +55,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     try {
       final tax = ref.read(taxYearProvider);
       final preferred = tax.selectedYear ?? tax.currentFilingYear;
-      final result = await ref.read(organizerRepositoryProvider).loadCurrent(preferredYear: preferred);
+      final qid = GoRouterState.of(context).uri.queryParameters['returnId'];
+      final explicitId = qid == null || qid.isEmpty ? null : (int.tryParse(qid) ?? qid);
+      final result = await ref.read(organizerRepositoryProvider).loadCurrent(
+            preferredYear: preferred,
+            returnId: explicitId,
+          );
       if (!mounted) return;
       setState(() {
         _returnId = result.returnId;
@@ -65,7 +70,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _data['filingStatus'] = result.filingStatus;
         _loading = false;
         _step = 0;
+        _showHub = true;
       });
+      // Keep tax-year selector aligned with the opened return.
+      if (tax.selectedYear != result.year) {
+        await ref.read(taxYearProvider.notifier).selectYear(result.year);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -148,6 +158,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(taxYearProvider, (prev, next) {
+      if (prev?.selectedYear != next.selectedYear &&
+          next.selectedYear != null &&
+          next.selectedYear != _year &&
+          !_loading) {
+        _load();
+      }
+    });
+
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: MkgColors.primary));
     }
@@ -392,7 +411,20 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     );
   }
 
+  List<Map<String, dynamic>> _listMaps(String key) {
+    final raw = (_data[key] as List?) ?? const [];
+    return [
+      for (final e in raw)
+        if (e is Map) Map<String, dynamic>.from(e),
+    ];
+  }
+
+  void _setList(String key, List<Map<String, dynamic>> rows) {
+    setState(() => _data = Map<String, dynamic>.from(_data)..[key] = rows);
+  }
+
   Widget _personalInfoStep() {
+    final dependents = _listMaps('dependents');
     return Column(
       children: [
         OrganizerSection(
@@ -402,6 +434,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               OrganizerTextField(label: 'First name', value: '${_data['firstName'] ?? ''}', onChanged: (v) => _setRoot('firstName', v)),
               OrganizerTextField(label: 'Middle initial', value: '${_data['middleInitial'] ?? ''}', onChanged: (v) => _setRoot('middleInitial', v)),
               OrganizerTextField(label: 'Last name', value: '${_data['lastName'] ?? ''}', onChanged: (v) => _setRoot('lastName', v)),
+              OrganizerDropdown<String>(
+                label: 'ID type',
+                value: '${_data['ssnType'] ?? 'ssn'}',
+                items: const [('ssn', 'SSN'), ('itin', 'ITIN')],
+                onChanged: (v) => _setRoot('ssnType', v ?? 'ssn'),
+              ),
               OrganizerTextField(label: 'SSN / ITIN', value: '${_data['ssn'] ?? ''}', onChanged: (v) => _setRoot('ssn', v)),
               OrganizerTextField(label: 'Date of birth', value: '${_data['dateOfBirth'] ?? ''}', onChanged: (v) => _setRoot('dateOfBirth', v)),
               OrganizerTextField(label: 'Phone', value: '${_data['phone'] ?? ''}', onChanged: (v) => _setRoot('phone', v)),
@@ -432,8 +470,123 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               ],
             ),
           ),
+        OrganizerSection(
+          title: 'Dependents',
+          subtitle: 'Same dependents[] schema as web Organizer (name, SSN, relationship, DOB).',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (dependents.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No dependents yet. Add children or qualifying relatives.',
+                    style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
+                  ),
+                ),
+              for (var i = 0; i < dependents.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Dependent ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(dependents)..removeAt(i);
+                              _setList('dependents', next);
+                              _setRoot('numDependents', next.length);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Full name',
+                        value: '${dependents[i]['name'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dependents);
+                          next[i] = Map<String, dynamic>.from(next[i])..['name'] = v;
+                          _setList('dependents', next);
+                        },
+                      ),
+                      OrganizerDropdown<String>(
+                        label: 'Relationship',
+                        value: dependentRelationshipOptions.any((e) => e.$1 == '${dependents[i]['relationship']}')
+                            ? '${dependents[i]['relationship']}'
+                            : 'other',
+                        items: dependentRelationshipOptions,
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dependents);
+                          next[i] = Map<String, dynamic>.from(next[i])..['relationship'] = v ?? 'other';
+                          _setList('dependents', next);
+                        },
+                      ),
+                      OrganizerDropdown<String>(
+                        label: 'ID type',
+                        value: '${dependents[i]['ssnType'] ?? 'ssn'}',
+                        items: const [('ssn', 'SSN'), ('itin', 'ITIN')],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dependents);
+                          next[i] = Map<String, dynamic>.from(next[i])..['ssnType'] = v ?? 'ssn';
+                          _setList('dependents', next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'SSN / ITIN',
+                        value: '${dependents[i]['ssn'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dependents);
+                          next[i] = Map<String, dynamic>.from(next[i])..['ssn'] = v;
+                          _setList('dependents', next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Date of birth',
+                        value: '${dependents[i]['dob'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dependents);
+                          next[i] = Map<String, dynamic>.from(next[i])..['dob'] = v;
+                          _setList('dependents', next);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  final next = [...dependents, emptyDependent()];
+                  _setList('dependents', next);
+                  _setRoot('numDependents', next.length);
+                },
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text('Add dependent'),
+              ),
+            ],
+          ),
+        ),
       ],
     );
+  }
+
+  void _syncWagesFromW2(List<Map<String, dynamic>> w2s) {
+    num wages = 0;
+    num withheld = 0;
+    for (final w in w2s) {
+      wages += (w['box1_wagesTips'] is num)
+          ? w['box1_wagesTips'] as num
+          : num.tryParse('${w['box1_wagesTips']}') ?? 0;
+      withheld += (w['box2_fedTaxWithheld'] is num)
+          ? w['box2_fedTaxWithheld'] as num
+          : num.tryParse('${w['box2_fedTaxWithheld']}') ?? 0;
+    }
+    _setRoot('wages', wages);
+    _setRoot('taxWithheld', withheld);
   }
 
   Widget _incomeStep() {
@@ -441,14 +594,152 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final rentals = List<Map<String, dynamic>>.from(
       ((scheduleE['rentalProperties'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
     );
+    final w2s = _listMaps('w2Forms');
 
     return Column(
       children: [
         OrganizerSection(
+          title: 'W-2 forms',
+          subtitle: 'Canonical w2Forms[] — totals roll into wages / taxWithheld.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < w2s.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('W-2 #${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          ),
+                          if (w2s.length > 1)
+                            IconButton(
+                              onPressed: () {
+                                final next = List<Map<String, dynamic>>.from(w2s)..removeAt(i);
+                                _setList('w2Forms', next);
+                                _syncWagesFromW2(next);
+                              },
+                              icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                            ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Employer name',
+                        value: '${w2s[i]['employerName'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['employerName'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Employer EIN',
+                        value: '${w2s[i]['employerEIN'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['employerEIN'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 1 — Wages, tips',
+                        value: w2s[i]['box1_wagesTips'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box1_wagesTips'] = v;
+                          _setList('w2Forms', next);
+                          _syncWagesFromW2(next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 2 — Federal tax withheld',
+                        value: w2s[i]['box2_fedTaxWithheld'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box2_fedTaxWithheld'] = v;
+                          _setList('w2Forms', next);
+                          _syncWagesFromW2(next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 3 — Social Security wages',
+                        value: w2s[i]['box3_ssWages'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box3_ssWages'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 5 — Medicare wages',
+                        value: w2s[i]['box5_medicareWages'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box5_medicareWages'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Box 15 — State',
+                        value: '${w2s[i]['box15_state'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box15_state'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 16 — State wages',
+                        value: w2s[i]['box16_stateWages'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box16_stateWages'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Box 17 — State tax',
+                        value: w2s[i]['box17_stateTax'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(w2s);
+                          next[i] = Map<String, dynamic>.from(next[i])..['box17_stateTax'] = v;
+                          _setList('w2Forms', next);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  final next = [
+                    ...w2s,
+                    emptyW2Form(
+                      employeeSSN: '${_data['ssn'] ?? ''}',
+                      employeeFirstName: '${_data['firstName'] ?? ''}',
+                      employeeLastName: '${_data['lastName'] ?? ''}',
+                      employeeAddress: '${_data['address'] ?? ''}',
+                      employeeCity: '${_data['city'] ?? ''}',
+                      employeeState: '${_data['state'] ?? ''}',
+                      employeeZip: '${_data['zip'] ?? ''}',
+                    ),
+                  ];
+                  _setList('w2Forms', next);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add W-2'),
+              ),
+            ],
+          ),
+        ),
+        OrganizerSection(
           title: 'Income summary (1040)',
           child: Column(
             children: [
-              OrganizerMoneyField(label: 'Wages (W-2)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
+              OrganizerMoneyField(label: 'Wages (W-2 total)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
               OrganizerMoneyField(label: 'Federal tax withheld', value: _data['taxWithheld'], onChanged: (v) => _setRoot('taxWithheld', v)),
               OrganizerMoneyField(label: 'Interest income', value: _data['interestIncome'], onChanged: (v) => _setRoot('interestIncome', v)),
               OrganizerMoneyField(label: 'Dividend income', value: _data['dividendIncome'], onChanged: (v) => _setRoot('dividendIncome', v)),
@@ -707,6 +998,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               Text('Filing status: ${_data['filingStatus']}'),
               Text('Year: ${_data['filingYear'] ?? _year}'),
               Text('Name: ${_data['firstName'] ?? ''} ${_data['lastName'] ?? ''}'),
+              Text('Dependents: ${_listMaps('dependents').length}'),
+              Text('W-2 forms: ${_listMaps('w2Forms').where((w) => '${w['employerName'] ?? ''}'.trim().isNotEmpty || (w['box1_wagesTips'] is num && w['box1_wagesTips'] > 0)).length}'),
+              Text('Wages total: ${_data['wages'] ?? 0}'),
               if (prep == 'business' || showScheduleCStep(_data))
                 Text('Schedule C: ${_map('scheduleC')['businessName'] ?? '(not named)'}'),
               if ((_map('scheduleE')['rentalProperties'] as List?)?.isNotEmpty == true)
