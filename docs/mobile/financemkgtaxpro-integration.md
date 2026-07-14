@@ -27,6 +27,7 @@ Flutter must:
 | Web route | Mobile route | API |
 |-----------|--------------|-----|
 | `/login`, `/register` | `/login`, `/register` | `/api/login`, `/api/register` |
+| Forgot password | `/forgot-password` | `POST /api/forgot-password` → code → `POST /api/reset-password` |
 | `/dashboard` | `/forms` | `/api/tax-returns`, `/api/user/verification-status` |
 | `/organizer` | `/organizer` | `/api/tax-returns/current`, `PUT /api/tax-returns/:id` |
 | `/documents` | `/documents` | `GET /api/tax-returns/:id/documents`, `POST /api/documents/upload` |

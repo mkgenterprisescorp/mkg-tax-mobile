@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/network/api_client.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
@@ -137,77 +136,5 @@ class CompleteProfileScreen extends StatelessWidget {
       if (context.mounted) context.go('/forms');
     });
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-}
-
-class ForgotPasswordScreen extends ConsumerStatefulWidget {
-  const ForgotPasswordScreen({super.key});
-
-  @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
-}
-
-class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
-  final _email = TextEditingController();
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    setState(() => _loading = true);
-    try {
-      final client = ref.read(apiClientProvider);
-      final res = await client.post('/api/forgot-password', data: {'email': _email.text.trim()});
-      if (!mounted) return;
-      if ((res.statusCode ?? 500) >= 400) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text((res.data is Map ? res.data['message'] : null) ?? 'Reset request failed')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('If that email exists, a reset code was sent.')),
-        );
-        context.go('/login');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AuthScaffold(
-      title: 'Forgot password',
-      footer: TextButton(onPressed: () => context.go('/login'), child: const Text('Back to login')),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'We will email a reset code using the same financemkgtaxpro endpoint as the web portal.',
-            style: TextStyle(color: MkgColors.textGrey),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.email_outlined)),
-          ),
-          const SizedBox(height: 18),
-          FilledButton(
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Submit'),
-          ),
-        ],
-      ),
-    );
   }
 }

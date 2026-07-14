@@ -138,6 +138,39 @@ class AuthRepository {
     throw AuthException(msg);
   }
 
+  /// Step 1 of web-parity reset: send 6-digit code via email/SMS.
+  /// Always returns success when the email is well-formed (does not reveal whether the account exists).
+  Future<void> requestPasswordReset(String email) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      '/api/forgot-password',
+      data: {'email': email.trim()},
+    );
+    final data = res.data ?? {};
+    if ((res.statusCode ?? 500) >= 400) {
+      throw AuthException((data['message'] ?? data['error'] ?? 'Failed to send reset code').toString());
+    }
+  }
+
+  /// Step 3 of web-parity reset: exchange email + 6-digit code for a new password.
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      '/api/reset-password',
+      data: {
+        'email': email.trim(),
+        'code': code.trim(),
+        'newPassword': newPassword,
+      },
+    );
+    final data = res.data ?? {};
+    if ((res.statusCode ?? 500) >= 400) {
+      throw AuthException((data['message'] ?? data['error'] ?? 'Password reset failed').toString());
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _api.post('/api/logout');
