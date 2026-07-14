@@ -38,9 +38,12 @@ flutter build apk --release \
   --dart-define=WEB_BASE_URL=https://financemkgtax.com
 ```
 
-### Transitional device-verify (until `api.financemkgtax.com` DNS is live)
-Cookie portal login still works against the web host:
+### Transitional default (until `api.financemkgtax.com` DNS is live on DigitalOcean)
+**AppConfig default** is already `https://financemkgtax.com` (cookie portal login). No dart-define required for device builds:
+
 ```bash
+flutter build apk --release
+# equivalent explicit:
 flutter build apk --release \
   --dart-define=API_BASE_URL=https://financemkgtax.com \
   --dart-define=WEB_BASE_URL=https://financemkgtax.com
