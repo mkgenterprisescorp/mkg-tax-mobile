@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
@@ -55,7 +56,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     return AuthScaffold(
-      title: 'Sign in to financemkgtax.com',
+      title: AppConfig.usesLaravelAuth
+          ? 'Sign in via Laravel API'
+          : 'Sign in to ${Uri.parse(AppConfig.webRoot).host}',
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -115,10 +118,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 : const Text('Log In'),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Sends credentials to financemkgtaxpro (financemkgtax.com) using the same session cookie API as the web portal.',
+          Text(
+            AppConfig.usesLaravelAuth
+                ? 'Authoritative auth via Laravel Sanctum at ${AppConfig.apiRoot}. Neon is never contacted from the app.'
+                : 'Transitional cookie login against ${AppConfig.apiRoot}. Production builds use https://api.financemkgtax.com/api/v1.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+            style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
           ),
         ],
       ),

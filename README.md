@@ -4,27 +4,41 @@ Flutter single source of truth for MKG Tax Consultants iOS and Android.
 
 ## Architecture
 
-- **UI to clone:** `financemkgtaxpro` web portal (green/gold brand)
-- **API host:** `https://financemkgtax.com` (`POST /api/login`, `/api/register`, `/api/auth/user`, …)
-- Session cookies via Dio + cookie_jar (same model as the web `credentials: "include"` client)
+```text
+Flutter → https://api.financemkgtax.com/api/v1 (Laravel on DigitalOcean) → Neon
+Web     → https://financemkgtax.com (DigitalOcean) → Laravel API → Neon
+```
+
+- Flutter **never** connects to Neon PostgreSQL.
+- Public config: `API_BASE_URL=https://api.financemkgtax.com/api/v1`, `WEB_BASE_URL=https://financemkgtax.com`
 - Details: `docs/mobile/financemkgtaxpro-integration.md`
 
-## Run
+## Run / build
 
 ```bash
 flutter pub get
-flutter run --dart-define=API_BASE_URL=https://financemkgtax.com
-flutter build apk --debug --dart-define=API_BASE_URL=https://financemkgtax.com
+
+# Production target (requires api.financemkgtax.com DNS + Laravel on DigitalOcean)
+flutter run --dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1 \
+  --dart-define=WEB_BASE_URL=https://financemkgtax.com
+
+flutter build apk --release --build-name=1.0.0 --build-number=11 \
+  --dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1 \
+  --dart-define=WEB_BASE_URL=https://financemkgtax.com
+
+# Transitional device-verify (portal cookie login while API DNS is pending)
+flutter build apk --release --build-name=1.0.0 --build-number=11 \
+  --dart-define=API_BASE_URL=https://financemkgtax.com \
+  --dart-define=WEB_BASE_URL=https://financemkgtax.com
 ```
 
 ## Branch
 
-`migration/unified-flutter-mobile`
+`cursor/unified-flutter-web-parity-f489` (PR #2)
 
 ## Status
 
-**Not production-ready yet.**
-
-- Draft PR; debug signing only
-- Login/register call live financemkgtaxpro; organizer/KYC/payments still partial
+- Dual-brand IA: Home | Tax Center | Advisory | Chat | More
+- Device display name: **MKG Tax**
+- Sanctum auth when `API_BASE_URL` targets `/api/v1`; cookie portal auth when pointing at `financemkgtax.com`
 - **No iOS build on Linux** (needs macOS + Xcode)

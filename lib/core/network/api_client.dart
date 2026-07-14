@@ -41,7 +41,7 @@ class ApiClient {
   }
 
   /// In-memory client for widget/unit tests (no disk cookie jar).
-  factory ApiClient.memory({String baseUrl = 'https://financemkgtax.com'}) {
+  factory ApiClient.memory({String baseUrl = 'https://api.financemkgtax.com/api/v1'}) {
     final jar = CookieJar();
     final dio = Dio(
       BaseOptions(

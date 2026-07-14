@@ -1,17 +1,28 @@
-/// Public compile-time config. Never put secrets here.
+/// Public compile-time config. Never put secrets or Neon URLs here.
 ///
-/// Architecture rule: Flutter talks to HTTP APIs only — never Neon PostgreSQL.
-/// Tax-year workspace APIs live on Laravel (`LARAVEL_API_BASE_URL`).
-/// Legacy portal cookie APIs remain on `API_BASE_URL` until Sanctum cutover completes.
+/// Production architecture (SoT):
+/// ```
+/// Flutter → HTTPS → api.financemkgtax.com (Laravel on DigitalOcean) → Neon
+/// Web     → https://financemkgtax.com (DigitalOcean) → Laravel API → Neon
+/// ```
+/// Flutter must never connect directly to Neon PostgreSQL.
 class AppConfig {
-  /// financemkgtaxpro portal (cookie session) — transitional.
+  /// Laravel public API v1 root (authoritative data + Sanctum auth).
+  /// Example: https://api.financemkgtax.com/api/v1
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
+    defaultValue: 'https://api.financemkgtax.com/api/v1',
+  );
+
+  /// Public web app origin (DigitalOcean). Deep links / marketing only —
+  /// not for authoritative mobile data once Laravel cutover is live.
+  static const String webBaseUrl = String.fromEnvironment(
+    'WEB_BASE_URL',
     defaultValue: 'https://financemkgtax.com',
   );
 
-  /// Laravel Chinese Wall / mobile tax-year API host.
-  /// Example local: http://127.0.0.1:8000
+  /// Optional override for Laravel host origin (defaults derived from [apiBaseUrl]).
+  /// Used for `/api/mobile/*` routes that sit beside `/api/v1`.
   static const String laravelApiBaseUrl = String.fromEnvironment(
     'LARAVEL_API_BASE_URL',
     defaultValue: '',
@@ -19,9 +30,32 @@ class AppConfig {
 
   static String get apiRoot => _trim(apiBaseUrl);
 
-  static String get laravelApiRoot => _trim(laravelApiBaseUrl);
+  static String get webRoot => _trim(webBaseUrl);
+
+  /// Laravel origin for `/api/mobile/*` (strip trailing `/api/v1` when present).
+  static String get laravelApiRoot {
+    if (laravelApiBaseUrl.trim().isNotEmpty) {
+      return _trim(laravelApiBaseUrl);
+    }
+    final root = apiRoot;
+    const suffix = '/api/v1';
+    if (root.endsWith(suffix)) {
+      return root.substring(0, root.length - suffix.length);
+    }
+    // Transitional: portal host used as API_BASE_URL without /api/v1.
+    return root;
+  }
 
   static bool get hasLaravelApi => laravelApiRoot.isNotEmpty;
+
+  /// True when [apiBaseUrl] targets Laravel `/api/v1` (Sanctum), not legacy portal cookies.
+  static bool get usesLaravelAuth {
+    final root = apiRoot.toLowerCase();
+    return root.contains('/api/v1') || root.contains('api.financemkgtax.com');
+  }
+
+  /// True when API_BASE_URL still points at the cookie portal (device-verify / transitional).
+  static bool get usesPortalCookieAuth => !usesLaravelAuth;
 
   static String _trim(String url) =>
       url.endsWith('/') ? url.substring(0, url.length - 1) : url;

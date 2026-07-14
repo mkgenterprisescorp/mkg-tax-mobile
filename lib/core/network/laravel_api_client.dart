@@ -26,7 +26,8 @@ class LaravelApiClient {
     final root = (baseUrl ?? AppConfig.laravelApiRoot);
     final dio = Dio(
       BaseOptions(
-        baseUrl: root.isEmpty ? 'http://127.0.0.1:8000' : root,
+        // Prefer production API origin; fall back only for local widget tests.
+        baseUrl: root.isEmpty ? 'https://api.financemkgtax.com' : root,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
         headers: {

@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/laravel_api_client.dart';
 
 class PortalUser {
   const PortalUser({
@@ -47,23 +50,31 @@ class PortalUser {
   }
 
   factory PortalUser.fromJson(Map<String, dynamic> json) {
+    final name = (json['name'] ?? '').toString().trim();
+    var first = (json['firstName'] ?? json['first_name'] ?? '').toString();
+    var last = (json['lastName'] ?? json['last_name'] ?? '').toString();
+    if (first.isEmpty && last.isEmpty && name.isNotEmpty) {
+      final parts = name.split(RegExp(r'\s+'));
+      first = parts.first;
+      last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+    }
     return PortalUser(
       id: json['id'],
       email: (json['email'] ?? '').toString(),
-      firstName: (json['firstName'] ?? '').toString(),
-      lastName: (json['lastName'] ?? '').toString(),
+      firstName: first,
+      lastName: last,
       phone: json['phone']?.toString(),
       role: json['role']?.toString(),
-      kycStatus: json['kycStatus']?.toString(),
-      approvalStatus: json['approvalStatus']?.toString(),
+      kycStatus: json['kycStatus']?.toString() ?? json['kyc_status']?.toString(),
+      approvalStatus: json['approvalStatus']?.toString() ?? json['approval_status']?.toString(),
       address: json['address']?.toString(),
       city: json['city']?.toString(),
       state: json['state']?.toString(),
-      zipCode: json['zipCode']?.toString(),
-      last4ssn: json['last4ssn']?.toString(),
-      createdAt: json['createdAt']?.toString(),
-      enochAcknowledged: json['enochAcknowledged'] as bool?,
-      tutorialWatched: json['tutorialWatched'] as bool?,
+      zipCode: json['zipCode']?.toString() ?? json['zip_code']?.toString(),
+      last4ssn: json['last4ssn']?.toString() ?? json['last_4_ssn']?.toString(),
+      createdAt: json['createdAt']?.toString() ?? json['created_at']?.toString(),
+      enochAcknowledged: json['enochAcknowledged'] as bool? ?? json['enoch_acknowledged'] as bool?,
+      tutorialWatched: json['tutorialWatched'] as bool? ?? json['tutorial_watched'] as bool?,
     );
   }
 }
@@ -78,10 +89,46 @@ class AuthException implements Exception {
 }
 
 class AuthRepository {
-  AuthRepository(this._api);
+  AuthRepository(this._api, {LaravelApiClient? laravel}) : _laravel = laravel;
+
   final ApiClient _api;
+  final LaravelApiClient? _laravel;
+  static const _tokenKey = 'mkg_sanctum_token';
+  static const _storage = FlutterSecureStorage();
+
+  Future<void> _persistToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      await _storage.delete(key: _tokenKey);
+      _laravel?.setBearerToken(null);
+      return;
+    }
+    await _storage.write(key: _tokenKey, value: token);
+    _laravel?.setBearerToken(token);
+    _api.dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  Future<String?> _readToken() async {
+    final token = await _storage.read(key: _tokenKey);
+    if (token != null && token.isNotEmpty) {
+      _laravel?.setBearerToken(token);
+      _api.dio.options.headers['Authorization'] = 'Bearer $token';
+    }
+    return token;
+  }
 
   Future<PortalUser?> currentUser() async {
+    if (AppConfig.usesLaravelAuth) {
+      await _readToken();
+      final res = await _api.get<Map<String, dynamic>>('/auth/me');
+      if (res.statusCode == 401 || res.data == null) return null;
+      if (res.statusCode != 200) return null;
+      final raw = res.data!;
+      final userMap = raw['data'] is Map
+          ? Map<String, dynamic>.from(raw['data'] as Map)
+          : Map<String, dynamic>.from(raw);
+      return PortalUser.fromJson(userMap);
+    }
+
     final res = await _api.get<Map<String, dynamic>>('/api/auth/user');
     if (res.statusCode == 401 || res.data == null) return null;
     if (res.statusCode != 200) return null;
@@ -92,6 +139,34 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    if (AppConfig.usesLaravelAuth) {
+      final res = await _api.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: {
+          'email': email.trim(),
+          'password': password,
+          'device_name': 'mkg-tax-mobile',
+        },
+      );
+      final data = res.data ?? {};
+      if (res.statusCode == 200) {
+        final token = (data['token'] ?? '').toString();
+        if (token.isEmpty) {
+          throw AuthException('Login succeeded but no Sanctum token was returned.');
+        }
+        await _persistToken(token);
+        final userMap = data['user'] is Map
+            ? Map<String, dynamic>.from(data['user'] as Map)
+            : Map<String, dynamic>.from(data);
+        return PortalUser.fromJson(userMap);
+      }
+      final msg = (data['message'] ??
+              (data['errors'] is Map ? (data['errors'] as Map).values.first : null) ??
+              'Login failed (${res.statusCode})')
+          .toString();
+      throw AuthException(msg);
+    }
+
     final res = await _api.post<Map<String, dynamic>>(
       '/api/login',
       data: {'email': email.trim(), 'password': password},
@@ -99,10 +174,13 @@ class AuthRepository {
     final data = res.data ?? {};
     if (res.statusCode == 200) {
       if (data['requires2FA'] == true || data['totpPending'] == true) {
-        throw AuthException('Two-factor authentication required. Use the web portal or complete 2FA next.', requires2FA: true);
+        throw AuthException(
+          'Two-factor authentication required. Use the web portal or complete 2FA next.',
+          requires2FA: true,
+        );
       }
       if (data['requiresPasswordSetup'] == true) {
-        throw AuthException('Password setup required. Complete it on financemkgtax.com first.');
+        throw AuthException('Password setup required. Complete it on ${AppConfig.webRoot} first.');
       }
       return PortalUser.fromJson(Map<String, dynamic>.from(data));
     }
@@ -118,6 +196,13 @@ class AuthRepository {
     required String phone,
     String? referralCode,
   }) async {
+    if (AppConfig.usesLaravelAuth) {
+      throw AuthException(
+        'Client registration via Laravel Sanctum is not enabled yet. '
+        'Register on ${AppConfig.webRoot} or use a transitional portal build.',
+      );
+    }
+
     final res = await _api.post<Map<String, dynamic>>(
       '/api/register',
       data: {
@@ -139,8 +224,10 @@ class AuthRepository {
   }
 
   /// Step 1 of web-parity reset: send 6-digit code via email/SMS.
-  /// Always returns success when the email is well-formed (does not reveal whether the account exists).
   Future<void> requestPasswordReset(String email) async {
+    if (AppConfig.usesLaravelAuth) {
+      throw AuthException('Password reset via Laravel API is not enabled yet. Use ${AppConfig.webRoot}.');
+    }
     final res = await _api.post<Map<String, dynamic>>(
       '/api/forgot-password',
       data: {'email': email.trim()},
@@ -157,6 +244,9 @@ class AuthRepository {
     required String code,
     required String newPassword,
   }) async {
+    if (AppConfig.usesLaravelAuth) {
+      throw AuthException('Password reset via Laravel API is not enabled yet. Use ${AppConfig.webRoot}.');
+    }
     final res = await _api.post<Map<String, dynamic>>(
       '/api/reset-password',
       data: {
@@ -173,14 +263,20 @@ class AuthRepository {
 
   Future<void> logout() async {
     try {
-      await _api.post('/api/logout');
+      if (AppConfig.usesLaravelAuth) {
+        await _api.post('/auth/logout');
+      } else {
+        await _api.post('/api/logout');
+      }
     } on DioException {
-      // still clear local cookies
+      // still clear local session
     }
+    await _persistToken(null);
     await _api.clearSession();
   }
 
   Future<Map<String, dynamic>?> currentTaxReturn() async {
+    if (AppConfig.usesLaravelAuth) return null;
     final res = await _api.get<dynamic>('/api/tax-returns/current');
     if (res.statusCode != 200 || res.data == null) return null;
     if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
@@ -189,6 +285,9 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
+    if (AppConfig.usesLaravelAuth) {
+      throw AuthException('Profile update via Laravel API is not enabled yet.');
+    }
     final res = await _api.put<Map<String, dynamic>>('/api/user/profile', data: body);
     final data = res.data ?? {};
     if (res.statusCode == 200) return Map<String, dynamic>.from(data);
@@ -212,7 +311,10 @@ final authRouterRefreshProvider = Provider<AuthRouterRefresh>((ref) {
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(apiClientProvider));
+  return AuthRepository(
+    ref.watch(apiClientProvider),
+    laravel: ref.watch(laravelApiClientProvider),
+  );
 });
 
 class AuthState {
