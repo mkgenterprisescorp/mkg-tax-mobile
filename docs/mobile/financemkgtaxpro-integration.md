@@ -59,3 +59,12 @@ flutter build apk --release \
 ## Related
 - Tax-year workspace: `docs/mobile/tax-year-workspace.md`
 - Flutter SoT repo: `mkg-tax-mobile`. Mirror into `legacy-android-app/mkg-tax-mobile` when publishing monorepo syncs.
+
+## Authoritative architecture SoT
+
+Full unified web/mobile/Laravel/DigitalOcean/Neon architecture lives in:
+
+`mkg-tax-backend/docs/architecture/system-overview.md`
+
+Key rule: **one Laravel API** for web + Flutter. No separate mobile backend. No Neon in the app.
+
