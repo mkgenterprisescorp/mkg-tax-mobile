@@ -2,6 +2,11 @@
 
 ## Cursor Cloud specific instructions
 
+### Why Flutter (not native Swift/Kotlin)
+- **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
+- **Hot Reload:** Use `flutter run` and press `r` / `R` to iterate UI without full rebuilds — especially for Tax Center, Organizer, and Refund Advance hubs.
+- Current stack packages: `flutter_riverpod`, `go_router`, `dio` (+ cookie jar), `flutter_secure_storage`, `file_picker`, `url_launcher`. Add new plugins via `flutter pub add <package>` then `flutter pub get`.
+
 ### Product topology
 - **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
 - One Laravel API (`api.financemkgtax.com` → `/api/v1`) backs web + mobile; transitional web host is `financemkgtax.com`.
@@ -27,7 +32,9 @@
 - Tax Center also uses a 2-column icon grid for the main sections to complete.
 
 ### Commands
+- Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
 - Schema tests: `flutter test test/organizer_schema_test.dart`
+- Hot Reload dev: `flutter run` then `r` (reload) / `R` (restart)
 - Debug APK: `flutter build apk --debug`
 - Dev run needs Android SDK + JDK 21 for Flutter Gradle.
