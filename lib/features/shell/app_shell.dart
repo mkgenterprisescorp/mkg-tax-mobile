@@ -94,9 +94,15 @@ class AppShell extends ConsumerWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.asset('assets/brand/mkg_tax_logo.png', width: 28, height: 28, fit: BoxFit.cover),
+            Container(
+              width: 36,
+              height: 28,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Image.asset('assets/brand/mkg_tax_logo.png', fit: BoxFit.contain),
             ),
             const SizedBox(width: 8),
             Flexible(child: Text(_titleFor(location, caps), overflow: TextOverflow.ellipsis)),
@@ -213,9 +219,15 @@ class _AppDrawer extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset('assets/brand/mkg_tax_logo.png', width: 48, height: 48, fit: BoxFit.cover),
+                  Container(
+                    width: 120,
+                    height: 56,
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Image.asset('assets/brand/mkg_tax_logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(height: 10),
                   const Text('MKG Tax Consultants', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),

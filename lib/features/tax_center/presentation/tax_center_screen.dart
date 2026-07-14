@@ -53,7 +53,7 @@ class TaxCenterScreen extends ConsumerWidget {
         const SizedBox(height: 8),
         for (final item in const [
           _TaxLink('Tax Returns', 'Federal & state filing workspace', Icons.description_outlined, '/returns'),
-          _TaxLink('Tax Organizer', 'Complete questionnaires by tax year', Icons.assignment_outlined, '/organizer'),
+          _TaxLink('Tax Organizer', 'Personal, Schedule C/E, 1120 / 1120-S / 1065 / 990-EZ', Icons.assignment_outlined, '/organizer'),
           _TaxLink('Documents', 'Upload, scan, and vault tax files', Icons.folder_outlined, '/documents'),
           _TaxLink('Refund Tracker', 'IRS / FTB status links', Icons.track_changes_outlined, '/refund-tracker'),
           _TaxLink('Tax Tools', 'Calculators and references', Icons.calculate_outlined, '/tools'),

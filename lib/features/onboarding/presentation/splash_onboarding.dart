@@ -109,15 +109,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 120,
-                          height: 120,
+                          width: 200,
+                          height: 100,
                           decoration: BoxDecoration(
-                            color: MkgColors.lightPrimary,
-                            borderRadius: BorderRadius.circular(28),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: MkgColors.lightPrimary),
                           ),
-                          clipBehavior: Clip.antiAlias,
+                          padding: const EdgeInsets.all(12),
                           child: i == 0
-                              ? Image.asset('assets/brand/mkg_tax_logo.png', fit: BoxFit.cover)
+                              ? Image.asset('assets/brand/mkg_tax_logo.png', fit: BoxFit.contain)
                               : Icon(p.$1, size: 56, color: MkgColors.primary),
                         ),
                         const SizedBox(height: 28),

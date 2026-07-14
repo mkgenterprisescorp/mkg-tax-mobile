@@ -35,13 +35,19 @@ class AuthScaffold extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
+                            Container(
+                              width: compact ? 200 : 260,
+                              height: compact ? 72 : 96,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                               child: Image.asset(
                                 'assets/brand/mkg_tax_logo.png',
-                                width: logoSize,
+                                width: logoSize * 2.4,
                                 height: logoSize,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                               ),
                             ),
                             SizedBox(height: compact ? 8 : 16),
@@ -197,19 +203,22 @@ class DualBrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logo = compact ? 56.0 : 96.0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(compact ? 16 : 22),
+          Container(
+            width: compact ? 180 : 240,
+            height: compact ? 64 : 88,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            ),
             child: Image.asset(
               'assets/brand/mkg_tax_logo.png',
-              width: logo,
-              height: logo,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
           ),
           SizedBox(height: compact ? 12 : 22),
