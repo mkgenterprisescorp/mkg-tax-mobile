@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final ok = await ref.read(authProvider.notifier).login(email, password);
     if (!mounted) return;
     if (ok) {
-      context.go('/forms');
+      context.go('/home');
     } else {
       final err = ref.read(authProvider).error ?? 'Login failed';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
@@ -58,7 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthScaffold(
       title: AppConfig.usesLaravelAuth
           ? 'Sign in via Laravel API'
-          : 'Sign in to ${Uri.parse(AppConfig.webRoot).host}',
+          : 'Sign in to financemkgtax.com',
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -121,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Text(
             AppConfig.usesLaravelAuth
                 ? 'Authoritative auth via Laravel Sanctum at ${AppConfig.apiRoot}. Neon is never contacted from the app.'
-                : 'Transitional cookie login against ${AppConfig.apiRoot}. Production builds use https://api.financemkgtax.com/api/v1.',
+                : 'Signing in through financemkgtax.com until api.financemkgtax.com is live on DigitalOcean. Neon is never contacted from the app.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
           ),

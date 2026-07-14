@@ -2,6 +2,13 @@
 
 ## Cursor Cloud specific instructions
 
+### Auth / API host (until DigitalOcean API URL is live)
+- **`api.financemkgtax.com` DNS is not live yet** → default `API_BASE_URL` is **`https://financemkgtax.com`** (portal cookie session).
+- Login UI should say portal sign-in, not Laravel Sanctum, in this mode (`AppConfig.usesPortalCookieAuth`).
+- When DO subdomain + Laravel `/api/v1` are ready, rebuild with:
+  `--dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1`
+- Flutter never talks to Neon directly.
+
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
 - **Hot Reload:** Use `flutter run` and press `r` / `R` to iterate UI without full rebuilds — especially for Tax Center, Organizer, and Refund Advance hubs.

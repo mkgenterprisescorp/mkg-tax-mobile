@@ -20,7 +20,8 @@ Web     → https://financemkgtax.com (DigitalOcean) → Laravel API → Neon
 ```
 
 - Flutter **never** connects to Neon PostgreSQL.
-- Public config: `API_BASE_URL=https://api.financemkgtax.com/api/v1`, `WEB_BASE_URL=https://financemkgtax.com`
+- Public **default** (transitional): `API_BASE_URL=https://financemkgtax.com` until DigitalOcean `api.financemkgtax.com` DNS is live
+- Production cutover: `--dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1`
 - Details: `docs/mobile/financemkgtaxpro-integration.md`
 
 ## Run / build (Hot Reload)
