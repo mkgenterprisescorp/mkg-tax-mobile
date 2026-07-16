@@ -102,8 +102,17 @@ String _authErrorMessage(int? statusCode, String fallback) {
 /// Uniform message for the forgot-password flow, deliberately identical
 /// regardless of status code or response body content: this endpoint must
 /// not let a client observe whether a given email is a registered account.
+///
+/// ForgotPasswordScreen deliberately does not read this text at all — it
+/// catches `AuthException` without binding the caught value and shows its
+/// own identical acknowledgement for both the success and the
+/// AuthException path (see `_acknowledgeCodeSent` there), so this string's
+/// only remaining job is being a fixed, non-server-controlled payload for
+/// the thrown exception. It is kept as one string (rather than being
+/// removed) so any other future caller of requestPasswordReset() that does
+/// choose to display `.message` inherits the same safe-by-construction text.
 const String _passwordResetRequestedMessage =
-    'If an account exists for that email, a reset code has been sent.';
+    'If that email exists, a reset code has been sent.';
 
 class AuthRepository {
   AuthRepository(this._api, {LaravelApiClient? laravel}) : _laravel = laravel;

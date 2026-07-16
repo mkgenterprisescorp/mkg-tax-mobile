@@ -61,6 +61,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         _ResetStep.newPassword => 'Choose a new password for your account.',
       };
 
+  /// Deliberately the ONLY user-facing text for both the initial send and
+  /// the resend, whether the account exists or not (see AuthException
+  /// handling in _sendCode below) — a differently-worded resend message,
+  /// or a differently-worded failure message, would each be an observable
+  /// signal a caller could use to distinguish "no such account" from any
+  /// other outcome, even with the code-entry transition itself unified.
+  static const _codeSentAcknowledgement = 'If that email exists, a reset code has been sent.';
+
   Future<void> _sendCode({bool resend = false}) async {
     final email = _email.text.trim();
     if (!email.contains('@')) {
@@ -77,16 +85,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     try {
       await ref.read(authRepositoryProvider).requestPasswordReset(email);
       if (!mounted) return;
-      _toast(resend
-          ? 'A new reset code has been sent.'
-          : 'If that email exists, a reset code was sent.');
-      if (!resend) {
-        setState(() => _step = _ResetStep.code);
-      }
-    } on AuthException catch (e) {
+      _acknowledgeCodeSent(resend);
+    } on AuthException {
+      // Deliberately identical to the success branch above. This request
+      // must never let a caller distinguish "no such account" (or any
+      // other server-reported outcome — rate limited, validation error,
+      // server error) from a genuine success: same message, same
+      // navigation. See AuthRepository.requestPasswordReset for the
+      // server-response side of this guarantee (a single fixed exception
+      // message regardless of status code or response body).
       if (!mounted) return;
-      _toast(e.message);
+      _acknowledgeCodeSent(resend);
     } catch (e) {
+      // A genuine local/network failure (no response reached the server
+      // at all — offline, DNS failure, timeout) carries no account-
+      // existence signal: it happens identically regardless of which
+      // email was typed, since the request never reached account-lookup
+      // logic on the server. Showing it differently is not an enumeration
+      // risk, and silently swallowing real connectivity problems would be
+      // a pure UX regression with no security benefit.
       if (!mounted) return;
       _toast(ApiErrorMapper.map(e));
     } finally {
@@ -96,6 +113,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           _resending = false;
         });
       }
+    }
+  }
+
+  void _acknowledgeCodeSent(bool resend) {
+    _toast(_codeSentAcknowledgement);
+    if (!resend) {
+      setState(() => _step = _ResetStep.code);
     }
   }
 

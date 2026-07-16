@@ -85,4 +85,87 @@ void main() {
     expect(fake.lastPassword, 'NewPass123!');
     expect(find.text('Login page'), findsOneWidget);
   });
+
+  testWidgets(
+    'forgot password: existing and nonexistent accounts produce identical observable state',
+    (tester) async {
+      final existingAccountResult = await _runSendCodeStep(tester, failRequestWith: null);
+      final nonexistentAccountResult = await _runSendCodeStep(
+        tester,
+        failRequestWith: 'Some server-reported outcome that must never surface',
+      );
+
+      expect(
+        existingAccountResult.snackBarText,
+        nonexistentAccountResult.snackBarText,
+        reason: 'the acknowledgement text must be identical regardless of account existence',
+      );
+      expect(
+        existingAccountResult.screenTitle,
+        nonexistentAccountResult.screenTitle,
+        reason: 'the screen transition must be identical regardless of account existence',
+      );
+      // Lock in the actual expected values too, not just their equality to
+      // each other (equality alone would also pass if both were wrong).
+      expect(existingAccountResult.screenTitle, 'Enter reset code');
+      expect(existingAccountResult.snackBarText, contains('reset code'));
+      expect(existingAccountResult.snackBarText, isNot(contains('Some server-reported outcome')));
+    },
+  );
+}
+
+/// Blocker 4: drives the "send code" step for a given fake repository
+/// behavior and returns everything observable to the user afterward - the
+/// SnackBar text and the screen title reached. Used to compare an
+/// existing-account (success) run against a nonexistent-account
+/// (AuthException) run and assert they are indistinguishable. Each call
+/// pumps its own fresh widget tree so the two runs can't leak state into
+/// each other.
+Future<({String? snackBarText, String screenTitle})> _runSendCodeStep(
+  WidgetTester tester, {
+  String? failRequestWith,
+}) async {
+  final fake = _FakeAuthRepository()..failRequestWith = failRequestWith;
+  final router = GoRouter(
+    initialLocation: '/forgot-password',
+    routes: [
+      GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const Scaffold(body: Text('Login page'))),
+    ],
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [authRepositoryProvider.overrideWithValue(fake)],
+      child: MaterialApp.router(
+        theme: buildMkgTheme(),
+        routerConfig: router,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  await tester.enterText(find.byType(TextField).first, 'probe@example.com');
+  await tester.tap(find.text('Send Reset Code'));
+  await tester.pump();
+  // One frame after the SnackBar is shown, before pumpAndSettle would let
+  // its timer dismiss it - this is the moment the observable state (text +
+  // screen) must already be identical between the two runs.
+  await tester.pump(const Duration(milliseconds: 100));
+
+  String? snackBarText;
+  final snackBarFinder = find.byType(SnackBar);
+  if (snackBarFinder.evaluate().isNotEmpty) {
+    final snackBar = tester.widget<SnackBar>(snackBarFinder);
+    snackBarText = (snackBar.content as Text).data;
+  }
+
+  await tester.pumpAndSettle();
+  final screenTitle = find.text('Forgot password').evaluate().isNotEmpty
+      ? 'Forgot password'
+      : find.text('Enter reset code').evaluate().isNotEmpty
+          ? 'Enter reset code'
+          : 'unknown';
+
+  return (snackBarText: snackBarText, screenTitle: screenTitle);
 }
