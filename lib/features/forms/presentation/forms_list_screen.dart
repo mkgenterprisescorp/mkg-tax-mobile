@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -49,7 +50,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _loading = false;
       });
     }
@@ -63,7 +64,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
       if (mounted) context.go('/organizer');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     } finally {
       if (mounted) setState(() => _creating = false);

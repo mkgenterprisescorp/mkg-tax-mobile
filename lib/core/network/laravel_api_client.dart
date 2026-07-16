@@ -24,10 +24,19 @@ class LaravelApiClient {
 
   static LaravelApiClient create({String? baseUrl}) {
     final root = (baseUrl ?? AppConfig.laravelApiRoot);
+    if (root.isEmpty) {
+      // No silent fallback host — AppConfig.validate() should already have
+      // thrown in main() before this is ever reached in the real app; a
+      // caller that skips validate() (e.g. a test) must pass baseUrl itself.
+      throw AppConfigError(
+        'LaravelApiClient.create() called with no baseUrl and an empty '
+        'AppConfig.laravelApiRoot. Call AppConfig.validate() first, or pass '
+        'baseUrl explicitly.',
+      );
+    }
     final dio = Dio(
       BaseOptions(
-        // Prefer production API origin; fall back only for local widget tests.
-        baseUrl: root.isEmpty ? 'https://api.financemkgtax.com' : root,
+        baseUrl: root,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
         headers: {

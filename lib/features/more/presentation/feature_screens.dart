@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -302,7 +303,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _loading = false;
       });
     }
@@ -500,6 +501,13 @@ class SupportScreen extends StatelessWidget {
             subtitle: Text('Use contact info from your engagement letter'),
           ),
         ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.info_outline, color: MkgColors.primary),
+            title: const Text('Connection info'),
+            subtitle: Text(AppConfig.authModeLabel),
+          ),
+        ),
       ],
     );
   }
@@ -569,7 +577,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

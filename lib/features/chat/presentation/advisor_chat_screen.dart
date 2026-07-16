@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 
@@ -74,7 +75,7 @@ class _AdvisorChatScreenState extends ConsumerState<AdvisorChatScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingMessages = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
     }
   }
 
@@ -88,7 +89,7 @@ class _AdvisorChatScreenState extends ConsumerState<AdvisorChatScreen> {
       await _openRoom(_activeRoomId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     } finally {
       if (mounted) setState(() => _sending = false);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../banking/data/banking_connections_repository.dart';
@@ -48,7 +49,7 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _calculating = false;
       });
     }
@@ -70,7 +71,7 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     } finally {
       if (mounted) setState(() => _applying = false);
@@ -280,7 +281,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _loading = false;
       });
     }

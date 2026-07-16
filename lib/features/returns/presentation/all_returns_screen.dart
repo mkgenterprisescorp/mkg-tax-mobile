@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -48,7 +49,7 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _loading = false;
       });
     }
@@ -93,7 +94,7 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     }
   }

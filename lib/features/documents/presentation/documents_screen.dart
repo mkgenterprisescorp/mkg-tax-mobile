@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
@@ -98,7 +99,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
         _loading = false;
       });
     }
@@ -143,7 +144,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -178,7 +179,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Open web vault to finish download (OTP may apply). $e')),
+        SnackBar(content: Text('Open web vault to finish download (OTP may apply). ${ApiErrorMapper.map(e)}')),
       );
     }
   }

@@ -1,24 +1,26 @@
 /// Public compile-time config. Never put secrets or Neon URLs here.
 ///
-/// Target architecture (when DigitalOcean `api.financemkgtax.com` is live):
-/// ```
-/// Flutter → HTTPS → api.financemkgtax.com/api/v1 (Laravel) → Neon
-/// ```
-/// **Default build (transitional):** portal host `https://financemkgtax.com`
-/// with cookie session auth until the API subdomain DNS + Laravel cutover is ready.
-/// Flip production with:
-/// `--dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1`
+/// Authoritative staging/production API root:
+/// `https://app.mkgtaxconsultants.com/api/v1`
+///
+/// There is deliberately no default value for [apiBaseUrl] — a build that
+/// omits `--dart-define=API_BASE_URL=...` must fail loudly at startup (see
+/// [AppConfig.validate]) rather than silently talk to some other host. A
+/// prior default of `https://financemkgtax.com` (the legacy cookie-session
+/// portal) caused exactly that failure mode and is the reason this class no
+/// longer has any host default at all.
 ///
 /// Flutter must never connect directly to Neon PostgreSQL.
 class AppConfig {
-  /// API root. Default = transitional portal (cookie auth).
-  /// Production Sanctum: https://api.financemkgtax.com/api/v1
+  /// API root. No default — see [validate].
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://financemkgtax.com',
+    defaultValue: '',
   );
 
-  /// Public web app origin (DigitalOcean). Deep links / marketing.
+  /// Public web app origin (DigitalOcean). Deep links / marketing only —
+  /// not part of the authenticated API surface, so it keeps a legacy
+  /// default rather than requiring a build-time value.
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
     defaultValue: 'https://financemkgtax.com',
@@ -30,6 +32,16 @@ class AppConfig {
     'LARAVEL_API_BASE_URL',
     defaultValue: '',
   );
+
+  /// Set only for local-development builds against a plain-HTTP dev server
+  /// (e.g. an Android emulator hitting `http://10.0.2.2:8000`). Never set
+  /// this for a staging or production build.
+  static const bool allowInsecureLocalDev = bool.fromEnvironment(
+    'ALLOW_INSECURE_LOCAL_DEV',
+    defaultValue: false,
+  );
+
+  static const List<String> _localDevHosts = ['localhost', '127.0.0.1', '10.0.2.2'];
 
   static String get apiRoot => _trim(apiBaseUrl);
 
@@ -45,25 +57,83 @@ class AppConfig {
     if (root.endsWith(suffix)) {
       return root.substring(0, root.length - suffix.length);
     }
-    // Transitional: portal host used as API_BASE_URL without /api/v1.
     return root;
   }
 
   static bool get hasLaravelApi => laravelApiRoot.isNotEmpty;
 
-  /// True when [apiBaseUrl] targets Laravel `/api/v1` (Sanctum), not legacy portal cookies.
-  static bool get usesLaravelAuth {
-    final root = apiRoot.toLowerCase();
-    return root.contains('/api/v1') || root.startsWith('https://api.financemkgtax.com');
-  }
+  /// True when [apiBaseUrl] targets Laravel `/api/v1` (Sanctum). After
+  /// [validate] has passed, this is always true — kept as a named check
+  /// (rather than assuming it) because AuthRepository's portal-cookie code
+  /// path is still reachable in tests that bypass validate().
+  static bool get usesLaravelAuth => apiRoot.toLowerCase().contains('/api/v1');
 
-  /// True when API_BASE_URL still points at the cookie portal (device-verify / transitional).
   static bool get usesPortalCookieAuth => !usesLaravelAuth;
 
-  /// Short label for login / about UI.
+  /// Short, non-secret label for a diagnostics/about screen.
   static String get authModeLabel =>
-      usesLaravelAuth ? 'Laravel Sanctum (api.financemkgtax.com)' : 'Portal sign-in (financemkgtax.com)';
+      usesLaravelAuth ? 'Laravel Sanctum ($apiRoot)' : 'Portal sign-in ($apiRoot)';
+
+  /// Validates [apiBaseUrl] and throws [AppConfigError] — with a message
+  /// naming exactly what's wrong — if it is missing or malformed. Call this
+  /// once, early in `main()`, before running the real app widget tree. A
+  /// misconfigured build must fail loudly, never silently default to some
+  /// other host.
+  static void validate() => validateUrl(apiBaseUrl, allowInsecureLocalDev: allowInsecureLocalDev);
+
+  /// The actual validation logic, extracted as a pure function of its
+  /// arguments so it can be unit-tested against arbitrary inputs — the real
+  /// [apiBaseUrl]/[allowInsecureLocalDev] are compile-time `const` values
+  /// and can't be varied within a single test binary.
+  static void validateUrl(String raw, {bool allowInsecureLocalDev = false}) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      throw AppConfigError(
+        'API_BASE_URL was not supplied at build time. Pass '
+        '--dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 '
+        'when building — there is no default host.',
+      );
+    }
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || uri.host.isEmpty || !uri.hasScheme) {
+      throw AppConfigError('API_BASE_URL is not a valid absolute URL: "$trimmed".');
+    }
+
+    final isPermittedLocalDev = allowInsecureLocalDev && _localDevHosts.contains(uri.host);
+    if (uri.scheme != 'https' && !isPermittedLocalDev) {
+      throw AppConfigError(
+        'API_BASE_URL must use https:// (got "${uri.scheme}://"). Plain http '
+        'is only permitted for local development against localhost/127.0.0.1/'
+        '10.0.2.2 with --dart-define=ALLOW_INSECURE_LOCAL_DEV=true.',
+      );
+    }
+
+    final path = _trim(uri.path);
+    if (!path.endsWith('/api/v1')) {
+      throw AppConfigError(
+        'API_BASE_URL must end with /api/v1 (got path "$path" in "$trimmed").',
+      );
+    }
+
+    final occurrences = RegExp(r'/api/v1').allMatches(path).length;
+    if (occurrences > 1) {
+      throw AppConfigError('API_BASE_URL contains a duplicated /api/v1 path segment: "$trimmed".');
+    }
+  }
 
   static String _trim(String url) =>
       url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+}
+
+/// Thrown by [AppConfig.validate] when the build-time API configuration is
+/// missing or malformed. Callers should catch this in `main()` and show a
+/// dedicated configuration-error screen instead of running the normal app.
+class AppConfigError extends Error {
+  AppConfigError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'AppConfigError: $message';
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import 'refund_advance_hub_screen.dart';
@@ -69,7 +70,7 @@ class _TilaDisclosureScreenState extends ConsumerState<TilaDisclosureScreen> {
       context.go('/refund-advance');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/entities/data/entities_repository.dart';
 import '../api/portal_repository.dart';
 import '../config/app_config.dart';
+import '../network/api_error_mapper.dart';
 import '../network/laravel_api_client.dart';
 
 class TaxYearInfo {
@@ -356,7 +357,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       );
       await refreshWorkspace();
     } catch (e) {
-      state = state.copyWith(loading: false, error: e.toString());
+      state = state.copyWith(loading: false, error: ApiErrorMapper.map(e));
     }
   }
 
@@ -389,7 +390,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
           }
         }
       } catch (e) {
-        state = state.copyWith(error: e.toString());
+        state = state.copyWith(error: ApiErrorMapper.map(e));
       }
     }
 
@@ -409,7 +410,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         source: state.source == 'laravel' ? state.source : 'portal-returns',
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: ApiErrorMapper.map(e));
     }
   }
 }

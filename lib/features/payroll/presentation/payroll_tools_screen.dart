@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -57,7 +58,7 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
       });
     }
   }
@@ -87,7 +88,7 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = e.toString();
+        _error = ApiErrorMapper.map(e);
       });
     }
   }

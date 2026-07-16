@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/network/laravel_api_client.dart';
 
 class PortalUser {
@@ -385,7 +386,7 @@ class AuthNotifier extends Notifier<AuthState> {
       _pingRouter();
       return false;
     } catch (e) {
-      state = AuthState(loading: false, error: e.toString());
+      state = AuthState(loading: false, error: ApiErrorMapper.map(e));
       _pingRouter();
       return false;
     }
@@ -417,7 +418,7 @@ class AuthNotifier extends Notifier<AuthState> {
       _pingRouter();
       return false;
     } catch (e) {
-      state = AuthState(loading: false, error: e.toString());
+      state = AuthState(loading: false, error: ApiErrorMapper.map(e));
       _pingRouter();
       return false;
     }
