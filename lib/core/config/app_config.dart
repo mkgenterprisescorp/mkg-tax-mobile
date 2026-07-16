@@ -25,7 +25,7 @@ class AppConfig {
   );
 
   /// Optional override for Laravel host origin (defaults derived from [apiBaseUrl]).
-  /// Used for `/api/mobile/*` routes that sit beside `/api/v1`.
+  /// Used when Dio needs the host without `/api/v1` (paths then include `/api/v1/...`).
   static const String laravelApiBaseUrl = String.fromEnvironment(
     'LARAVEL_API_BASE_URL',
     defaultValue: '',
@@ -35,7 +35,7 @@ class AppConfig {
 
   static String get webRoot => _trim(webBaseUrl);
 
-  /// Laravel origin for `/api/mobile/*` (strip trailing `/api/v1` when present).
+  /// Laravel origin (strip trailing `/api/v1` when present).
   static String get laravelApiRoot {
     if (laravelApiBaseUrl.trim().isNotEmpty) {
       return _trim(laravelApiBaseUrl);

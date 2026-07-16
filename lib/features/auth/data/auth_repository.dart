@@ -119,13 +119,22 @@ class AuthRepository {
   Future<PortalUser?> currentUser() async {
     if (AppConfig.usesLaravelAuth) {
       await _readToken();
-      final res = await _api.get<Map<String, dynamic>>('/auth/me');
+      final res = await _api.get<Map<String, dynamic>>('/me');
       if (res.statusCode == 401 || res.data == null) return null;
       if (res.statusCode != 200) return null;
       final raw = res.data!;
-      final userMap = raw['data'] is Map
-          ? Map<String, dynamic>.from(raw['data'] as Map)
-          : Map<String, dynamic>.from(raw);
+      // Laravel returns { external_user_id, claims, session_expires_at } (no data envelope).
+      final claims = raw['claims'] is Map
+          ? Map<String, dynamic>.from(raw['claims'] as Map)
+          : <String, dynamic>{};
+      final userMap = <String, dynamic>{
+        'id': raw['external_user_id'] ?? claims['external_user_id'],
+        'email': claims['email'] ?? raw['email'] ?? '',
+        'name': claims['name'] ?? raw['name'] ?? '',
+        'role': claims['role'] ?? raw['role'],
+        ...claims,
+        ...raw,
+      };
       return PortalUser.fromJson(userMap);
     }
 
@@ -143,7 +152,7 @@ class AuthRepository {
       final res = await _api.post<Map<String, dynamic>>(
         '/auth/login',
         data: {
-          'email': email.trim(),
+          'identifier': email.trim(),
           'password': password,
           'device_name': 'mkg-tax-mobile',
         },
@@ -158,9 +167,18 @@ class AuthRepository {
         final userMap = data['user'] is Map
             ? Map<String, dynamic>.from(data['user'] as Map)
             : Map<String, dynamic>.from(data);
+        // Normalize Sanctum claims shape for PortalUser.
+        if (userMap['email'] == null && userMap['external_user_id'] != null) {
+          userMap['email'] = email.trim();
+        }
+        if (userMap['id'] == null) {
+          userMap['id'] = userMap['external_user_id'];
+        }
         return PortalUser.fromJson(userMap);
       }
+      final err = data['error'];
       final msg = (data['message'] ??
+              (err is Map ? err['message'] : null) ??
               (data['errors'] is Map ? (data['errors'] as Map).values.first : null) ??
               'Login failed (${res.statusCode})')
           .toString();

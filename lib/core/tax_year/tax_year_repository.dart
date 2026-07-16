@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/entities/data/entities_repository.dart';
 import '../api/portal_repository.dart';
 import '../config/app_config.dart';
 import '../network/laravel_api_client.dart';
@@ -48,6 +49,8 @@ class TaxYearWorkspace {
     this.stateReturns = const [],
     this.documentsCount = 0,
     this.taxReturnId,
+    this.workspaceId,
+    this.entityId,
   });
 
   final int taxYear;
@@ -59,22 +62,31 @@ class TaxYearWorkspace {
   final List<Map<String, dynamic>> stateReturns;
   final int documentsCount;
   final dynamic taxReturnId;
+  /// Laravel `/api/v1` tax-year workspace UUID.
+  final String? workspaceId;
+  final String? entityId;
 
   factory TaxYearWorkspace.fromJson(Map<String, dynamic> json) {
+    final states = (json['state_workspaces'] as List?) ?? (json['state_returns'] as List?);
+    final docs = json['documents'];
+    final docsCount = (json['documents_count'] as num?)?.toInt() ??
+        (docs is List ? docs.length : 0);
     return TaxYearWorkspace(
       taxYear: (json['tax_year'] as num?)?.toInt() ?? 0,
-      federalReturnStatus: (json['federal_return_status'] ?? 'Not Started').toString(),
-      organizerStatus: (json['organizer_status'] ?? 'Not Started').toString(),
+      federalReturnStatus: _humanizeStatus(json['federal_return_status'] ?? 'Not Started'),
+      organizerStatus: _humanizeStatus(json['organizer_status'] ?? 'Not Started'),
       organizerCompletionPercentage: (json['organizer_completion_percentage'] as num?)?.toInt() ?? 0,
       estimatedRefund: json['estimated_refund'] as num?,
       estimatedBalanceDue: json['estimated_balance_due'] as num?,
-      stateReturns: (json['state_returns'] as List?)
+      stateReturns: states
               ?.whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList() ??
           const [],
-      documentsCount: (json['documents_count'] as num?)?.toInt() ?? 0,
+      documentsCount: docsCount,
       taxReturnId: json['tax_return_id'] ?? json['taxReturnId'] ?? json['id'],
+      workspaceId: (json['id'] ?? json['workspace_id'])?.toString(),
+      entityId: (json['mobile_entity_id'] ?? json['entity_id'])?.toString(),
     );
   }
 
@@ -100,6 +112,16 @@ class TaxYearWorkspace {
       taxReturnId: row['id'],
     );
   }
+}
+
+String _humanizeStatus(Object? raw) {
+  final s = (raw ?? '').toString();
+  if (s.isEmpty) return 'Not Started';
+  return s
+      .split('_')
+      .where((p) => p.isNotEmpty)
+      .map((p) => '${p[0].toUpperCase()}${p.substring(1)}')
+      .join(' ');
 }
 
 int _estimateOrganizerPct(Map<String, dynamic> data, String status) {
@@ -137,19 +159,33 @@ class TaxYearRepository {
   TaxYearRepository(this._api);
   final LaravelApiClient _api;
 
-  /// Server-authoritative 10-year list. Falls back to local computation if Laravel is unreachable.
+  /// Server-authoritative 10-year list (`GET /api/v1/tax-years`).
+  /// Falls back to local computation if Laravel is unreachable.
   Future<({List<TaxYearInfo> years, int current, String source})> listTaxYears() async {
     try {
-      final res = await _api.get<Map<String, dynamic>>('/api/mobile/tax-years');
+      final res = await _api.get<Map<String, dynamic>>('/api/v1/tax-years');
       if ((res.statusCode ?? 500) < 400 && res.data != null) {
-        final data = (res.data!['data'] as List?)
-                ?.whereType<Map>()
-                .map((e) => TaxYearInfo.fromJson(Map<String, dynamic>.from(e)))
-                .toList() ??
-            const <TaxYearInfo>[];
-        final current = (res.data!['meta']?['current_filing_tax_year'] as num?)?.toInt() ??
+        final payload = res.data!['data'];
+        List yearsRaw = const [];
+        Map<String, dynamic>? meta;
+        if (payload is Map) {
+          yearsRaw = (payload['years'] as List?) ?? const [];
+          meta = payload['meta'] is Map
+              ? Map<String, dynamic>.from(payload['meta'] as Map)
+              : null;
+        } else if (payload is List) {
+          // Legacy shape compatibility.
+          yearsRaw = payload;
+        }
+        final data = yearsRaw
+            .whereType<Map>()
+            .map((e) => TaxYearInfo.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        final current = (meta?['current_filing_tax_year'] as num?)?.toInt() ??
             (data.isNotEmpty ? data.first.taxYear : _localCurrentFilingYear());
-        return (years: data, current: current, source: 'laravel');
+        if (data.isNotEmpty) {
+          return (years: data, current: current, source: 'laravel');
+        }
       }
     } catch (_) {
       // fall through
@@ -157,36 +193,47 @@ class TaxYearRepository {
     return _localCatalog();
   }
 
-  Future<TaxYearWorkspace?> activateWorkspace(int taxYear) async {
+  /// Activate (or fetch) a tax-year workspace for an entity.
+  Future<TaxYearWorkspace?> activateWorkspace({
+    required String entityId,
+    required int taxYear,
+  }) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.post<Map<String, dynamic>>('/api/mobile/tax-years/$taxYear/activate');
+    final res = await _api.post<Map<String, dynamic>>(
+      '/api/v1/entities/$entityId/tax-years/activate',
+      data: {'tax_year': taxYear},
+    );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
     final data = res.data!['data'];
     if (data is! Map) return null;
     return TaxYearWorkspace.fromJson(Map<String, dynamic>.from(data));
   }
 
-  Future<TaxYearWorkspace?> getWorkspace(int taxYear) async {
+  Future<TaxYearWorkspace?> getWorkspaceById(String workspaceId) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.get<Map<String, dynamic>>('/api/mobile/tax-years/$taxYear/return');
+    final res = await _api.get<Map<String, dynamic>>('/api/v1/tax-year-workspaces/$workspaceId');
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
     final data = res.data!['data'];
     if (data is! Map) return null;
     return TaxYearWorkspace.fromJson(Map<String, dynamic>.from(data));
   }
 
-  Future<Map<String, dynamic>?> getOrganizer(int taxYear) async {
+  Future<Map<String, dynamic>?> getOrganizer(String workspaceId) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.get<Map<String, dynamic>>('/api/mobile/tax-years/$taxYear/organizer');
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId/organizer',
+    );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
     final data = res.data!['data'];
     if (data is! Map) return null;
     return Map<String, dynamic>.from(data);
   }
 
-  Future<List<Map<String, dynamic>>> listDocuments(int taxYear) async {
+  Future<List<Map<String, dynamic>>> listDocuments(String workspaceId) async {
     if (_api.bearerToken == null) return const [];
-    final res = await _api.get<Map<String, dynamic>>('/api/mobile/tax-years/$taxYear/documents');
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId/documents',
+    );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return const [];
     return (res.data!['data'] as List?)
             ?.whereType<Map>()
@@ -195,9 +242,11 @@ class TaxYearRepository {
         const [];
   }
 
-  Future<List<Map<String, dynamic>>> listTasks(int taxYear) async {
+  Future<List<Map<String, dynamic>>> listTasks(String workspaceId) async {
     if (_api.bearerToken == null) return const [];
-    final res = await _api.get<Map<String, dynamic>>('/api/mobile/tax-years/$taxYear/tasks');
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId/tasks',
+    );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return const [];
     return (res.data!['data'] as List?)
             ?.whereType<Map>()
@@ -206,45 +255,20 @@ class TaxYearRepository {
         const [];
   }
 
-  Future<Map<String, dynamic>?> addState(int taxYear, String stateCode, {String residencyType = 'resident'}) async {
+  Future<Map<String, dynamic>?> addState(
+    String workspaceId,
+    String stateCode, {
+    String residencyType = 'resident',
+  }) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.post<Map<String, dynamic>>(
-      '/api/mobile/tax-years/$taxYear/states',
+    final res = await _api.put<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId/states',
       data: {'state_code': stateCode, 'residency_type': residencyType},
     );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
     final data = res.data!['data'];
     if (data is! Map) return null;
     return Map<String, dynamic>.from(data);
-  }
-
-  Future<Map<String, dynamic>?> registerDocument({
-    required int taxYear,
-    required String category,
-    required String filename,
-  }) async {
-    if (_api.bearerToken == null) return null;
-    final res = await _api.post<Map<String, dynamic>>(
-      '/api/mobile/tax-years/$taxYear/documents',
-      data: {
-        'document_category': category,
-        'original_filename': filename,
-      },
-    );
-    if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
-    final data = res.data!['data'];
-    if (data is! Map) return null;
-    return Map<String, dynamic>.from(data);
-  }
-
-  Future<void> priorYearFiling(int taxYear) async {
-    if (_api.bearerToken == null) return;
-    await _api.post('/api/mobile/tax-years/$taxYear/prior-year-filing', data: {
-      'include_federal': true,
-      'include_state': true,
-      'return_type': 'original',
-      'previously_filed': false,
-    });
   }
 
   int _localCurrentFilingYear() => DateTime.now().year - 1;
@@ -345,13 +369,27 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     final year = state.selectedYear;
     if (year == null) return;
 
-    // Prefer Laravel mobile workspace when Sanctum is configured + token present.
+    // Prefer Laravel `/api/v1` workspace when Sanctum is configured + token present.
     if (AppConfig.usesLaravelAuth) {
-      final workspace = await _repo.getWorkspace(year) ?? await _repo.activateWorkspace(year);
-      final tasks = await _repo.listTasks(year);
-      if (workspace != null) {
-        state = state.copyWith(workspace: workspace, tasks: tasks);
-        return;
+      try {
+        final entities = ref.read(entitiesRepositoryProvider);
+        final entity = await entities.ensurePrimaryEntity();
+        final entityId = entity?['id']?.toString();
+        if (entityId != null) {
+          final workspace = await _repo.activateWorkspace(entityId: entityId, taxYear: year);
+          if (workspace != null) {
+            final wid = workspace.workspaceId;
+            final tasks = wid == null ? const <Map<String, dynamic>>[] : await _repo.listTasks(wid);
+            state = state.copyWith(
+              workspace: workspace,
+              tasks: tasks,
+              source: 'laravel',
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        state = state.copyWith(error: e.toString());
       }
     }
 

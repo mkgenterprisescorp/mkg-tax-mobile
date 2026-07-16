@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,10 +9,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/documents_repository.dart';
 
 const _docTypes = <(String, String)>[
   ('w2', 'W-2'),
@@ -63,6 +66,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     try {
       final tax = ref.read(taxYearProvider);
       final year = tax.selectedYear ?? tax.currentFilingYear ?? DateTime.now().year - 1;
+
+      if (AppConfig.usesLaravelAuth) {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+        final docs = workspaceId == null
+            ? <Map<String, dynamic>>[]
+            : await ref.read(documentsRepositoryProvider).list(workspaceId);
+        if (!mounted) return;
+        setState(() {
+          _boundYear = year;
+          _returnId = workspaceId;
+          _docs = docs;
+          _loading = false;
+        });
+        return;
+      }
+
       final portal = ref.read(portalRepositoryProvider);
       final row = await portal.getOrCreateReturnForYear(year);
       final id = row['id'];
@@ -87,7 +107,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Future<void> _pickAndUpload() async {
     if (_returnId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No tax return for this year yet.')),
+        const SnackBar(content: Text('No tax-year workspace / return for this year yet.')),
       );
       return;
     }
@@ -101,11 +121,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (path == null) return;
     setState(() => _uploading = true);
     try {
-      await ref.read(portalRepositoryProvider).uploadDocument(
-            file: File(path),
-            taxReturnId: _returnId,
-            type: _docType,
-          );
+      if (AppConfig.usesLaravelAuth) {
+        final category = _docType == 'prior_return' ? 'other' : _docType;
+        await ref.read(documentsRepositoryProvider).upload(
+              workspaceId: _returnId.toString(),
+              category: category,
+              file: await MultipartFile.fromFile(path, filename: path.split('/').last),
+            );
+      } else {
+        await ref.read(portalRepositoryProvider).uploadDocument(
+              file: File(path),
+              taxReturnId: _returnId,
+              type: _docType,
+            );
+      }
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -125,9 +154,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final id = d['id'];
     if (id == null) return;
     try {
+      if (AppConfig.usesLaravelAuth) {
+        final url = await ref.read(documentsRepositoryProvider).signedDownloadUrl(id.toString());
+        if (url == null) throw Exception('No signed download URL');
+        // Open signed URL; do not log query secrets.
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        return;
+      }
       final bytes = await ref.read(portalRepositoryProvider).downloadDocumentBytes(id);
       final dir = await getTemporaryDirectory();
-      final name = (d['originalName'] ?? d['filename'] ?? 'document-$id').toString();
+      final name = (d['originalName'] ?? d['original_filename'] ?? d['filename'] ?? 'document-$id')
+          .toString();
       final file = File('${dir.path}/$name');
       await file.writeAsBytes(bytes);
       if (!mounted) return;
@@ -137,8 +174,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await launchUrl(Uri.file(file.path), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!mounted) return;
-      // Fallback: open web portal documents page (session may already exist in browser).
-      final uri = Uri.parse('https://financemkgtax.com/documents');
+      final uri = Uri.parse('${AppConfig.webRoot}/documents');
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

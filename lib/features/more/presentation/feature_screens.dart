@@ -4,27 +4,118 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../home/presentation/main_tabs.dart';
+import '../../notifications/data/notifications_repository.dart';
+import '../../payments/data/invoices_repository.dart';
+import '../../messages/data/messages_repository.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => const AccountOverviewScreen();
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class MessagesScreen extends StatelessWidget {
-  const MessagesScreen({super.key});
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  List<Map<String, dynamic>> _items = const [];
+  Map<String, dynamic>? _policy;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!AppConfig.usesLaravelAuth) {
+      setState(() => _loading = false);
+      return;
+    }
+    final result = await ref.read(notificationsRepositoryProvider).list();
+    if (!mounted) return;
+    setState(() {
+      _items = result.items;
+      _policy = result.policy;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Legacy secure-messages chat removed — Tessa AI is the chat SoT.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) context.go('/tessa');
+    if (!AppConfig.usesLaravelAuth) {
+      return const AccountOverviewScreen();
+    }
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const SectionHeader('Notifications'),
+        if (_policy != null)
+          Card(
+            child: ListTile(
+              title: const Text('Privacy policy'),
+              subtitle: Text((_policy!['note'] ?? 'Push previews omit PII.').toString()),
+            ),
+          ),
+        if (_items.isEmpty)
+          const Card(
+            child: ListTile(
+              title: Text('No notifications'),
+              subtitle: Text('Staff updates will appear here without PII in push previews.'),
+            ),
+          )
+        else
+          for (final item in _items)
+            Card(
+              child: ListTile(
+                title: Text((item['title'] ?? 'Update').toString()),
+                subtitle: Text((item['body'] ?? '').toString()),
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+class MessagesScreen extends ConsumerStatefulWidget {
+  const MessagesScreen({super.key});
+
+  @override
+  ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends ConsumerState<MessagesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (AppConfig.usesLaravelAuth) {
+        // Prefer Laravel advisor threads when on Sanctum builds.
+        final threads = await ref.read(messagesRepositoryProvider).threads();
+        if (!mounted) return;
+        if (threads.isEmpty) {
+          await ref.read(messagesRepositoryProvider).createThread(
+                subject: 'Advisor help',
+                body: 'Hello — I need assistance with my tax year workspace.',
+              );
+        }
+        if (mounted) context.go('/chat');
+        return;
+      }
+      if (mounted) context.go('/tessa');
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return const Center(child: CircularProgressIndicator());
   }
 }
@@ -197,7 +288,12 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       _error = null;
     });
     try {
-      final invoices = await ref.read(portalRepositoryProvider).listInvoices();
+      List<Map<String, dynamic>> invoices;
+      if (AppConfig.usesLaravelAuth) {
+        invoices = await ref.read(invoicesRepositoryProvider).list();
+      } else {
+        invoices = await ref.read(portalRepositoryProvider).listInvoices();
+      }
       if (!mounted) return;
       setState(() {
         _invoices = invoices;
@@ -212,6 +308,40 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     }
   }
 
+  Future<void> _checkout(Map<String, dynamic> inv) async {
+    final id = inv['id']?.toString();
+    if (id == null || !AppConfig.usesLaravelAuth) {
+      await launchUrl(
+        Uri.parse('${AppConfig.webRoot}/payments'),
+        mode: LaunchMode.externalApplication,
+      );
+      return;
+    }
+    final session = await ref.read(invoicesRepositoryProvider).checkout(
+          id,
+          idempotencyKey: 'mobile-$id-${DateTime.now().millisecondsSinceEpoch}',
+        );
+    if (!mounted) return;
+    final url = session?['hosted_checkout_url']?.toString() ??
+        session?['checkout_url']?.toString() ??
+        session?['url']?.toString();
+    if (url != null && url.isNotEmpty) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          (session?['status'] ?? session?['message'] ?? 'Hosted checkout required — open web payments.').toString(),
+        ),
+      ),
+    );
+    await launchUrl(
+      Uri.parse('${AppConfig.webRoot}/payments'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -222,11 +352,11 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           const SectionHeader('Invoices & payments'),
           OutlinedButton.icon(
             onPressed: () => launchUrl(
-              Uri.parse('https://financemkgtax.com/payments'),
+              Uri.parse('${AppConfig.webRoot}/payments'),
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Open Stripe portal on web'),
+            label: const Text('Open hosted payments on web'),
           ),
           const SizedBox(height: 12),
           if (_loading)
@@ -253,13 +383,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     (inv['description'] ?? inv['title'] ?? 'Invoice #${inv['id'] ?? ''}').toString(),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  subtitle: Text('Status: ${(inv['status'] ?? 'unknown')} · Amount: ${inv['amount'] ?? inv['total'] ?? '—'}'),
+                  subtitle: Text(
+                    'Status: ${(inv['status'] ?? 'unknown')} · '
+                    'Amount: ${inv['amount_cents'] != null ? '\$${((inv['amount_cents'] as num) / 100).toStringAsFixed(2)}' : (inv['amount'] ?? inv['total'] ?? '—')}',
+                  ),
                   trailing: StatusChip(
                     label: (inv['status'] ?? 'open').toString(),
                     color: (inv['status']?.toString().toLowerCase() == 'paid')
                         ? MkgColors.green
                         : MkgColors.orange,
                   ),
+                  onTap: () => _checkout(inv),
                 ),
               ),
         ],
@@ -295,6 +429,14 @@ class ToolsScreen extends StatelessWidget {
         const SectionHeader('Tax tools'),
         Card(
           child: ListTile(
+            leading: const Icon(Icons.calculate_outlined, color: MkgColors.primary),
+            title: const Text('Paycheck & W-4 estimates'),
+            subtitle: const Text('Server tax tables via /api/v1 (estimate only)'),
+            onTap: () => context.go('/payroll-tools'),
+          ),
+        ),
+        Card(
+          child: ListTile(
             leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
             title: const Text('Refund advance calculator'),
             subtitle: const Text('Uses /api/loans/calculate'),
@@ -314,7 +456,7 @@ class ToolsScreen extends StatelessWidget {
             title: const Text('More calculators on web'),
             subtitle: const Text('Budget, paycheck, overtime, withholding'),
             onTap: () => launchUrl(
-              Uri.parse('https://financemkgtax.com/dashboard'),
+              Uri.parse('${AppConfig.webRoot}/dashboard'),
               mode: LaunchMode.externalApplication,
             ),
           ),

@@ -39,16 +39,24 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
   }
 
   Future<void> _addState() async {
-    final year = ref.read(taxYearProvider).selectedYear;
-    if (year == null) return;
+    final tax = ref.read(taxYearProvider);
+    final workspaceId = tax.workspace?.workspaceId;
+    if (workspaceId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Activate a tax-year workspace first (Sanctum /api/v1), or use portal mode.'),
+        ),
+      );
+      return;
+    }
     setState(() => _busy = true);
     try {
       final code = _stateCode.text.trim().toUpperCase();
-      final created = await ref.read(taxYearRepositoryProvider).addState(year, code);
+      final created = await ref.read(taxYearRepositoryProvider).addState(workspaceId, code);
       if (!mounted) return;
       if (created == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in to Laravel (Sanctum) to save state returns, or check LARAVEL_API_BASE_URL.')),
+          const SnackBar(content: Text('Could not save state return. Check Sanctum session.')),
         );
       } else {
         await ref.read(taxYearProvider.notifier).refreshWorkspace();
@@ -63,11 +71,10 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     if (year == null) return;
     setState(() => _busy = true);
     try {
-      await ref.read(taxYearRepositoryProvider).priorYearFiling(year);
       await ref.read(taxYearProvider.notifier).refreshWorkspace();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Prior-year filing started for $year. Complete the organizer next.')),
+        SnackBar(content: Text('Tax year $year workspace ready. Complete the organizer next.')),
       );
       context.go('/organizer');
     } finally {

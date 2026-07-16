@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
 
-/// HTTP client for Laravel `/api/mobile/*` and `/api/v1/*`.
+/// HTTP client for Laravel `/api/v1/*` (Sanctum bearer).
 /// Never holds a Neon connection string — Laravel is the only DB boundary.
 class LaravelApiClient {
   LaravelApiClient(this.dio);
@@ -49,6 +49,9 @@ class LaravelApiClient {
 
   Future<Response<T>> patch<T>(String path, {Object? data}) =>
       dio.patch<T>(path, data: data);
+
+  Future<Response<T>> put<T>(String path, {Object? data}) =>
+      dio.put<T>(path, data: data);
 
   Future<Response<T>> delete<T>(String path) => dio.delete<T>(path);
 }

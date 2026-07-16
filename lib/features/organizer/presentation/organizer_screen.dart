@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_repository.dart';
 import 'organizer_fields.dart';
@@ -55,6 +57,49 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     try {
       final tax = ref.read(taxYearProvider);
       final preferred = tax.selectedYear ?? tax.currentFilingYear;
+
+      if (AppConfig.usesLaravelAuth) {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+        if (workspaceId == null) {
+          throw Exception('No tax-year workspace. Select a year and try again.');
+        }
+        final org = await ref.read(laravelOrganizerRepositoryProvider).show(workspaceId);
+        if (!mounted) return;
+        final sections = org?['sections'] is Map
+            ? Map<String, dynamic>.from(org!['sections'] as Map)
+            : <String, dynamic>{};
+        final answers = sections['answers'] is Map
+            ? Map<String, dynamic>.from(sections['answers'] as Map)
+            : <String, dynamic>{};
+        final flat = <String, dynamic>{
+          'prepType': org?['prep_type'] ?? 'personal',
+          'filingYear': tax.workspace?.taxYear ?? preferred ?? DateTime.now().year - 1,
+          'serverCatalog': sections['catalog'],
+          'serverAnswers': answers,
+          'filingStatus':
+              (answers['filing_info'] is Map ? (answers['filing_info'] as Map)['answers'] : null)
+                      is Map
+                  ? (((answers['filing_info'] as Map)['answers'] as Map)['filingStatus'] ?? 'single')
+                  : 'single',
+        };
+        // Flatten known filing_info answers into canonical keys for existing widgets.
+        final filing = answers['filing_info'];
+        if (filing is Map && filing['answers'] is Map) {
+          flat.addAll(Map<String, dynamic>.from(filing['answers'] as Map));
+        }
+        setState(() {
+          _returnId = org?['id'] ?? workspaceId;
+          _year = (flat['filingYear'] as num?)?.toInt() ?? DateTime.now().year - 1;
+          _status = (org?['status'] ?? 'draft').toString();
+          _data = flat;
+          _loading = false;
+          _step = 0;
+          _showHub = true;
+        });
+        return;
+      }
+
       final qid = GoRouterState.of(context).uri.queryParameters['returnId'];
       final explicitId = qid == null || qid.isEmpty ? null : (int.tryParse(qid) ?? qid);
       final result = await ref.read(organizerRepositoryProvider).loadCurrent(
@@ -100,17 +145,34 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     try {
       final status = submit ? 'processing' : 'draft';
       final filingStatus = '${_data['filingStatus'] ?? 'single'}';
-      await ref.read(organizerRepositoryProvider).save(
-            returnId: _returnId,
-            year: _year,
-            status: status,
-            filingStatus: filingStatus,
-            data: {
-              ..._data,
-              'source': 'mkg-tax-mobile',
-              'clientPlatform': 'flutter',
-            },
-          );
+      if (AppConfig.usesLaravelAuth) {
+        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+        if (workspaceId == null) throw StateError('No tax-year workspace for organizer save.');
+        await ref.read(laravelOrganizerRepositoryProvider).updateSection(
+              workspaceId: workspaceId,
+              sectionKey: 'filing_info',
+              answers: {
+                'filingStatus': filingStatus,
+                'firstName': _data['firstName'],
+                'lastName': _data['lastName'],
+                // Never send SSN/ITIN — server strips if present.
+              },
+              sectionComplete: submit || isOrganizerStepComplete('Filing info', _data),
+              prepType: '${_data['prepType'] ?? 'personal'}',
+            );
+      } else {
+        await ref.read(organizerRepositoryProvider).save(
+              returnId: _returnId,
+              year: _year,
+              status: status,
+              filingStatus: filingStatus,
+              data: {
+                ..._data,
+                'source': 'mkg-tax-mobile',
+                'clientPlatform': 'flutter',
+              },
+            );
+      }
       if (!mounted) return;
       setState(() {
         _status = status;

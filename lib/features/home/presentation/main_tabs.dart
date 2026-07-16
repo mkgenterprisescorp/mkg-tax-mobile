@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/portal_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../banking/data/banking_connections_repository.dart';
+import '../../entities/data/entities_repository.dart';
 
 class FinancialScreen extends ConsumerStatefulWidget {
   const FinancialScreen({super.key});
@@ -236,30 +238,123 @@ class AccountOverviewScreen extends StatelessWidget {
   }
 }
 
-class BankingScreen extends StatelessWidget {
+class BankingScreen extends ConsumerStatefulWidget {
   const BankingScreen({super.key});
 
   @override
+  ConsumerState<BankingScreen> createState() => _BankingScreenState();
+}
+
+class _BankingScreenState extends ConsumerState<BankingScreen> {
+  Map<String, dynamic>? _status;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final entity = await ref.read(entitiesRepositoryProvider).ensurePrimaryEntity();
+      final entityId = entity?['id']?.toString();
+      if (entityId == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Sign in with Sanctum (/api/v1) to view banking connection stubs.';
+        });
+        return;
+      }
+      final status = await ref.read(bankingConnectionsRepositoryProvider).connections(entityId);
+      if (!mounted) return;
+      setState(() {
+        _status = status;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _beginKyc() async {
+    final entity = await ref.read(entitiesRepositoryProvider).ensurePrimaryEntity();
+    final entityId = entity?['id']?.toString();
+    if (entityId == null) return;
+    final result = await ref.read(bankingConnectionsRepositoryProvider).beginKyc(entityId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          (result?['message'] ?? result?['code'] ?? 'Banking partner not configured').toString(),
+        ),
+      ),
+    );
+    await _load();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final disclaimer = (_status?['disclaimer'] ??
+            'MKG Tax Consultants / Finance Advisors are not a bank. No money movement is enabled.')
+        .toString();
+    final connection = _status?['connection'];
+    final provider = (_status?['provider'] ?? 'null').toString();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         const SectionHeader('Banking'),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.account_balance_outlined, color: MkgColors.primary),
-            title: const Text('Link bank (Plaid)'),
-            subtitle: const Text('Complete on web portal for Plaid Link'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => context.go('/support'),
+            leading: const Icon(Icons.info_outline, color: MkgColors.primary),
+            title: const Text('Compliance boundary'),
+            subtitle: Text(disclaimer),
           ),
         ),
-        const Card(
-          child: ListTile(
-            title: Text('Direct deposit'),
-            subtitle: Text('Routing & account collected during organizer / profile'),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_error != null)
+          Card(
+            child: ListTile(
+              title: Text(_error!),
+              trailing: TextButton(onPressed: _load, child: const Text('Retry')),
+            ),
+          )
+        else ...[
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.account_balance_outlined, color: MkgColors.primary),
+              title: Text('Provider: $provider'),
+              subtitle: Text(
+                connection is Map
+                    ? 'Status: ${connection['status'] ?? 'unknown'}'
+                    : 'No connection stub yet',
+              ),
+            ),
           ),
-        ),
+          FilledButton(
+            onPressed: _beginKyc,
+            child: const Text('Begin partner KYC (stub)'),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'No bank credentials are collected in-app. Live ACH/card movement is not enabled.',
+            style: TextStyle(color: Colors.black54),
+          ),
+        ],
       ],
     );
   }

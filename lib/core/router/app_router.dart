@@ -19,6 +19,7 @@ import '../../features/more/presentation/feature_screens.dart';
 import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
+import '../../features/payroll/presentation/payroll_tools_screen.dart';
 import '../../features/refund_advance/presentation/loan_estimate_screen.dart';
 import '../../features/refund_advance/presentation/refund_advance_hub_screen.dart';
 import '../../features/refund_advance/presentation/refund_advance_info_screens.dart';
@@ -137,6 +138,7 @@ GoRouter createRouter({
           GoRoute(path: '/bookkeeping', builder: (context, state) => const BookkeepingScreen()),
           GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
           GoRoute(path: '/tools', builder: (context, state) => const ToolsScreen()),
+          GoRoute(path: '/payroll-tools', builder: (context, state) => const PayrollToolsScreen()),
           GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/refund-tracker', builder: (context, state) => const RefundTrackerScreen()),

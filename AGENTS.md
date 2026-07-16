@@ -56,4 +56,13 @@
 - Dev run needs Android SDK + JDK 21 for Flutter Gradle.
 
 ### Cookie-auth progress
-- When `API_BASE_URL` is portal (no `/api/v1`), Home/Tax Center workspace progress comes from portal `tax_returns` via `TaxYearWorkspace.fromPortalReturn` — not Laravel `/api/mobile/tax-years`.
+- When `API_BASE_URL` is portal (no `/api/v1`), Home/Tax Center workspace progress comes from portal `tax_returns` via `TaxYearWorkspace.fromPortalReturn`.
+- When `API_BASE_URL` contains `/api/v1`, tax years/entities/organizer/documents/payroll/messages/invoices/banking use Laravel Sanctum repositories under `/api/v1/*` (see `docs/openapi-v1-sketch.md` on backend and Flutter `features/*/data/*_repository.dart`).
+
+### Phases 1–6 (Sanctum builds)
+- Login field sent as `identifier` to `POST /auth/login`; identity via `GET /me`.
+- Tax-year activate: ensure entity → `POST /entities/{id}/tax-years/activate`.
+- Documents: multipart upload + signed download URL (never log query secrets).
+- Payroll/W-4: estimate-only UI at `/payroll-tools`.
+- Banking: connection stub only — MKG is not a bank; no credentials / money movement.
+- **Do not** run staging/prod migrations or change DO DNS from agent sessions without explicit approval.
