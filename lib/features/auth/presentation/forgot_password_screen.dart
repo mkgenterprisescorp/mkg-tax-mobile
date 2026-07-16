@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
@@ -87,7 +88,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _toast(e.message);
     } catch (e) {
       if (!mounted) return;
-      _toast('$e');
+      _toast(ApiErrorMapper.map(e));
     } finally {
       if (mounted) {
         setState(() {
@@ -131,7 +132,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _toast(e.message);
     } catch (e) {
       if (!mounted) return;
-      _toast('$e');
+      _toast(ApiErrorMapper.map(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

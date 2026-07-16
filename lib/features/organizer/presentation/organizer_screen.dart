@@ -126,7 +126,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = ApiErrorMapper.map(e);
       });
     }
   }

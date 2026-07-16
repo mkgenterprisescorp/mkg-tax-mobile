@@ -53,7 +53,7 @@ class _AdvisorChatScreenState extends ConsumerState<AdvisorChatScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _roomsError = '$e';
+        _roomsError = ApiErrorMapper.map(e);
         _loadingRooms = false;
       });
     }

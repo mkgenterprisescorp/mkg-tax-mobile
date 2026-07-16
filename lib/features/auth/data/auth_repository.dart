@@ -89,6 +89,22 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
+/// Safe, non-server-controlled message for an auth API failure. Never
+/// forwards `data['message']`/`data['error']` from the response body — those
+/// fields are server-authored free text and must not reach the UI directly
+/// (see ApiErrorMapper for why). Falls back to [fallback] — a fixed,
+/// developer-authored string — when the status code has no specific mapping.
+String _authErrorMessage(int? statusCode, String fallback) {
+  final mapped = ApiErrorMapper.mapStatusCode(statusCode);
+  return mapped == ApiErrorMapper.genericMessage ? fallback : mapped;
+}
+
+/// Uniform message for the forgot-password flow, deliberately identical
+/// regardless of status code or response body content: this endpoint must
+/// not let a client observe whether a given email is a registered account.
+const String _passwordResetRequestedMessage =
+    'If an account exists for that email, a reset code has been sent.';
+
 class AuthRepository {
   AuthRepository(this._api, {LaravelApiClient? laravel}) : _laravel = laravel;
 
@@ -177,13 +193,7 @@ class AuthRepository {
         }
         return PortalUser.fromJson(userMap);
       }
-      final err = data['error'];
-      final msg = (data['message'] ??
-              (err is Map ? err['message'] : null) ??
-              (data['errors'] is Map ? (data['errors'] as Map).values.first : null) ??
-              'Login failed (${res.statusCode})')
-          .toString();
-      throw AuthException(msg);
+      throw AuthException(_authErrorMessage(res.statusCode, 'Login failed. Please try again.'));
     }
 
     final res = await _api.post<Map<String, dynamic>>(
@@ -203,8 +213,7 @@ class AuthRepository {
       }
       return PortalUser.fromJson(Map<String, dynamic>.from(data));
     }
-    final msg = (data['message'] ?? data['error'] ?? 'Login failed (${res.statusCode})').toString();
-    throw AuthException(msg);
+    throw AuthException(_authErrorMessage(res.statusCode, 'Login failed. Please try again.'));
   }
 
   Future<PortalUser> register({
@@ -238,8 +247,7 @@ class AuthRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return PortalUser.fromJson(Map<String, dynamic>.from(data));
     }
-    final msg = (data['message'] ?? data['error'] ?? 'Registration failed (${res.statusCode})').toString();
-    throw AuthException(msg);
+    throw AuthException(_authErrorMessage(res.statusCode, 'Registration failed. Please try again.'));
   }
 
   /// Step 1 of web-parity reset: send 6-digit code via email/SMS.
@@ -251,9 +259,11 @@ class AuthRepository {
       '/api/forgot-password',
       data: {'email': email.trim()},
     );
-    final data = res.data ?? {};
     if ((res.statusCode ?? 500) >= 400) {
-      throw AuthException((data['message'] ?? data['error'] ?? 'Failed to send reset code').toString());
+      // Deliberately uniform regardless of status code or response body —
+      // this step must never let a caller distinguish "no such account"
+      // from any other outcome. See _passwordResetRequestedMessage.
+      throw AuthException(_passwordResetRequestedMessage);
     }
   }
 
@@ -274,9 +284,8 @@ class AuthRepository {
         'newPassword': newPassword,
       },
     );
-    final data = res.data ?? {};
     if ((res.statusCode ?? 500) >= 400) {
-      throw AuthException((data['message'] ?? data['error'] ?? 'Password reset failed').toString());
+      throw AuthException(_authErrorMessage(res.statusCode, 'That code is invalid or has expired. Please request a new one.'));
     }
   }
 
@@ -308,9 +317,8 @@ class AuthRepository {
       throw AuthException('Profile update via Laravel API is not enabled yet.');
     }
     final res = await _api.put<Map<String, dynamic>>('/api/user/profile', data: body);
-    final data = res.data ?? {};
-    if (res.statusCode == 200) return Map<String, dynamic>.from(data);
-    throw AuthException((data['message'] ?? 'Profile update failed').toString());
+    if (res.statusCode == 200) return Map<String, dynamic>.from(res.data ?? {});
+    throw AuthException(_authErrorMessage(res.statusCode, 'Profile update failed. Please try again.'));
   }
 
   Future<PortalUser> refreshUser() async {

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
+import '../network/api_error_mapper.dart';
 
 /// Live financemkgtaxpro client APIs (cookie session).
 class PortalRepository {
@@ -23,7 +24,7 @@ class PortalRepository {
     if (res.statusCode == 401 || res.statusCode == 403) {
       return listTaxReturns();
     }
-    throw PortalException(_message(res.data, 'Failed to load tax returns'));
+    throw PortalException(_message(res.statusCode, 'Failed to load tax returns'));
   }
 
   Future<Map<String, dynamic>> toggleReturnLock(dynamic id, {required bool lock}) async {
@@ -32,28 +33,28 @@ class PortalRepository {
       data: {'action': lock ? 'lock' : 'unlock'},
     );
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'Failed to update lock'));
+    throw PortalException(_message(res.statusCode, 'Failed to update lock'));
   }
 
   Future<List<Map<String, dynamic>>> listEroEfinDirectory() async {
     final res = await _api.get<dynamic>('/api/bureau/ero-efin');
     if (res.statusCode == 200) return _asMapList(res.data);
     if (res.statusCode == 401 || res.statusCode == 403) return const [];
-    throw PortalException(_message(res.data, 'Failed to load ERO directory'));
+    throw PortalException(_message(res.statusCode, 'Failed to load ERO directory'));
   }
 
   Future<List<Map<String, dynamic>>> listBureauPreparers() async {
     final res = await _api.get<dynamic>('/api/bureau/preparers');
     if (res.statusCode == 200) return _asMapList(res.data);
     if (res.statusCode == 401 || res.statusCode == 403) return const [];
-    throw PortalException(_message(res.data, 'Failed to load preparers'));
+    throw PortalException(_message(res.statusCode, 'Failed to load preparers'));
   }
 
   /// Professional client roster (`GET /api/clients/list`).
   Future<({List<Map<String, dynamic>> clients, String scope})> listClients() async {
     final res = await _api.get<dynamic>('/api/clients/list');
     if (res.statusCode != 200) {
-      throw PortalException(_message(res.data, 'Failed to load clients'));
+      throw PortalException(_message(res.statusCode, 'Failed to load clients'));
     }
     final data = _asMap(res.data) ?? {};
     final clients = _asMapList(data['clients'] ?? data);
@@ -85,7 +86,7 @@ class PortalRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
-    throw PortalException(_message(res.data, 'Failed to create tax return'));
+    throw PortalException(_message(res.statusCode, 'Failed to create tax return'));
   }
 
   /// Find return for [year] or create a draft.
@@ -117,7 +118,7 @@ class PortalRepository {
     );
     if (secure.statusCode == 200 && secure.data != null) return secure.data!;
     throw PortalException(
-      _message(secure.data, 'Download failed (${res.statusCode}/${secure.statusCode}). OTP may be required on web.'),
+      _message(secure.statusCode, 'Download failed (${res.statusCode}/${secure.statusCode}). OTP may be required on web.'),
     );
   }
 
@@ -127,7 +128,7 @@ class PortalRepository {
   ) async {
     final res = await _api.put<dynamic>('/api/tax-returns/$id', data: body);
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'Failed to update tax return'));
+    throw PortalException(_message(res.statusCode, 'Failed to update tax return'));
   }
 
   Future<List<Map<String, dynamic>>> listDocuments(dynamic returnId) async {
@@ -157,7 +158,7 @@ class PortalRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
-    throw PortalException(_message(res.data, 'Upload failed'));
+    throw PortalException(_message(res.statusCode, 'Upload failed'));
   }
 
   Future<Map<String, dynamic>?> verificationStatus() async {
@@ -169,19 +170,19 @@ class PortalRepository {
   Future<Map<String, dynamic>> submitKyc(Map<String, dynamic> body) async {
     final res = await _api.post<dynamic>('/api/user/kyc-submit', data: body);
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'KYC submission failed'));
+    throw PortalException(_message(res.statusCode, 'KYC submission failed'));
   }
 
   Future<Map<String, dynamic>> saveSsn(String ssn) async {
     final res = await _api.post<dynamic>('/api/user/ssn', data: {'ssn': ssn});
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'Failed to save SSN'));
+    throw PortalException(_message(res.statusCode, 'Failed to save SSN'));
   }
 
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
     final res = await _api.put<dynamic>('/api/user/profile', data: body);
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'Profile update failed'));
+    throw PortalException(_message(res.statusCode, 'Profile update failed'));
   }
 
   Future<Map<String, dynamic>> calculateLoan(num amount) async {
@@ -190,7 +191,7 @@ class PortalRepository {
       data: {'amount': amount},
     );
     if (res.statusCode == 200) return _asMap(res.data) ?? {};
-    throw PortalException(_message(res.data, 'Loan calculation failed'));
+    throw PortalException(_message(res.statusCode, 'Loan calculation failed'));
   }
 
   Future<Map<String, dynamic>> applyLoan(Map<String, dynamic> body) async {
@@ -198,7 +199,7 @@ class PortalRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
-    throw PortalException(_message(res.data, 'Loan application failed'));
+    throw PortalException(_message(res.statusCode, 'Loan application failed'));
   }
 
   Future<List<Map<String, dynamic>>> listInvoices() async {
@@ -227,7 +228,7 @@ class PortalRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
-    throw PortalException(_message(res.data, 'Failed to send message'));
+    throw PortalException(_message(res.statusCode, 'Failed to send message'));
   }
 
   Future<List<Map<String, dynamic>>> listConversations() async {
@@ -243,7 +244,7 @@ class PortalRepository {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return _asMap(res.data) ?? {};
     }
-    throw PortalException(_message(res.data, 'Failed to start conversation'));
+    throw PortalException(_message(res.statusCode, 'Failed to start conversation'));
   }
 
   Future<Map<String, dynamic>?> getConversation(dynamic id) async {
@@ -263,7 +264,7 @@ class PortalRepository {
       ),
     );
     if (res.statusCode != 200 && res.statusCode != 201) {
-      throw PortalException(_message(res.data, 'AI reply failed'));
+      throw PortalException(_message(res.statusCode, 'AI reply failed'));
     }
     final raw = res.data?.toString() ?? '';
     final buffer = StringBuffer();
@@ -312,11 +313,14 @@ class PortalRepository {
     return null;
   }
 
-  static String _message(dynamic data, String fallback) {
-    if (data is Map) {
-      return (data['message'] ?? data['error'] ?? fallback).toString();
-    }
-    return fallback;
+  /// Safe, non-server-controlled message for a failed portal call. Never
+  /// forwards the response body's `message`/`error` fields — those are
+  /// server-authored free text and must not reach the UI directly. Falls
+  /// back to [fallback] — a fixed, developer-authored string — when the
+  /// status code has no specific mapping.
+  static String _message(int? statusCode, String fallback) {
+    final mapped = ApiErrorMapper.mapStatusCode(statusCode);
+    return mapped == ApiErrorMapper.genericMessage ? fallback : mapped;
   }
 }
 

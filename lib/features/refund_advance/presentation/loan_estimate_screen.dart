@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import 'refund_advance_hub_screen.dart';
@@ -92,7 +93,7 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = ApiErrorMapper.map(e);
         _busy = false;
       });
     }

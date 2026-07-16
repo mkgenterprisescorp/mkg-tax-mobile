@@ -176,7 +176,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         });
       }
     } catch (e) {
-      _messages.add((false, 'Could not connect to AI assistant: $e'));
+      _messages.add((false, 'Could not connect to AI assistant: ${ApiErrorMapper.map(e)}'));
       if (mounted) setState(() => _ready = true);
     }
   }
@@ -205,7 +205,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       final reply = await ref.read(portalRepositoryProvider).sendAiMessage(_conversationId, text);
       if (mounted) setState(() => _messages.add((false, reply)));
     } catch (e) {
-      if (mounted) setState(() => _messages.add((false, 'Error: $e')));
+      if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
