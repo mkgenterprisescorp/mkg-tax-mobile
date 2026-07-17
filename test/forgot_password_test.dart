@@ -87,7 +87,7 @@ void main() {
   });
 
   testWidgets(
-    'forgot password: existing and nonexistent accounts produce identical observable state',
+    'forgot password: success and AuthException produce identical observable state',
     (tester) async {
       final existingAccountResult = await _runSendCodeStep(tester, failRequestWith: null);
       final nonexistentAccountResult = await _runSendCodeStep(
@@ -105,11 +105,23 @@ void main() {
         nonexistentAccountResult.screenTitle,
         reason: 'the screen transition must be identical regardless of account existence',
       );
-      // Lock in the actual expected values too, not just their equality to
-      // each other (equality alone would also pass if both were wrong).
       expect(existingAccountResult.screenTitle, 'Enter reset code');
-      expect(existingAccountResult.snackBarText, contains('reset code'));
+      expect(existingAccountResult.snackBarText, passwordResetAcknowledgement);
       expect(existingAccountResult.snackBarText, isNot(contains('Some server-reported outcome')));
+    },
+  );
+
+  testWidgets(
+    'forgot password: unexpected repository throw still shows the same acknowledgement and code step',
+    (tester) async {
+      final result = await _runSendCodeStep(
+        tester,
+        failRequestWith: 'DioException [bad response]: Internal server error',
+      );
+      expect(result.snackBarText, passwordResetAcknowledgement);
+      expect(result.screenTitle, 'Enter reset code');
+      expect(result.snackBarText, isNot(contains('DioException')));
+      expect(result.snackBarText, isNot(contains('Internal server error')));
     },
   );
 }

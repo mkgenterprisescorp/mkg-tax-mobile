@@ -99,20 +99,11 @@ String _authErrorMessage(int? statusCode, String fallback) {
   return mapped == ApiErrorMapper.genericMessage ? fallback : mapped;
 }
 
-/// Uniform message for the forgot-password flow, deliberately identical
-/// regardless of status code or response body content: this endpoint must
-/// not let a client observe whether a given email is a registered account.
-///
-/// ForgotPasswordScreen deliberately does not read this text at all — it
-/// catches `AuthException` without binding the caught value and shows its
-/// own identical acknowledgement for both the success and the
-/// AuthException path (see `_acknowledgeCodeSent` there), so this string's
-/// only remaining job is being a fixed, non-server-controlled payload for
-/// the thrown exception. It is kept as one string (rather than being
-/// removed) so any other future caller of requestPasswordReset() that does
-/// choose to display `.message` inherits the same safe-by-construction text.
-const String _passwordResetRequestedMessage =
-    'If that email exists, a reset code has been sent.';
+/// Uniform acknowledgement for the forgot-password request step.
+/// Identical for every transport/server outcome (2xx, 4xx, 5xx, timeout,
+/// connection failure, malformed body). Never derived from a response body.
+const String passwordResetAcknowledgement =
+    'If an account matches the information provided, password reset instructions will be sent.';
 
 class AuthRepository {
   AuthRepository(this._api, {LaravelApiClient? laravel}) : _laravel = laravel;
@@ -259,20 +250,30 @@ class AuthRepository {
     throw AuthException(_authErrorMessage(res.statusCode, 'Registration failed. Please try again.'));
   }
 
-  /// Step 1 of web-parity reset: send 6-digit code via email/SMS.
+  /// Step 1 of password reset: request a code / instructions.
+  ///
+  /// Completes successfully for every observable outcome — including HTTP
+  /// statuses that Dio throws as [DioException.badResponse] (500/503 under
+  /// `validateStatus: code < 500`), timeouts, and connection failures.
+  /// Callers must never branch on success vs failure for this method; the
+  /// UI always shows [passwordResetAcknowledgement] and the same navigation.
   Future<void> requestPasswordReset(String email) async {
-    if (AppConfig.usesLaravelAuth) {
-      throw AuthException('Password reset via Laravel API is not enabled yet. Use ${AppConfig.webRoot}.');
-    }
-    final res = await _api.post<Map<String, dynamic>>(
-      '/api/forgot-password',
-      data: {'email': email.trim()},
-    );
-    if ((res.statusCode ?? 500) >= 400) {
-      // Deliberately uniform regardless of status code or response body —
-      // this step must never let a caller distinguish "no such account"
-      // from any other outcome. See _passwordResetRequestedMessage.
-      throw AuthException(_passwordResetRequestedMessage);
+    try {
+      if (!AppConfig.usesLaravelAuth) {
+        // Fire-and-forget from the client's perspective: status codes and
+        // response bodies are intentionally ignored so they cannot become
+        // an account-existence oracle.
+        await _api.post<Map<String, dynamic>>(
+          '/api/forgot-password',
+          data: {'email': email.trim()},
+        );
+      }
+      // Sanctum builds have no dedicated reset endpoint yet — still complete
+      // with the same non-enumerating acknowledgement (no existence signal).
+    } on DioException {
+      // Includes badResponse (500/503), timeouts, and connection errors.
+    } catch (_) {
+      // Malformed payloads / unexpected local failures — never leak.
     }
   }
 
