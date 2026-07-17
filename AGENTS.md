@@ -3,11 +3,10 @@
 ## Cursor Cloud specific instructions
 
 ### Auth / API host (until DigitalOcean API URL is live)
-- **`api.financemkgtax.com` DNS is not live yet** → default `API_BASE_URL` is **`https://financemkgtax.com`** (portal cookie session).
-- Login UI should say portal sign-in, not Laravel Sanctum, in this mode (`AppConfig.usesPortalCookieAuth`).
-- When DO subdomain + Laravel `/api/v1` are ready, rebuild with:
-  `--dart-define=API_BASE_URL=https://api.financemkgtax.com/api/v1`
-- Flutter never talks to Neon directly.
+- **Web client portal:** `https://mkgtaxconsultants.com` (not `financemkgtax.com`).
+- **Staging mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
+- Cookie/portal transitional builds may use `API_BASE_URL=https://mkgtaxconsultants.com`; Sanctum activates when `API_BASE_URL` contains `/api/v1`.
+- Flutter never talks to Neon or `/internal/*` directly.
 
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
@@ -16,8 +15,9 @@
 
 ### Product topology
 - **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
-- One Laravel API (`api.financemkgtax.com` → `/api/v1`) backs web + mobile; transitional web host is `financemkgtax.com`.
-- Until `api.financemkgtax.com` DNS is live, device builds may point `API_BASE_URL` at `https://financemkgtax.com` (cookie/session auth). Sanctum bearer path activates when `API_BASE_URL` contains `/api/v1`.
+- **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro).
+- **Mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (mkg-tax-backend-2).
+- Do not configure S2S / portal bridge against `financemkgtax.com`.
 
 ### Brand assets
 - Official mark: **circular MKG Tax Consultants seal** (Fast Refunds 8–21 days / Accurate / Secure / Year-Round Support) at `assets/brand/mkg_tax_logo.png`.

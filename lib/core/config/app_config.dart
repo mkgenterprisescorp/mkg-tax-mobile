@@ -3,14 +3,14 @@
 /// Authoritative staging/production API root:
 /// `https://app.mkgtaxconsultants.com/api/v1`
 ///
+/// Web client portal (financemkgtaxpro):
+/// `https://mkgtaxconsultants.com`
+///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
 /// omits `--dart-define=API_BASE_URL=...` must fail loudly at startup (see
-/// [AppConfig.validate]) rather than silently talk to some other host. A
-/// prior default of `https://financemkgtax.com` (the legacy cookie-session
-/// portal) caused exactly that failure mode and is the reason this class no
-/// longer has any host default at all.
+/// [AppConfig.validate]) rather than silently talk to some other host.
 ///
-/// Flutter must never connect directly to Neon PostgreSQL.
+/// Flutter must never connect directly to Neon PostgreSQL or `/internal/*`.
 class AppConfig {
   /// API root. No default — see [validate].
   static const String apiBaseUrl = String.fromEnvironment(
@@ -18,12 +18,11 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Public web app origin (DigitalOcean). Deep links / marketing only —
-  /// not part of the authenticated API surface, so it keeps a legacy
-  /// default rather than requiring a build-time value.
+  /// Public web client portal origin (DigitalOcean). Deep links / marketing —
+  /// not part of the authenticated mobile API surface.
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
-    defaultValue: 'https://financemkgtax.com',
+    defaultValue: 'https://mkgtaxconsultants.com',
   );
 
   /// Optional override for Laravel host origin (defaults derived from [apiBaseUrl]).

@@ -16,6 +16,8 @@ See authoritative document in `mkg-tax-backend-2/docs/account-sync/OWNERSHIP_AND
 | Role | Host |
 |---|---|
 | Marketing | `https://mkgtaxconsultants.com` |
-| Web portal | `https://financemkgtax.com` |
+| Web portal | `https://mkgtaxconsultants.com` |
 | Mobile API | `https://app.mkgtaxconsultants.com/api/v1` |
-| Internal S2S | portal `/internal/mobile/v1` (server-only) |
+| Internal S2S | `https://mkgtaxconsultants.com/internal/mobile/v1` (server-only; never in Flutter) |
+
+> **Domain correction:** The web client portal is `mkgtaxconsultants.com`, not `financemkgtax.com`.
