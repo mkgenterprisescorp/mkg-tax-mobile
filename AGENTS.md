@@ -4,9 +4,10 @@
 
 ### Auth / API host (until DigitalOcean API URL is live)
 - **Web client portal:** `https://mkgtaxconsultants.com` (not `financemkgtax.com`).
-- **Staging mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
-- Cookie/portal transitional builds may use `API_BASE_URL=https://mkgtaxconsultants.com`; Sanctum activates when `API_BASE_URL` contains `/api/v1`.
-- Flutter never talks to Neon or `/internal/*` directly.
+- **Staging mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
+- **Portal deep links only:** `WEB_BASE_URL=https://mkgtaxconsultants.com`.
+- Flutter never talks to Neon, `/internal/*`, or portal S2S credentials.
+- Domain cutover is **not** complete until portal internal routes on `mkgtaxconsultants.com` return controlled 401 for unsigned S2S (see financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`).
 
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
