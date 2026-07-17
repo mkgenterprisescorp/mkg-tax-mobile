@@ -266,7 +266,13 @@ class AuthRepository {
   /// UI always shows [passwordResetAcknowledgement] and the same navigation.
   Future<void> requestPasswordReset(String email) async {
     try {
-      if (!AppConfig.usesLaravelAuth) {
+      if (AppConfig.usesLaravelAuth) {
+        // Enumeration-safe façade → financemkgtaxpro via mobile API.
+        await _api.post<Map<String, dynamic>>(
+          '/auth/password-reset/request',
+          data: {'email': email.trim()},
+        );
+      } else {
         // Fire-and-forget from the client's perspective: status codes and
         // response bodies are intentionally ignored so they cannot become
         // an account-existence oracle.
@@ -275,8 +281,6 @@ class AuthRepository {
           data: {'email': email.trim()},
         );
       }
-      // Sanctum builds have no dedicated reset endpoint yet — still complete
-      // with the same non-enumerating acknowledgement (no existence signal).
     } on DioException {
       // Includes badResponse (500/503), timeouts, and connection errors.
     } catch (_) {
