@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -148,7 +149,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                   children: [
                     StatusChip(label: caps.edition.label, color: MkgColors.accent),
                     StatusChip(label: caps.role, color: Colors.white),
-                    StatusChip(label: 'financemkgtax.com', color: Colors.white),
+                    StatusChip(label: Uri.parse(AppConfig.webRoot).host, color: Colors.white),
                     StatusChip(
                       label: verified ? 'Identity verified' : 'Verify identity',
                       color: verified ? MkgColors.accent : Colors.white70,

@@ -17,9 +17,9 @@ void main() {
       );
     });
 
-    test('rejects the legacy financemkgtax.com portal host implicitly by requiring /api/v1', () {
+    test('rejects a non-/api/v1 host such as the web portal apex', () {
       expect(
-        () => AppConfig.validateUrl('https://financemkgtax.com'),
+        () => AppConfig.validateUrl('https://mkgtaxconsultants.com'),
         throwsA(isA<AppConfigError>().having((e) => e.message, 'message', contains('/api/v1'))),
       );
     });

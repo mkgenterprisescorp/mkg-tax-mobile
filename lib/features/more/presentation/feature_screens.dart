@@ -489,7 +489,7 @@ class SupportScreen extends StatelessWidget {
             leading: const Icon(Icons.language, color: MkgColors.primary),
             title: const Text('Open web portal'),
             onTap: () => launchUrl(
-              Uri.parse('https://financemkgtax.com'),
+              Uri.parse(AppConfig.webRoot),
               mode: LaunchMode.externalApplication,
             ),
           ),

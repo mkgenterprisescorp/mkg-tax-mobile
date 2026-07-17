@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -289,10 +290,10 @@ class _AdvisorChatScreenState extends ConsumerState<AdvisorChatScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.language_outlined, color: MkgColors.primary),
                   title: const Text('Open web portal'),
-                  subtitle: const Text('financemkgtax.com messaging & scheduling'),
+                  subtitle: Text('${Uri.parse(AppConfig.webRoot).host} messaging & scheduling'),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: () => launchUrl(
-                    Uri.parse('https://financemkgtax.com'),
+                    Uri.parse(AppConfig.webRoot),
                     mode: LaunchMode.externalApplication,
                   ),
                 ),
