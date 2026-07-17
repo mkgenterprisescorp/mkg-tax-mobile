@@ -8,6 +8,10 @@ class StatesRepository {
   final LaravelApiClient _api;
 
   Future<List<String>> catalog({required int taxYear}) async {
+    final details = await catalogDetails(taxYear: taxYear);
+    if (details.isNotEmpty) {
+      return details.map((e) => e['code'].toString()).toList();
+    }
     final res = await _api.get<Map<String, dynamic>>(
       '/api/v1/states',
       query: {'tax_year': taxYear},
@@ -17,6 +21,38 @@ class StatesRepository {
     final states = map?['states'];
     if (states is List) return states.map((e) => e.toString()).toList();
     return const [];
+  }
+
+  /// Enriched catalog: address availability is separate from tax filing support.
+  Future<List<Map<String, dynamic>>> catalogDetails({required int taxYear}) async {
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/reference/states',
+      query: {'tax_year': taxYear},
+    );
+    if (!PlatformApi.ok(res)) {
+      // Fallback to legacy /states payload shape.
+      final legacy = await _api.get<Map<String, dynamic>>(
+        '/api/v1/states',
+        query: {'tax_year': taxYear},
+      );
+      if (!PlatformApi.ok(legacy)) return const [];
+      final map = PlatformApi.unwrapMap(legacy);
+      final details = map?['state_details'];
+      if (details is List) {
+        return details.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      final states = map?['states'];
+      if (states is List) {
+        return states
+            .map((e) => <String, dynamic>{'code': e.toString(), 'tax_filing_support': e.toString() == 'CA' ? 'organizer_supported' : 'unsupported'})
+            .toList();
+      }
+      return const [];
+    }
+    final map = PlatformApi.unwrapMap(res);
+    final states = map?['states'];
+    if (states is! List) return const [];
+    return states.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<Map<String, dynamic>?> rules(String stateCode, {required int taxYear}) async {

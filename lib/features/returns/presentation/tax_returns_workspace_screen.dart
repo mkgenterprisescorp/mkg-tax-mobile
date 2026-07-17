@@ -6,6 +6,7 @@ import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../states/data/states_repository.dart';
 
 /// Tax-year workspace: federal + state returns, statuses, prior-year filing.
 class TaxReturnsWorkspaceScreen extends ConsumerStatefulWidget {
@@ -16,7 +17,8 @@ class TaxReturnsWorkspaceScreen extends ConsumerStatefulWidget {
 }
 
 class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceScreen> {
-  final _stateCode = TextEditingController(text: 'CA');
+  String _selectedState = 'CA';
+  List<Map<String, dynamic>> _stateDetails = const [];
   bool _busy = false;
 
   @override
@@ -29,13 +31,32 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
       } else {
         ref.read(taxYearProvider.notifier).refreshWorkspace();
       }
+      _loadStates();
     });
   }
 
-  @override
-  void dispose() {
-    _stateCode.dispose();
-    super.dispose();
+  Future<void> _loadStates() async {
+    final tax = ref.read(taxYearProvider);
+    final year = tax.selectedYear ?? tax.currentFilingYear ?? DateTime.now().year - 1;
+    final details = await ref.read(statesRepositoryProvider).catalogDetails(taxYear: year);
+    if (!mounted) return;
+    setState(() {
+      _stateDetails = details;
+      if (details.isNotEmpty && details.every((e) => e['code']?.toString() != _selectedState)) {
+        _selectedState = details.first['code']?.toString() ?? 'CA';
+      }
+    });
+  }
+
+  String? get _unsupportedMessage {
+    final match = _stateDetails.where((e) => e['code']?.toString() == _selectedState);
+    if (match.isEmpty) return null;
+    final row = match.first;
+    if (row['tax_filing_support']?.toString() == 'unsupported') {
+      return row['unsupported_message']?.toString() ??
+          'State tax preparation for this jurisdiction is not yet available in the mobile testing version.';
+    }
+    return null;
   }
 
   Future<void> _addState() async {
@@ -51,7 +72,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     }
     setState(() => _busy = true);
     try {
-      final code = _stateCode.text.trim().toUpperCase();
+      final code = _selectedState.trim().toUpperCase();
       final created = await ref.read(taxYearRepositoryProvider).addState(workspaceId, code);
       if (!mounted) return;
       if (created == null) {
@@ -60,6 +81,11 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
         );
       } else {
         await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        if (!mounted) return;
+        final msg = _unsupportedMessage;
+        if (msg != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        }
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -148,22 +174,49 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 72,
-                child: TextField(
-                  controller: _stateCode,
-                  textCapitalization: TextCapitalization.characters,
-                  maxLength: 2,
-                  decoration: const InputDecoration(labelText: 'State', counterText: ''),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      // ignore: deprecated_member_use
+                      value: _selectedState,
+                      decoration: const InputDecoration(labelText: 'State'),
+                      items: [
+                        for (final s in (_stateDetails.isEmpty
+                            ? [
+                                {'code': 'CA', 'display_name': 'California'},
+                              ]
+                            : _stateDetails))
+                          DropdownMenuItem(
+                            value: s['code']?.toString(),
+                            child: Text('${s['code']} · ${s['display_name'] ?? s['code']}'),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (v) {
+                              if (v == null) return;
+                              setState(() => _selectedState = v);
+                            },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
+                    onPressed: _busy ? null : _addState,
+                    child: const Text('Add State'),
+                  ),
+                ],
+              ),
+              if (_unsupportedMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _unsupportedMessage!,
+                  style: const TextStyle(color: MkgColors.orange, fontSize: 12),
                 ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonal(
-                onPressed: _busy ? null : _addState,
-                child: const Text('Add State'),
-              ),
+              ],
             ],
           ),
         ),

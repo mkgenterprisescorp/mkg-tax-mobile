@@ -237,6 +237,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
+                  onPressed: () => context.go('/documents/smart-intake'),
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  label: const Text('W-2 / smart document intake'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
                   onPressed: () => context.go('/organizer'),
                   icon: const Icon(Icons.assignment_outlined),
                   label: const Text('Continue Tax Organizer'),
