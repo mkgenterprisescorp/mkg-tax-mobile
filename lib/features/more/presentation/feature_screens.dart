@@ -313,7 +313,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     final id = inv['id']?.toString();
     if (id == null || !AppConfig.usesLaravelAuth) {
       await launchUrl(
-        Uri.parse('${AppConfig.webRoot}/payments'),
+        Uri.parse(AppConfig.paymentsWebUrl),
         mode: LaunchMode.externalApplication,
       );
       return;
@@ -338,7 +338,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       ),
     );
     await launchUrl(
-      Uri.parse('${AppConfig.webRoot}/payments'),
+      Uri.parse(AppConfig.paymentsWebUrl),
       mode: LaunchMode.externalApplication,
     );
   }
@@ -353,7 +353,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           const SectionHeader('Invoices & payments'),
           OutlinedButton.icon(
             onPressed: () => launchUrl(
-              Uri.parse('${AppConfig.webRoot}/payments'),
+              Uri.parse(AppConfig.paymentsWebUrl),
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.open_in_new),
