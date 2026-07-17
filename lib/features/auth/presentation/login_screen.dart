@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
@@ -47,7 +46,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok) {
       context.go('/home');
     } else {
-      final err = ref.read(authProvider).error ?? 'Login failed';
+      final err = ref.read(authProvider).error ??
+          'We’re unable to sign you in right now. Please try again later.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     }
   }
@@ -56,9 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     return AuthScaffold(
-      title: AppConfig.usesLaravelAuth
-          ? 'Sign in via Laravel API'
-          : 'Sign in to financemkgtax.com',
+      title: 'Secure Client Sign In',
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -116,14 +114,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: auth.loading
                 ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Text('Log In'),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppConfig.usesLaravelAuth
-                ? 'Authoritative auth via Laravel Sanctum at ${AppConfig.apiRoot}. Neon is never contacted from the app.'
-                : 'Signing in through financemkgtax.com until api.financemkgtax.com is live on DigitalOcean. Neon is never contacted from the app.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
           ),
         ],
       ),

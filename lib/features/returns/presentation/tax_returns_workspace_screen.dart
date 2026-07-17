@@ -44,7 +44,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     if (workspaceId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Activate a tax-year workspace first (Sanctum /api/v1), or use portal mode.'),
+          content: Text('Activate a tax-year workspace first, then try again.'),
         ),
       );
       return;
@@ -56,7 +56,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
       if (!mounted) return;
       if (created == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save state return. Check Sanctum session.')),
+          const SnackBar(content: Text('Could not save state return. Please sign in and try again.')),
         );
       } else {
         await ref.read(taxYearProvider.notifier).refreshWorkspace();
@@ -217,7 +217,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Laravel workspace APIs require LARAVEL_API_BASE_URL + Sanctum token. Catalog may still render locally.',
+              'Showing the local tax-year catalog. Sign in to sync your full workspace.',
               style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
             ),
           ),

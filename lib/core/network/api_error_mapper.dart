@@ -14,10 +14,49 @@ class ApiErrorMapper {
     return genericMessage;
   }
 
+  /// Login-specific copy (client-facing). Never includes implementation details.
+  static String mapLogin(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.badResponse:
+          return mapLoginStatusCode(error.response?.statusCode);
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.transformTimeout:
+        case DioExceptionType.connectionError:
+        case DioExceptionType.badCertificate:
+        case DioExceptionType.unknown:
+          return loginNoInternetMessage;
+        case DioExceptionType.cancel:
+          return loginServerUnavailableMessage;
+      }
+    }
+    return loginServerUnavailableMessage;
+  }
+
+  static String mapLoginStatusCode(int? statusCode) {
+    switch (statusCode) {
+      case 401:
+        return loginInvalidCredentialsMessage;
+      case 403:
+        // Treat forbidden login the same as invalid credentials for clients.
+        return loginInvalidCredentialsMessage;
+      case 429:
+        return loginTooManyAttemptsMessage;
+      case 500:
+      case 502:
+      case 503:
+        return loginServerUnavailableMessage;
+      default:
+        return loginServerUnavailableMessage;
+    }
+  }
+
   static String mapStatusCode(int? statusCode) {
     switch (statusCode) {
       case 401:
-        return 'Your credentials are incorrect or your session has expired. Please sign in again.';
+        return loginSessionExpiredMessage;
       case 403:
         return 'This action is not authorized.';
       case 404:
@@ -25,11 +64,11 @@ class ApiErrorMapper {
       case 422:
         return 'Some information could not be validated. Please check your entries and try again.';
       case 429:
-        return 'Too many requests. Please wait a moment and try again.';
+        return loginTooManyAttemptsMessage;
       case 500:
-        return 'A temporary server problem occurred. Please try again shortly.';
+        return loginServerUnavailableMessage;
       case 503:
-        return 'The service is temporarily unavailable. Please try again later.';
+        return loginServerUnavailableMessage;
       default:
         return genericMessage;
     }
@@ -46,7 +85,7 @@ class ApiErrorMapper {
       case DioExceptionType.connectionError:
       case DioExceptionType.badCertificate:
       case DioExceptionType.unknown:
-        return connectionProblemMessage;
+        return loginNoInternetMessage;
       case DioExceptionType.cancel:
         return 'The request was cancelled.';
     }
@@ -54,6 +93,20 @@ class ApiErrorMapper {
 
   static const String genericMessage = 'Something went wrong. Please try again.';
 
-  static const String connectionProblemMessage =
-      'A connection problem occurred. Check your internet connection and try again.';
+  static const String connectionProblemMessage = loginNoInternetMessage;
+
+  static const String loginInvalidCredentialsMessage =
+      'The email or password you entered is incorrect.';
+
+  static const String loginServerUnavailableMessage =
+      'We’re unable to sign you in right now. Please try again later.';
+
+  static const String loginNoInternetMessage =
+      'Please check your internet connection and try again.';
+
+  static const String loginTooManyAttemptsMessage =
+      'Too many sign-in attempts. Please wait and try again.';
+
+  static const String loginSessionExpiredMessage =
+      'Your session has expired. Please sign in again.';
 }

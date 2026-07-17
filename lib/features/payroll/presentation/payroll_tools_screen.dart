@@ -52,7 +52,7 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       setState(() {
         _payroll = result;
         _busy = false;
-        if (result == null) _error = 'Payroll estimate unavailable (sign in with Sanctum /api/v1).';
+        if (result == null) _error = 'Payroll estimate unavailable. Please sign in and try again.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -82,7 +82,7 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       setState(() {
         _w4 = result;
         _busy = false;
-        if (result == null) _error = 'W-4 estimate unavailable (sign in with Sanctum /api/v1).';
+        if (result == null) _error = 'W-4 estimate unavailable. Please sign in and try again.';
       });
     } catch (e) {
       if (!mounted) return;

@@ -52,7 +52,7 @@ class TaxYearSelectorBar extends ConsumerWidget {
             ),
             if (state.source == 'local-fallback')
               const Tooltip(
-                message: 'Using local year window — Laravel catalog unavailable',
+                message: 'Using local year window — online catalog unavailable',
                 child: Icon(Icons.cloud_off_outlined, size: 18, color: MkgColors.textGrey),
               ),
           ],

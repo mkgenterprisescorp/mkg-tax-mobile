@@ -432,7 +432,7 @@ class ToolsScreen extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.calculate_outlined, color: MkgColors.primary),
             title: const Text('Paycheck & W-4 estimates'),
-            subtitle: const Text('Server tax tables via /api/v1 (estimate only)'),
+            subtitle: const Text('Paycheck and W-4 estimates (estimate only)'),
             onTap: () => context.go('/payroll-tools'),
           ),
         ),
@@ -440,7 +440,7 @@ class ToolsScreen extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
             title: const Text('Refund advance calculator'),
-            subtitle: const Text('Uses /api/loans/calculate'),
+            subtitle: const Text('Estimate refund advance options'),
             onTap: () => context.go('/financial'),
           ),
         ),

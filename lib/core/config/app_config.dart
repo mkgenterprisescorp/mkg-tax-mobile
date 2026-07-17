@@ -71,8 +71,8 @@ class AppConfig {
   static bool get usesPortalCookieAuth => !usesLaravelAuth;
 
   /// Short, non-secret label for a diagnostics/about screen.
-  static String get authModeLabel =>
-      usesLaravelAuth ? 'Laravel Sanctum ($apiRoot)' : 'Portal sign-in ($apiRoot)';
+  /// Client-facing — never includes implementation hostnames or stack names.
+  static String get authModeLabel => 'Secure client sign-in';
 
   /// Validates [apiBaseUrl] and throws [AppConfigError] — with a message
   /// naming exactly what's wrong — if it is missing or malformed. Call this

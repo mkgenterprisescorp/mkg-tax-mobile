@@ -13,9 +13,9 @@ DioException _badResponse(int statusCode, {RequestOptions? options}) {
 
 void main() {
   group('ApiErrorMapper status-code mapping', () {
-    test('401 maps to a credentials/session message', () {
+    test('401 maps to a session-expired message', () {
       final message = ApiErrorMapper.map(_badResponse(401));
-      expect(message, contains('credentials'));
+      expect(message, ApiErrorMapper.loginSessionExpiredMessage);
       expect(message, isNot(contains('DioException')));
     });
 
@@ -31,19 +31,19 @@ void main() {
       expect(ApiErrorMapper.map(_badResponse(422)), contains('validated'));
     });
 
-    test('429 maps to a too-many-requests message', () {
-      expect(ApiErrorMapper.map(_badResponse(429)), contains('Too many requests'));
+    test('429 maps to a too-many-attempts login message', () {
+      expect(ApiErrorMapper.map(_badResponse(429)), ApiErrorMapper.loginTooManyAttemptsMessage);
     });
 
-    test('500 maps to a temporary-server-problem message', () {
-      expect(ApiErrorMapper.map(_badResponse(500)), contains('temporary server problem'));
+    test('500 maps to a server-unavailable login message', () {
+      expect(ApiErrorMapper.map(_badResponse(500)), ApiErrorMapper.loginServerUnavailableMessage);
     });
 
-    test('503 maps to a service-unavailable message', () {
-      expect(ApiErrorMapper.map(_badResponse(503)), contains('temporarily unavailable'));
+    test('503 maps to a server-unavailable login message', () {
+      expect(ApiErrorMapper.map(_badResponse(503)), ApiErrorMapper.loginServerUnavailableMessage);
     });
 
-    test('timeout/connection errors map to a connection-problem message', () {
+    test('timeout/connection errors map to a no-internet message', () {
       for (final type in [
         DioExceptionType.connectionTimeout,
         DioExceptionType.sendTimeout,
@@ -52,12 +52,24 @@ void main() {
       ]) {
         final opts = RequestOptions(path: '/test');
         final err = DioException(requestOptions: opts, type: type);
-        expect(ApiErrorMapper.map(err), ApiErrorMapper.connectionProblemMessage);
+        expect(ApiErrorMapper.map(err), ApiErrorMapper.loginNoInternetMessage);
       }
     });
 
     test('a non-Dio error maps to the generic safe message', () {
       expect(ApiErrorMapper.map(StateError('boom-should-never-appear')), ApiErrorMapper.genericMessage);
+    });
+
+    test('login mapper uses the approved client-facing copy', () {
+      expect(ApiErrorMapper.mapLogin(_badResponse(401)), ApiErrorMapper.loginInvalidCredentialsMessage);
+      expect(ApiErrorMapper.mapLogin(_badResponse(429)), ApiErrorMapper.loginTooManyAttemptsMessage);
+      expect(ApiErrorMapper.mapLogin(_badResponse(500)), ApiErrorMapper.loginServerUnavailableMessage);
+      expect(
+        ApiErrorMapper.mapLogin(
+          DioException(requestOptions: RequestOptions(path: '/x'), type: DioExceptionType.connectionError),
+        ),
+        ApiErrorMapper.loginNoInternetMessage,
+      );
     });
 
     test('no mapped message ever contains raw exception type names or file paths', () {
@@ -70,12 +82,18 @@ void main() {
         ApiErrorMapper.map(_badResponse(500)),
         ApiErrorMapper.map(_badResponse(503)),
         ApiErrorMapper.map(StateError('internal detail that must never leak')),
+        ApiErrorMapper.mapLogin(_badResponse(401)),
+        ApiErrorMapper.mapLogin(_badResponse(500)),
       ];
       for (final message in samples) {
         expect(message, isNot(contains('DioException')));
         expect(message, isNot(contains('Exception')));
         expect(message, isNot(contains('.dart')));
         expect(message, isNot(contains('internal detail')));
+        expect(message.toLowerCase(), isNot(contains('laravel')));
+        expect(message.toLowerCase(), isNot(contains('sanctum')));
+        expect(message.toLowerCase(), isNot(contains('neon')));
+        expect(message, isNot(contains('/api/')));
       }
     });
   });

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mkg_tax_mobile/core/network/api_client.dart';
 import 'package:mkg_tax_mobile/features/auth/data/auth_repository.dart';

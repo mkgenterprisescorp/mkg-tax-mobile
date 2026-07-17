@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
+
+  /// Test-only override so widget tests can exercise the unavailable UI
+  /// without depending on compile-time `API_BASE_URL`.
+  @visibleForTesting
+  static bool debugForceUnavailable = false;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -22,6 +28,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirm = TextEditingController();
   final _referral = TextEditingController();
 
+  /// Testing builds that authenticate against `/api/v1` do not offer online
+  /// self-registration. Keep the form disabled so Create Account cannot fire.
+  bool get _registrationUnavailable =>
+      RegisterScreen.debugForceUnavailable || AppConfig.usesLaravelAuth;
+
   @override
   void dispose() {
     _first.dispose();
@@ -35,6 +46,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
+    if (_registrationUnavailable) {
+      return;
+    }
     if (_first.text.trim().isEmpty || _last.text.trim().isEmpty) {
       _toast('First and last name are required.');
       return;
@@ -79,6 +93,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final loading = ref.watch(authProvider).loading;
+
+    if (_registrationUnavailable) {
+      return AuthScaffold(
+        title: 'Create client account',
+        footer: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Already have an account? ', style: TextStyle(color: MkgColors.textGrey)),
+            TextButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('LOG IN', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              AuthRepository.registrationUnavailableMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('Return to Sign In'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('Back to Login'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return AuthScaffold(
       title: 'Create client account',
       footer: Row(
@@ -114,12 +165,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Text('Create Account'),
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Creates your account on financemkgtaxpro via POST /api/register.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
-          ),
         ],
       ),
     );
@@ -131,7 +176,6 @@ class CompleteProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Registration now collects profile fields directly against the web API.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) context.go('/forms');
     });

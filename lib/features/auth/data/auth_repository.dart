@@ -99,6 +99,10 @@ String _authErrorMessage(int? statusCode, String fallback) {
   return mapped == ApiErrorMapper.genericMessage ? fallback : mapped;
 }
 
+String _loginErrorMessage(int? statusCode) {
+  return ApiErrorMapper.mapLoginStatusCode(statusCode);
+}
+
 /// Uniform acknowledgement for the forgot-password request step.
 /// Identical for every transport/server outcome (2xx, 4xx, 5xx, timeout,
 /// connection failure, malformed body). Never derived from a response body.
@@ -178,13 +182,13 @@ class AuthRepository {
       if (res.statusCode == 200) {
         final token = (data['token'] ?? '').toString();
         if (token.isEmpty) {
-          throw AuthException('Login succeeded but no Sanctum token was returned.');
+          throw AuthException(ApiErrorMapper.loginServerUnavailableMessage);
         }
         await _persistToken(token);
         final userMap = data['user'] is Map
             ? Map<String, dynamic>.from(data['user'] as Map)
             : Map<String, dynamic>.from(data);
-        // Normalize Sanctum claims shape for PortalUser.
+        // Normalize identity claims shape for PortalUser.
         if (userMap['email'] == null && userMap['external_user_id'] != null) {
           userMap['email'] = email.trim();
         }
@@ -193,7 +197,7 @@ class AuthRepository {
         }
         return PortalUser.fromJson(userMap);
       }
-      throw AuthException(_authErrorMessage(res.statusCode, 'Login failed. Please try again.'));
+      throw AuthException(_loginErrorMessage(res.statusCode));
     }
 
     final res = await _api.post<Map<String, dynamic>>(
@@ -204,17 +208,23 @@ class AuthRepository {
     if (res.statusCode == 200) {
       if (data['requires2FA'] == true || data['totpPending'] == true) {
         throw AuthException(
-          'Two-factor authentication required. Use the web portal or complete 2FA next.',
+          'Two-factor authentication is required. Please complete verification to continue.',
           requires2FA: true,
         );
       }
       if (data['requiresPasswordSetup'] == true) {
-        throw AuthException('Password setup required. Complete it on ${AppConfig.webRoot} first.');
+        throw AuthException(
+          'Password setup is required before you can sign in. Please contact MKG Tax Consultants for assistance.',
+        );
       }
       return PortalUser.fromJson(Map<String, dynamic>.from(data));
     }
-    throw AuthException(_authErrorMessage(res.statusCode, 'Login failed. Please try again.'));
+    throw AuthException(_loginErrorMessage(res.statusCode));
   }
+
+  /// Client-facing copy when online registration is disabled for this build.
+  static const registrationUnavailableMessage =
+      'Online account registration is not available in this testing version. Please contact MKG Tax Consultants for assistance.';
 
   Future<PortalUser> register({
     required String email,
@@ -225,10 +235,7 @@ class AuthRepository {
     String? referralCode,
   }) async {
     if (AppConfig.usesLaravelAuth) {
-      throw AuthException(
-        'Client registration via Laravel Sanctum is not enabled yet. '
-        'Register on ${AppConfig.webRoot} or use a transitional portal build.',
-      );
+      throw AuthException(registrationUnavailableMessage);
     }
 
     final res = await _api.post<Map<String, dynamic>>(
@@ -284,7 +291,9 @@ class AuthRepository {
     required String newPassword,
   }) async {
     if (AppConfig.usesLaravelAuth) {
-      throw AuthException('Password reset via Laravel API is not enabled yet. Use ${AppConfig.webRoot}.');
+      throw AuthException(
+        'Password reset is not available in this testing version. Please contact MKG Tax Consultants for assistance.',
+      );
     }
     final res = await _api.post<Map<String, dynamic>>(
       '/api/reset-password',
@@ -324,7 +333,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
     if (AppConfig.usesLaravelAuth) {
-      throw AuthException('Profile update via Laravel API is not enabled yet.');
+      throw AuthException(
+        'Profile updates are not available in this testing version. Please contact MKG Tax Consultants for assistance.',
+      );
     }
     final res = await _api.put<Map<String, dynamic>>('/api/user/profile', data: body);
     if (res.statusCode == 200) return Map<String, dynamic>.from(res.data ?? {});
@@ -404,7 +415,7 @@ class AuthNotifier extends Notifier<AuthState> {
       _pingRouter();
       return false;
     } catch (e) {
-      state = AuthState(loading: false, error: ApiErrorMapper.map(e));
+      state = AuthState(loading: false, error: ApiErrorMapper.mapLogin(e));
       _pingRouter();
       return false;
     }

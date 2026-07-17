@@ -268,7 +268,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
       if (entityId == null) {
         setState(() {
           _loading = false;
-          _error = 'Sign in with Sanctum (/api/v1) to view banking connection stubs.';
+          _error = 'Sign in to view banking connection status.';
         });
         return;
       }
