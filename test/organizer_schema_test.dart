@@ -29,6 +29,13 @@ void main() {
     expect(data['form990EZ'], isA<Map>());
     expect(data['scheduleA']['medicalExpenses'], 0);
     expect(data['ca540']['stateWages'], isA<num>());
+    expect(data['additionalStateReturns'], isA<List>());
+    expect(data['form8863'], isA<Map>());
+    expect(data['form5695'], isA<Map>());
+    expect(data['form8962'], isA<Map>());
+    expect(data['scheduleCA'], isA<Map>());
+    expect(data['ftb3514'], isA<Map>());
+    expect(data['schedule3'], isA<Map>());
   });
 
   test('empty dependent and w2 helpers match web keys', () {
@@ -77,8 +84,22 @@ void main() {
       isTrue,
     );
     expect(
-      isOrganizerStepComplete('CA 540 State Tax', {
+      isOrganizerStepComplete('State Tax Returns', {
         'ca540': {'residencyStatus': 'resident', 'stateWages': 0},
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('State Tax Returns', {
+        'additionalStateReturns': [
+          {'stateCode': 'NY', 'wages': 1000},
+        ],
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('Credits & Deductions', {
+        'form8863': {'studentName': 'Alex', 'tuitionPaid': 5000},
       }),
       isTrue,
     );
@@ -100,8 +121,10 @@ void main() {
       'Schedule E',
       'Schedule F',
       'Credits & Deductions',
+      'State Tax Returns',
     ]));
     expect(personal.length, 12);
+    expect(personal, isNot(contains('CA 540 State Tax')));
     expect(stepsForPrepType('business').contains('Schedule C'), isTrue);
     expect(stepsForPrepType('form1120'), [
       'Filing Info',
@@ -205,6 +228,23 @@ void main() {
     expect((personalSlice['dependents'] as List).first.containsKey('ssn'), isFalse);
 
     expect(OrganizerSectionMapper.sectionKeysForPrep('business'), contains('schedule_c'));
+    expect(OrganizerSectionMapper.sectionKeysForPrep('business'), contains('state_multistate'));
     expect(OrganizerSectionMapper.sectionKeysForPrep('form1065'), contains('entity_form'));
+    expect(OrganizerSectionMapper.sectionKeysForPrep('form1065'), contains('state_ca_540'));
+
+    final creditSlice = OrganizerSectionMapper.answersForSection('credits_deductions', {
+      ...hydrated,
+      'form8863': {'studentName': 'Pat', 'tuitionPaid': 1000},
+      'schedule3': {'educationCredits': 1000},
+    });
+    expect(creditSlice['form8863']['studentName'], 'Pat');
+    expect(creditSlice['schedule3']['educationCredits'], 1000);
+
+    final multiSlice = OrganizerSectionMapper.answersForSection('state_multistate', {
+      'additionalStateReturns': [
+        {'stateCode': 'NY', 'wages': 2000},
+      ],
+    });
+    expect(multiSlice['additionalStateReturns'], isNotEmpty);
   });
 }

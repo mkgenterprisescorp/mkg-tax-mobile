@@ -11,7 +11,9 @@ import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
+import 'organizer_credits_step.dart';
 import 'organizer_fields.dart';
+import 'organizer_state_returns_step.dart';
 
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
@@ -417,8 +419,21 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     if (title == 'Schedule D') return _scheduleDStep();
     if (title == 'Schedule E') return _scheduleEStep();
     if (title == 'Schedule F') return _scheduleFStep();
-    if (title == 'Credits & Deductions') return _creditsStep();
-    if (title == 'CA 540 State Tax') return _ca540Step();
+    if (title == 'Credits & Deductions') {
+      return OrganizerCreditsStep(
+        data: _data,
+        onRoot: _setRoot,
+        onNested: _setNested,
+      );
+    }
+    if (title == 'State Tax Returns' || title == 'CA 540 State Tax') {
+      return OrganizerStateReturnsStep(
+        data: _data,
+        onRoot: _setRoot,
+        onNested: _setNested,
+        onList: _setList,
+      );
+    }
     if (title == 'Direct Deposit') return _directDepositStep();
     if (title == 'Review & Sign') return _reviewStep();
     if (businessEntityTypes.contains(prep) && title.contains('Form')) {
@@ -1240,46 +1255,6 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     );
   }
 
-  Widget _creditsStep() {
-    final scheduleA = _map('scheduleA');
-    return Column(
-      children: [
-        OrganizerSection(
-          title: 'Adjustments & credits',
-          child: Column(
-            children: [
-              OrganizerMoneyField(label: 'Educator expenses', value: _data['educatorExpenses'], onChanged: (v) => _setRoot('educatorExpenses', v)),
-              OrganizerMoneyField(label: 'Student loan interest', value: _data['studentLoanInterest'], onChanged: (v) => _setRoot('studentLoanInterest', v)),
-              OrganizerMoneyField(label: 'IRA deduction', value: _data['iraDeduction'], onChanged: (v) => _setRoot('iraDeduction', v)),
-              OrganizerMoneyField(label: 'Dependent care expenses', value: _data['dependentCareExpenses'], onChanged: (v) => _setRoot('dependentCareExpenses', v)),
-              OrganizerMoneyField(label: 'Education credits', value: _data['educationCredits'], onChanged: (v) => _setRoot('educationCredits', v)),
-              OrganizerMoneyField(label: 'Child tax credit — qualifying children', value: _data['childTaxCreditChildren'], onChanged: (v) => _setRoot('childTaxCreditChildren', v)),
-              OrganizerMoneyField(label: 'Charitable contributions', value: _data['charitableContributions'], onChanged: (v) => _setRoot('charitableContributions', v)),
-              OrganizerCheckbox(
-                label: 'Claim Earned Income Credit (EIC)',
-                value: _data['hasEIC'] == true,
-                onChanged: (v) => _setRoot('hasEIC', v),
-              ),
-              OrganizerCheckbox(
-                label: 'Itemize deductions (Schedule A)',
-                value: _data['itemizeDeductions'] == true,
-                onChanged: (v) => _setRoot('itemizeDeductions', v),
-              ),
-            ],
-          ),
-        ),
-        if (_data['itemizeDeductions'] == true)
-          OrganizerSection(
-            title: 'Schedule A — Itemized deductions',
-            child: NestedMapEditor(
-              data: scheduleA,
-              onChanged: (m) => _setNested('scheduleA', m),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _scheduleCStep() {
     final scheduleC = _map('scheduleC');
     const identity = [
@@ -1311,56 +1286,6 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             data: scheduleC,
             onlyKeys: expenseKeys,
             onChanged: (m) => _setNested('scheduleC', m),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _ca540Step() {
-    final ca540 = Map<String, dynamic>.from(_map('ca540'));
-    if (ca540.isEmpty) {
-      ca540.addAll({
-        'residencyStatus': 'resident',
-        'stateWages': _data['wages'] ?? 0,
-        'caWithholding': 0,
-        'estimatedPayments': 0,
-        'federalAGI': 0,
-        'caAGI': 0,
-        'taxableIncome': 0,
-      });
-    }
-    const priority = [
-      'residencyStatus',
-      'stateWages',
-      'federalAGI',
-      'caAGI',
-      'taxableIncome',
-      'caWithholding',
-      'estimatedPayments',
-      'caTax',
-      'calEITC',
-      'rentersCredit',
-      'useTax',
-    ];
-    final rest = ca540.keys.where((k) => !priority.contains(k)).toList();
-    return Column(
-      children: [
-        OrganizerSection(
-          title: 'California Form 540',
-          subtitle: 'Canonical ca540 keys (stateWages, caWithholding) matching the web portal.',
-          child: NestedMapEditor(
-            data: ca540,
-            onlyKeys: priority.where(ca540.containsKey).toList(),
-            onChanged: (m) => _setNested('ca540', m),
-          ),
-        ),
-        OrganizerSection(
-          title: 'Additional CA 540 fields',
-          child: NestedMapEditor(
-            data: ca540,
-            onlyKeys: rest,
-            onChanged: (m) => _setNested('ca540', m),
           ),
         ),
       ],
@@ -1465,6 +1390,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               if ('${_map('scheduleF')['farmName'] ?? ''}'.trim().isNotEmpty || (_data['farmIncome'] is num && (_data['farmIncome'] as num) > 0))
                 Text('Schedule F farm: ${_map('scheduleF')['farmName'] ?? 'entered'}'),
               if (_data['itemizeDeductions'] == true) const Text('Schedule A: itemizing'),
+              if (_data['hasEIC'] == true || (_data['educationCredits'] is num && (_data['educationCredits'] as num) > 0))
+                const Text('Federal credits entered'),
+              Text('Additional state returns: ${_listMaps('additionalStateReturns').length}'),
               if (businessEntityTypes.contains(prep))
                 Text('Entity: ${businessFormLabels[prep]}'),
             ],

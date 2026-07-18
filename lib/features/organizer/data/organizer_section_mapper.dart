@@ -17,6 +17,7 @@ class OrganizerSectionMapper {
     'schedule_f',
     'credits_deductions',
     'state_ca_540',
+    'state_multistate',
     'direct_deposit',
     'review_sign',
   ];
@@ -24,8 +25,47 @@ class OrganizerSectionMapper {
   static const entitySectionKeys = <String>[
     'filing_info',
     'entity_form',
+    'state_ca_540',
+    'state_multistate',
     'direct_deposit',
     'review_sign',
+  ];
+
+  static const _creditFormKeys = <String>[
+    'scheduleA',
+    'schedule1',
+    'schedule1A',
+    'schedule2',
+    'schedule3',
+    'scheduleH',
+    'scheduleR',
+    'form8863',
+    'form5695',
+    'form8962',
+    'form8889',
+    'form8829',
+    'form6251',
+    'form8959',
+    'form8960',
+  ];
+
+  static const _caFormKeys = <String>[
+    'ca540',
+    'scheduleCA',
+    'ftb3514',
+    'ftb3506',
+    'scheduleP540',
+    'scheduleS',
+    'ca540x',
+    'caDirectDeposit',
+    'caPayment',
+    'caForm100',
+    'caForm100S',
+    'caForm565',
+    'caForm541',
+    'caForm199',
+    'caScheduleR',
+    'caScheduleK1',
   ];
 
   static String stepToSectionKey(String step) {
@@ -48,6 +88,7 @@ class OrganizerSectionMapper {
         return 'schedule_f';
       case 'Credits & Deductions':
         return 'credits_deductions';
+      case 'State Tax Returns':
       case 'CA 540 State Tax':
         return 'state_ca_540';
       case 'Direct Deposit':
@@ -190,25 +231,56 @@ class OrganizerSectionMapper {
       'studentLoanInterest',
       'iraDeduction',
       'dependentCareExpenses',
+      'dependentCareProvider',
+      'dependentCareProviderTIN',
       'educationCredits',
       'childTaxCreditChildren',
       'itemizeDeductions',
       'charitableContributions',
       'hasEIC',
+      'numEICChildren',
+      'residentialEnergyCredit',
+      'mortgageInterest',
+      'propertyTaxes',
+      'medicalExpenses',
+      'stateLocalTaxes',
+      'movingExpenses',
+      'alimonyPaid',
+      'selfEmploymentTax',
+      'retirementContributions',
+      'healthInsurancePremiums',
     ]);
-    if (credits['scheduleA'] is Map) {
-      base['scheduleA'] = deepMergeOrganizer(
-        Map<String, dynamic>.from((base['scheduleA'] as Map?) ?? {}),
-        Map<String, dynamic>.from(credits['scheduleA'] as Map),
-      );
+    for (final key in _creditFormKeys) {
+      if (credits[key] is Map) {
+        base[key] = deepMergeOrganizer(
+          Map<String, dynamic>.from((base[key] as Map?) ?? {}),
+          Map<String, dynamic>.from(credits[key] as Map),
+        );
+      }
     }
 
     final ca = sectionAnswers('state_ca_540');
     if (ca.isNotEmpty) {
-      base['ca540'] = deepMergeOrganizer(
-        Map<String, dynamic>.from((base['ca540'] as Map?) ?? {}),
-        ca['ca540'] is Map ? Map<String, dynamic>.from(ca['ca540'] as Map) : ca,
-      );
+      for (final key in _caFormKeys) {
+        if (ca[key] is Map) {
+          base[key] = deepMergeOrganizer(
+            Map<String, dynamic>.from((base[key] as Map?) ?? {}),
+            Map<String, dynamic>.from(ca[key] as Map),
+          );
+        }
+      }
+      // Legacy payloads stored only ca540 map at the root of the section.
+      if (ca['ca540'] == null && ca.containsKey('stateWages')) {
+        base['ca540'] = deepMergeOrganizer(
+          Map<String, dynamic>.from((base['ca540'] as Map?) ?? {}),
+          Map<String, dynamic>.from(ca),
+        );
+      }
+    }
+
+    final multi = sectionAnswers('state_multistate');
+    if (multi['additionalStateReturns'] is List) {
+      base['additionalStateReturns'] = List<dynamic>.from(multi['additionalStateReturns'] as List);
     }
 
     final dd = sectionAnswers('direct_deposit');
@@ -325,15 +397,34 @@ class OrganizerSectionMapper {
           'studentLoanInterest': data['studentLoanInterest'],
           'iraDeduction': data['iraDeduction'],
           'dependentCareExpenses': data['dependentCareExpenses'],
+          'dependentCareProvider': data['dependentCareProvider'],
+          'dependentCareProviderTIN': data['dependentCareProviderTIN'],
           'educationCredits': data['educationCredits'],
           'childTaxCreditChildren': data['childTaxCreditChildren'],
           'itemizeDeductions': data['itemizeDeductions'],
           'charitableContributions': data['charitableContributions'],
           'hasEIC': data['hasEIC'],
-          'scheduleA': data['scheduleA'] ?? {},
+          'numEICChildren': data['numEICChildren'],
+          'residentialEnergyCredit': data['residentialEnergyCredit'],
+          'mortgageInterest': data['mortgageInterest'],
+          'propertyTaxes': data['propertyTaxes'],
+          'medicalExpenses': data['medicalExpenses'],
+          'stateLocalTaxes': data['stateLocalTaxes'],
+          'movingExpenses': data['movingExpenses'],
+          'alimonyPaid': data['alimonyPaid'],
+          'selfEmploymentTax': data['selfEmploymentTax'],
+          'retirementContributions': data['retirementContributions'],
+          'healthInsurancePremiums': data['healthInsurancePremiums'],
+          for (final key in _creditFormKeys) key: data[key] ?? {},
         };
       case 'state_ca_540':
-        return {'ca540': data['ca540'] ?? {}};
+        return {
+          for (final key in _caFormKeys) key: data[key] ?? {},
+        };
+      case 'state_multistate':
+        return {
+          'additionalStateReturns': data['additionalStateReturns'] ?? const [],
+        };
       case 'direct_deposit':
         return {
           'bankName': data['bankName'],

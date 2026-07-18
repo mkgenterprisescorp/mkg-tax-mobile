@@ -14,7 +14,7 @@ const personalOrganizerSteps = <String>[
   'Schedule E',
   'Schedule F',
   'Credits & Deductions',
-  'CA 540 State Tax',
+  'State Tax Returns',
   'Direct Deposit',
   'Review & Sign',
 ];
@@ -30,7 +30,7 @@ IconData iconForOrganizerStep(String step) {
   if (step == 'Schedule E') return Icons.home_work_outlined;
   if (step == 'Schedule F') return Icons.agriculture_outlined;
   if (step == 'Credits & Deductions') return Icons.savings_outlined;
-  if (step == 'CA 540 State Tax') return Icons.map_outlined;
+  if (step == 'State Tax Returns' || step == 'CA 540 State Tax') return Icons.map_outlined;
   if (step == 'Direct Deposit') return Icons.account_balance_outlined;
   if (step == 'Review & Sign') return Icons.draw_outlined;
   if (step.contains('1120-S') || step.contains('1120')) return Icons.apartment_outlined;
@@ -49,8 +49,10 @@ String cueForOrganizerStep(String step) {
   if (step == 'Schedule D') return 'Capital gains and transactions';
   if (step == 'Schedule E') return 'Rental and royalty properties';
   if (step == 'Schedule F') return 'Farm income and expenses';
-  if (step == 'Credits & Deductions') return 'Credits and Schedule A';
-  if (step == 'CA 540 State Tax') return 'California Form 540';
+  if (step == 'Credits & Deductions') return 'Federal credits, Schedule A, Forms 8863/5695/8962';
+  if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
+    return 'All states intake + California 540 suite';
+  }
   if (step == 'Direct Deposit') return 'Bank routing & account';
   if (step == 'Review & Sign') return 'Consent and submit';
   if (step.startsWith('Form ')) return 'Entity return details';
@@ -114,19 +116,31 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
         n(data['farmIncome']) > 0;
   }
   if (step == 'Credits & Deductions') {
+    final f8863 = m('form8863');
+    final f5695 = m('form5695');
     return data['itemizeDeductions'] == true ||
+        data['hasEIC'] == true ||
         n(data['educatorExpenses']) > 0 ||
         n(data['studentLoanInterest']) > 0 ||
         n(data['iraDeduction']) > 0 ||
         n(data['educationCredits']) > 0 ||
-        n(data['childTaxCreditChildren']) > 0;
+        n(data['childTaxCreditChildren']) > 0 ||
+        n(data['residentialEnergyCredit']) > 0 ||
+        n(data['dependentCareExpenses']) > 0 ||
+        nested(f8863, 'studentName').isNotEmpty ||
+        n(f5695['solarElectric']) > 0 ||
+        n(m('form8962')['premiumTaxCreditAllowed']) > 0;
   }
-  if (step == 'CA 540 State Tax') {
+  if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
     final ca = m('ca540');
-    return ca.isNotEmpty &&
-        (n(ca['stateWages']) > 0 ||
-            n(ca['caWithholding']) > 0 ||
-            nested(ca, 'residencyStatus').isNotEmpty);
+    final extra = (data['additionalStateReturns'] as List?) ?? const [];
+    return extra.isNotEmpty ||
+        (ca.isNotEmpty &&
+            (n(ca['stateWages']) > 0 ||
+                n(ca['caWithholding']) > 0 ||
+                nested(ca, 'residencyStatus').isNotEmpty)) ||
+        nested(m('scheduleCA'), 'wagesSubtraction').isNotEmpty ||
+        n(m('ftb3514')['calEITCAmount']) > 0;
   }
   if (step == 'Direct Deposit') {
     return root('routingNumber').isNotEmpty && root('accountNumber').isNotEmpty;
