@@ -57,6 +57,7 @@
 - Personal walkthrough includes **Form 1040-X** (`form1040x` / section `form_1040x`) before State Tax Returns.
 - Writes **canonical** `tax_returns.data` keys shared with `financemkgtaxpro` `Organizer.tsx` (not only `mobileOrganizer`).
 - Defaults live in `assets/organizer/default_form_data.json` (exported from web `defaultFormData`).
+- **Credits & Deductions** maps TY2025 Form 1040 lines (10, 12e, 13a/b, 19–20, 23, 27a–31) via `organizer_credits_step.dart` + `organizer_credits_math.dart`. Schemas include `schedule1`, `schedule1A`, `scheduleA`, `scheduleSE`, `schedule8812`, `schedule2`/`3`, `form8889`/`8863`/`5695`/`8995`/`8839`/`2441`. HSA is `form8889`/`schedule1.hsaDeduction` (not `healthInsurancePremiums`). Rollups are intake estimates, not e-file.
 - `prepType` drives steps: `personal` / `business` → personal 1040 flow (Schedule C when `business` or `businessIncome > 0`); entity types `form1041|form1065|form1120S|form1120|form990|form990EZ` → 4-step entity flow.
 - Personal depth: **dependents[]** (name/ssn/relationship/dob) + **w2Forms[]** (boxes 1–2/3/5/15–17; wages roll up).
 - Schedule E in organizer uses `scheduleE.rentalProperties[]` (web Organizer shape). Standalone web `/schedule-e` uses `properties[]` — merge carefully.

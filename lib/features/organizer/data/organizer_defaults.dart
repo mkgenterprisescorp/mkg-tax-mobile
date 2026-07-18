@@ -51,7 +51,9 @@ String cueForOrganizerStep(String step) {
   if (step == 'Schedule D') return 'Capital gains and transactions';
   if (step == 'Schedule E') return 'Rental and royalty properties';
   if (step == 'Schedule F') return 'Farm income and expenses';
-  if (step == 'Credits & Deductions') return 'Federal credits, Schedule A, Forms 8863/5695/8962';
+  if (step == 'Credits & Deductions') {
+    return 'Form 1040 Lines 10–31: Sch. 1/A/SE/8812/2/3, Forms 8889/8863/5695/8995/8839';
+  }
   if (step == 'Form 1040-X') return 'Amended federal return (IRS Form 1040-X)';
   if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
     return 'All states intake + California 540 / 540X suite';
@@ -121,17 +123,27 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
   if (step == 'Credits & Deductions') {
     final f8863 = m('form8863');
     final f5695 = m('form5695');
+    final s1 = m('schedule1');
+    final s8812 = m('schedule8812');
+    final f8995 = m('form8995');
     return data['itemizeDeductions'] == true ||
         data['hasEIC'] == true ||
         n(data['educatorExpenses']) > 0 ||
+        n(s1['educatorExpenses']) > 0 ||
+        n(s1['hsaDeduction']) > 0 ||
         n(data['studentLoanInterest']) > 0 ||
         n(data['iraDeduction']) > 0 ||
         n(data['educationCredits']) > 0 ||
         n(data['childTaxCreditChildren']) > 0 ||
+        n(s8812['qualifyingChildren']) > 0 ||
         n(data['residentialEnergyCredit']) > 0 ||
         n(data['dependentCareExpenses']) > 0 ||
+        n(data['qbiDeduction']) > 0 ||
+        n(f8995['qbiDeduction']) > 0 ||
+        n(data['adoptionCredit']) > 0 ||
         nested(f8863, 'studentName').isNotEmpty ||
         n(f5695['solarElectric']) > 0 ||
+        n(m('form8889')['hsaDeduction']) > 0 ||
         n(m('form8962')['premiumTaxCreditAllowed']) > 0;
   }
   if (step == 'Form 1040-X') {

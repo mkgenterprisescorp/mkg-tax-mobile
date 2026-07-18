@@ -13,6 +13,11 @@ abstract final class OfficialFormLinks {
   static const ca540xPdf = 'https://www.ftb.ca.gov/forms/2025/2025-540-x.pdf';
   static const form1040xAbout = 'https://www.irs.gov/forms-pubs/about-form-1040x';
   static const form1040xPdf = 'https://www.irs.gov/pub/irs-pdf/f1040x.pdf';
+  static const form1040Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040.pdf';
+  static const schedule1Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040s1.pdf';
+  static const scheduleAPdf = 'https://www.irs.gov/pub/irs-pdf/f1040sa.pdf';
+  static const schedule3Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040s3.pdf';
+  static const schedule8812Pdf = 'https://www.irs.gov/pub/irs-pdf/f8812.pdf';
 
   static Future<void> open(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);

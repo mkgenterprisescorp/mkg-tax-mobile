@@ -214,6 +214,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     _scheduleAutoSave();
   }
 
+  void _patchData(Map<String, dynamic> patch) {
+    setState(() {
+      final next = Map<String, dynamic>.from(_data);
+      patch.forEach((key, value) => next[key] = value);
+      _data = next;
+    });
+    _scheduleAutoSave();
+  }
+
   Map<String, dynamic> _map(String key) => Map<String, dynamic>.from((_data[key] as Map?) ?? {});
 
   void _scheduleAutoSave() {
@@ -582,6 +591,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         data: _data,
         onRoot: _setRoot,
         onNested: _setNested,
+        onPatch: _patchData,
       );
     }
     if (title == 'Form 1040-X') {
