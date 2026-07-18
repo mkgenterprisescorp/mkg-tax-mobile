@@ -466,18 +466,22 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                         },
                       ),
                       if ('${_businessRows[i]['stateCode']}' != 'CA')
-                        OrganizerNationwideForm(
-                          stateCode: '${_businessRows[i]['stateCode']}',
-                          family: '${_businessRows[i]['returnFamily'] ?? 'corporation'}',
-                          filingType: 'standard',
-                          answers: Map<String, dynamic>.from(
-                            (_businessRows[i]['workflowAnswers'] as Map?) ?? const {},
+                        OrganizerLazyExpansion(
+                          title: 'Open ${_businessRows[i]['stateCode']} business intake form',
+                          subtitle: 'Loads workflow fields on expand',
+                          child: OrganizerNationwideForm(
+                            stateCode: '${_businessRows[i]['stateCode']}',
+                            family: '${_businessRows[i]['returnFamily'] ?? 'corporation'}',
+                            filingType: 'standard',
+                            answers: Map<String, dynamic>.from(
+                              (_businessRows[i]['workflowAnswers'] as Map?) ?? const {},
+                            ),
+                            onChanged: (answers) {
+                              final next = List<Map<String, dynamic>>.from(_businessRows);
+                              next[i] = Map<String, dynamic>.from(next[i])..['workflowAnswers'] = answers;
+                              onList('stateBusinessReturns', next);
+                            },
                           ),
-                          onChanged: (answers) {
-                            final next = List<Map<String, dynamic>>.from(_businessRows);
-                            next[i] = Map<String, dynamic>.from(next[i])..['workflowAnswers'] = answers;
-                            onList('stateBusinessReturns', next);
-                          },
                         ),
                     ],
                   ),
@@ -507,41 +511,48 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             onChanged: (m) => onNested('ca540', m),
           ),
         ),
-        OrganizerSection(
+        // Secondary CA schedules / business forms stay collapsed until opened
+        // so State Tax Returns paints quickly.
+        OrganizerLazyExpansion(
           title: 'Schedule CA (540)',
           child: NestedMapEditor(data: _map('scheduleCA'), onChanged: (m) => onNested('scheduleCA', m)),
         ),
-        OrganizerSection(
+        OrganizerLazyExpansion(
           title: 'FTB 3514 — CalEITC / YCTC / FYTC',
           child: NestedMapEditor(data: _map('ftb3514'), onChanged: (m) => onNested('ftb3514', m)),
         ),
-        OrganizerSection(
+        OrganizerLazyExpansion(
           title: 'FTB 3506 — CA child & dependent care',
           child: NestedMapEditor(data: _map('ftb3506'), onChanged: (m) => onNested('ftb3506', m)),
         ),
-        OrganizerSection(
+        OrganizerLazyExpansion(
           title: 'Schedule P (540) — CA AMT',
           child: NestedMapEditor(data: _map('scheduleP540'), onChanged: (m) => onNested('scheduleP540', m)),
         ),
-        OrganizerSection(
+        OrganizerLazyExpansion(
           title: 'Schedule S — Other state tax credit',
           child: NestedMapEditor(data: _map('scheduleS'), onChanged: (m) => onNested('scheduleS', m)),
         ),
-        const OfficialFormLinksCard(
-          title: 'Official California Form 540-X',
-          subtitle: 'Amended California resident income tax return (FTB 2025).',
-          links: [
-            ('2025 Form 540-X PDF', OfficialFormLinks.ca540xPdf),
-            ('2025 Form 540 booklet (includes Schedule X notes)', OfficialFormLinks.ca540Booklet),
-          ],
+        OrganizerLazyExpansion(
+          title: 'Form 540-X — Amended CA return',
+          subtitle: 'Official PDF + amended return fields',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const OfficialFormLinksCard(
+                title: 'Official California Form 540-X',
+                subtitle: 'Amended California resident income tax return (FTB 2025).',
+                links: [
+                  ('2025 Form 540-X PDF', OfficialFormLinks.ca540xPdf),
+                  ('2025 Form 540 booklet (includes Schedule X notes)', OfficialFormLinks.ca540Booklet),
+                ],
+              ),
+              const SizedBox(height: 8),
+              NestedMapEditor(data: _map('ca540x'), onChanged: (m) => onNested('ca540x', m)),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        OrganizerSection(
-          title: 'Form 540X — Amended CA return',
-          subtitle: 'Complete when amending a previously filed CA Form 540.',
-          child: NestedMapEditor(data: _map('ca540x'), onChanged: (m) => onNested('ca540x', m)),
-        ),
-        OrganizerSection(
+        OrganizerLazyExpansion(
           title: 'CA payment / direct deposit',
           child: Column(
             children: [
@@ -550,9 +561,13 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerCaBusinessForms(
-          data: data,
-          onNested: onNested,
+        OrganizerLazyExpansion(
+          title: 'California business entity forms',
+          subtitle: 'Form 100 / 100S / 565 / 541 / 199 — expand to load',
+          child: OrganizerCaBusinessForms(
+            data: data,
+            onNested: onNested,
+          ),
         ),
       ],
     );

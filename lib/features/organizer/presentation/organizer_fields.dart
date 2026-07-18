@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -38,7 +40,9 @@ class OrganizerSection extends StatelessWidget {
   }
 }
 
-class OrganizerTextField extends StatelessWidget {
+/// Text field that keeps typing local and only notifies the parent on a short debounce
+/// (or blur / dispose). Prevents full Organizer rebuilds on every keystroke.
+class OrganizerTextField extends StatefulWidget {
   const OrganizerTextField({
     super.key,
     required this.label,
@@ -47,6 +51,7 @@ class OrganizerTextField extends StatelessWidget {
     this.keyboardType,
     this.obscure = false,
     this.maxLines = 1,
+    this.commitDebounce = const Duration(milliseconds: 280),
   });
 
   final String label;
@@ -55,46 +60,176 @@ class OrganizerTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscure;
   final int maxLines;
+  final Duration commitDebounce;
+
+  @override
+  State<OrganizerTextField> createState() => _OrganizerTextFieldState();
+}
+
+class _OrganizerTextFieldState extends State<OrganizerTextField> {
+  late final TextEditingController _controller;
+  late final FocusNode _focus;
+  Timer? _debounce;
+  String _lastCommitted = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _lastCommitted = widget.value;
+    _controller = TextEditingController(text: widget.value);
+    _focus = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant OrganizerTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // External autofill / prep-type change — sync only when not editing.
+    if (!_focus.hasFocus && widget.value != _controller.text) {
+      _controller.text = widget.value;
+      _lastCommitted = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _commit(force: true);
+    _focus.removeListener(_onFocusChange);
+    _focus.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus) {
+      _commit(force: true);
+    }
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(widget.commitDebounce, () => _commit(force: false));
+  }
+
+  void _commit({required bool force}) {
+    _debounce?.cancel();
+    final text = _controller.text;
+    if (!force && text == _lastCommitted) return;
+    if (text == _lastCommitted) return;
+    _lastCommitted = text;
+    widget.onChanged(text);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
-        initialValue: value,
-        obscureText: obscure,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(labelText: label),
-        onChanged: onChanged,
+        controller: _controller,
+        focusNode: _focus,
+        obscureText: widget.obscure,
+        maxLines: widget.maxLines,
+        keyboardType: widget.keyboardType,
+        decoration: InputDecoration(labelText: widget.label),
+        onChanged: _onChanged,
+        onEditingComplete: () => _commit(force: true),
+        onFieldSubmitted: (_) => _commit(force: true),
       ),
     );
   }
 }
 
-class OrganizerMoneyField extends StatelessWidget {
+class OrganizerMoneyField extends StatefulWidget {
   const OrganizerMoneyField({
     super.key,
     required this.label,
     required this.value,
     required this.onChanged,
+    this.commitDebounce = const Duration(milliseconds: 280),
   });
 
   final String label;
   final dynamic value;
   final ValueChanged<num> onChanged;
+  final Duration commitDebounce;
+
+  @override
+  State<OrganizerMoneyField> createState() => _OrganizerMoneyFieldState();
+}
+
+class _OrganizerMoneyFieldState extends State<OrganizerMoneyField> {
+  late final TextEditingController _controller;
+  late final FocusNode _focus;
+  Timer? _debounce;
+  num _lastCommitted = 0;
+
+  static String _format(dynamic value) =>
+      value == null || value == 0 ? '' : '$value';
+
+  @override
+  void initState() {
+    super.initState();
+    final v = widget.value;
+    _lastCommitted = v is num ? v : (num.tryParse('$v') ?? 0);
+    _controller = TextEditingController(text: _format(v));
+    _focus = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant OrganizerMoneyField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focus.hasFocus) {
+      final next = _format(widget.value);
+      if (next != _controller.text) {
+        _controller.text = next;
+        _lastCommitted = widget.value is num
+            ? widget.value as num
+            : (num.tryParse('${widget.value}') ?? 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _commit(force: true);
+    _focus.removeListener(_onFocusChange);
+    _focus.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus) _commit(force: true);
+  }
+
+  void _onChanged(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(widget.commitDebounce, () => _commit(force: false));
+  }
+
+  void _commit({required bool force}) {
+    _debounce?.cancel();
+    final parsed = num.tryParse(_controller.text) ?? 0;
+    if (!force && parsed == _lastCommitted) return;
+    if (parsed == _lastCommitted) return;
+    _lastCommitted = parsed;
+    widget.onChanged(parsed);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final text = value == null || value == 0 ? '' : '$value';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
-        initialValue: text,
+        controller: _controller,
+        focusNode: _focus,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-        decoration: InputDecoration(labelText: label, prefixText: '\$ '),
-        onChanged: (v) => onChanged(num.tryParse(v) ?? 0),
+        decoration: InputDecoration(labelText: widget.label, prefixText: '\$ '),
+        onChanged: _onChanged,
+        onEditingComplete: () => _commit(force: true),
+        onFieldSubmitted: (_) => _commit(force: true),
       ),
     );
   }
@@ -154,6 +289,43 @@ class OrganizerCheckbox extends StatelessWidget {
       activeColor: MkgColors.primary,
       onChanged: (v) => onChanged(v ?? false),
       controlAffinity: ListTileControlAffinity.leading,
+    );
+  }
+}
+
+/// Collapsible section that does not keep children alive when closed (faster State step).
+class OrganizerLazyExpansion extends StatelessWidget {
+  const OrganizerLazyExpansion({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        maintainState: false,
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        subtitle: subtitle == null
+            ? null
+            : Text(subtitle!, style: const TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: child,
+          ),
+        ],
+      ),
     );
   }
 }

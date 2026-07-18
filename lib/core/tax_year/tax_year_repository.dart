@@ -366,12 +366,21 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     await refreshWorkspace();
   }
 
-  Future<void> refreshWorkspace() async {
+  Future<void> refreshWorkspace({bool force = false}) async {
     final year = state.selectedYear;
     if (year == null) return;
 
     // Prefer Laravel `/api/v1` workspace when Sanctum is configured + token present.
     if (AppConfig.usesLaravelAuth) {
+      // Warm cache: skip activate/tasks round-trip when already on this year.
+      final existing = state.workspace;
+      if (!force &&
+          existing != null &&
+          existing.taxYear == year &&
+          (existing.workspaceId ?? '').isNotEmpty &&
+          state.source == 'laravel') {
+        return;
+      }
       try {
         final entities = ref.read(entitiesRepositoryProvider);
         final entity = await entities.ensurePrimaryEntity();

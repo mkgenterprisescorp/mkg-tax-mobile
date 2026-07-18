@@ -102,17 +102,25 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       final preferred = tax.selectedYear ?? tax.currentFilingYear;
 
       if (AppConfig.usesLaravelAuth) {
-        await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        // Skip redundant activate/tasks when home already warmed this year.
+        final warm = tax.workspace;
+        final yearHint = preferred ?? tax.currentFilingYear ?? DateTime.now().year - 1;
+        if (warm?.workspaceId == null || warm?.taxYear != yearHint) {
+          await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        }
         final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
         if (workspaceId == null) {
           throw Exception('No tax-year workspace. Select a year and try again.');
         }
-        final year = tax.workspace?.taxYear ?? preferred ?? DateTime.now().year - 1;
-        final defaults = await OrganizerDefaults.load();
-        final org = await ref.read(laravelOrganizerRepositoryProvider).show(
+        final year = ref.read(taxYearProvider).workspace?.taxYear ?? yearHint;
+        // Parallel: defaults JSON + first organizer fetch.
+        final defaultsFuture = OrganizerDefaults.load();
+        final orgFuture = ref.read(laravelOrganizerRepositoryProvider).show(
               workspaceId,
-              prepType: '${defaults['prepType'] ?? 'personal'}',
+              prepType: 'personal',
             );
+        final defaults = await defaultsFuture;
+        final org = await orgFuture;
         if (!mounted) return;
         final hydrated = OrganizerSectionMapper.hydrateFromServer(
           defaults: defaults,
@@ -210,26 +218,57 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     );
   }
 
-  void _markCurrentSectionDirty() {
+  static const _caStateNestKeys = <String>{
+    'ca540',
+    'scheduleCA',
+    'ftb3514',
+    'ftb3506',
+    'scheduleP540',
+    'scheduleS',
+    'ca540x',
+    'caDirectDeposit',
+    'caPayment',
+    'caForm100',
+    'caForm100S',
+    'caForm565',
+    'caForm541',
+    'caForm199',
+    'caScheduleR',
+    'caScheduleK1',
+  };
+
+  void _markCurrentSectionDirty({String? nestKey, String? rootKey}) {
     if (_steps.isEmpty || _step < 0 || _step >= _steps.length) return;
-    _dirtySectionKeys.add(OrganizerSectionMapper.stepToSectionKey(_steps[_step]));
-    // Multistate edits live alongside CA when on State Tax Returns.
-    if (_steps[_step] == 'State Tax Returns' || _steps[_step] == 'CA 540 State Tax') {
+    final step = _steps[_step];
+    if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
+      if (nestKey == 'additionalStateReturns' || rootKey == 'additionalStateReturns') {
+        _dirtySectionKeys.add('state_multistate');
+        return;
+      }
+      if (nestKey == 'stateBusinessReturns' || rootKey == 'stateBusinessReturns') {
+        _dirtySectionKeys.add('state_business');
+        return;
+      }
+      if (nestKey != null && _caStateNestKeys.contains(nestKey)) {
+        _dirtySectionKeys.add('state_ca_540');
+        return;
+      }
+      // Chip toggles / unknown — multistate only (not full CA payload).
       _dirtySectionKeys.add('state_multistate');
-      _dirtySectionKeys.add('state_business');
-      _dirtySectionKeys.add('state_ca_540');
+      return;
     }
+    _dirtySectionKeys.add(OrganizerSectionMapper.stepToSectionKey(step));
   }
 
   void _setRoot(String key, dynamic value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = value);
-    _markCurrentSectionDirty();
+    _markCurrentSectionDirty(rootKey: key);
     _scheduleAutoSave();
   }
 
   void _setNested(String nestKey, Map<String, dynamic> value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[nestKey] = value);
-    _markCurrentSectionDirty();
+    _markCurrentSectionDirty(nestKey: nestKey);
     _scheduleAutoSave();
   }
 
@@ -239,7 +278,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       patch.forEach((key, value) => next[key] = value);
       _data = next;
     });
-    _markCurrentSectionDirty();
+    // Prefer first nest/root key for dirty targeting when patching income/credits.
+    final first = patch.keys.isEmpty ? null : patch.keys.first;
+    _markCurrentSectionDirty(rootKey: first);
     _scheduleAutoSave();
   }
 
@@ -249,14 +290,18 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     if (!_autoSaveReady || _isLocked || !mounted) return;
     _autoSaveTimer?.cancel();
     _autoSaveIdleTimer?.cancel();
-    if (_autoSaveStatus != _AutoSaveStatus.saving &&
-        _autoSaveStatus != _AutoSaveStatus.pending) {
-      setState(() {
-        _autoSaveStatus = _AutoSaveStatus.pending;
-        _autoSaveError = null;
-      });
+    // Avoid rebuilds on every keystroke — only flip idle → pending once.
+    if (_autoSaveStatus == _AutoSaveStatus.idle) {
+      _autoSaveStatus = _AutoSaveStatus.pending;
+      _autoSaveError = null;
+      if (mounted) setState(() {});
     }
-    _autoSaveTimer = Timer(_autoSaveDebounce, _runAutoSave);
+    // State / CA sections are large — give typing a longer quiet window.
+    final step = (_steps.isNotEmpty && _step >= 0 && _step < _steps.length) ? _steps[_step] : '';
+    final delay = (step == 'State Tax Returns' || step == 'CA 540 State Tax')
+        ? const Duration(milliseconds: 1100)
+        : _autoSaveDebounce;
+    _autoSaveTimer = Timer(delay, _runAutoSave);
   }
 
   Future<void> _runAutoSave() async {
@@ -736,6 +781,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   void _setList(String key, List<Map<String, dynamic>> rows) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = rows);
+    _markCurrentSectionDirty(rootKey: key);
     _scheduleAutoSave();
   }
 

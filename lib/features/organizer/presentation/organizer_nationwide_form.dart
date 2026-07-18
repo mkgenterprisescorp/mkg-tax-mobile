@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,11 +37,21 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
   Map<String, dynamic>? _progress;
   String? _error;
   bool _loading = true;
+  Timer? _evaluateDebounce;
+  int _localPct = 0;
+
+  static const _evaluateDelay = Duration(milliseconds: 450);
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _evaluateDebounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -49,10 +61,15 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
         oldWidget.family != widget.family ||
         oldWidget.filingType != widget.filingType) {
       _load();
+    } else if (oldWidget.answers != widget.answers) {
+      _localPct = _computeLocalPercent(_ret);
+      // Parent answers updated (e.g. after our own commit) — soft refresh progress.
+      _scheduleEvaluate();
     }
   }
 
   Future<void> _load() async {
+    _evaluateDebounce?.cancel();
     setState(() {
       _loading = true;
       _error = null;
@@ -78,28 +95,63 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
     setState(() {
       _ret = ret;
       _loading = false;
+      _localPct = _computeLocalPercent(ret);
     });
-    await _refreshProgress(ret);
+    // One evaluate after catalog load (not on every keystroke).
+    await _refreshProgress();
   }
 
-  Future<void> _refreshProgress(Map<String, dynamic> ret) async {
-    final repo = ref.read(stateWorkflowRepositoryProvider);
-    final progress = await repo.evaluate(
-      stateCode: widget.stateCode,
-      family: widget.family,
-      filingType: widget.filingType,
-      answers: widget.answers,
-    );
+  int _computeLocalPercent(Map<String, dynamic>? ret) {
+    if (ret == null) return 0;
+    final groups = (ret['fieldGroups'] as List? ?? const []).whereType<Map>();
+    var required = 0;
+    var filled = 0;
+    for (final group in groups) {
+      for (final raw in (group['fields'] as List? ?? const [])) {
+        if (raw is! Map) continue;
+        if (raw['required'] != true) continue;
+        required++;
+        final key = '${raw['key']}';
+        final value = widget.answers[key];
+        final empty = value == null || value == '' || (value is num && value == 0 && raw['type'] != 'boolean');
+        if (!empty && value != false) filled++;
+        if (raw['type'] == 'boolean' && value == true) {
+          // already counted when not empty
+        }
+      }
+    }
+    if (required == 0) return 100;
+    return ((filled / required) * 100).round().clamp(0, 100);
+  }
+
+  void _scheduleEvaluate() {
+    _evaluateDebounce?.cancel();
+    _evaluateDebounce = Timer(_evaluateDelay, () {
+      if (mounted) _refreshProgress();
+    });
+  }
+
+  Future<void> _refreshProgress() async {
+    final progress = await ref.read(stateWorkflowRepositoryProvider).evaluate(
+          stateCode: widget.stateCode,
+          family: widget.family,
+          filingType: widget.filingType,
+          answers: widget.answers,
+        );
     if (!mounted) return;
-    setState(() => _progress = progress);
+    setState(() {
+      _progress = progress;
+      final remote = (progress?['percentComplete'] as num?)?.toInt();
+      if (remote != null) _localPct = remote;
+    });
   }
 
   void _setAnswer(String key, dynamic value) {
     final next = Map<String, dynamic>.from(widget.answers)..[key] = value;
     widget.onChanged(next);
-    if (_ret != null) {
-      _refreshProgress(_ret!);
-    }
+    // Optimistic local progress — no network until debounce fires.
+    setState(() => _localPct = _computeLocalPercent(_ret));
+    _scheduleEvaluate();
   }
 
   @override
@@ -107,7 +159,11 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        )),
       );
     }
     if (_error != null) {
@@ -121,7 +177,7 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    final pct = (_progress?['percentComplete'] as num?)?.toInt() ?? 0;
+    final pct = (_progress?['percentComplete'] as num?)?.toInt() ?? _localPct;
     final formId = '${ret['primaryFormId'] ?? ''}';
     final title = '${ret['primaryFormTitle'] ?? formId}';
 
