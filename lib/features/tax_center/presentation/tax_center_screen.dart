@@ -40,7 +40,7 @@ class TaxCenterScreen extends ConsumerWidget {
       ),
       _TaxSection(
         title: 'Documents',
-        cue: 'Upload W-2s, 1099s, ID',
+        cue: 'Upload W-2s, 1099s, IRS/state notices',
         icon: Icons.folder_outlined,
         path: '/documents',
         accent: MkgColors.accent,
