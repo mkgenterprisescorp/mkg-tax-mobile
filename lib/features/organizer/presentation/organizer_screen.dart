@@ -10,6 +10,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_repository.dart';
+import '../data/organizer_section_mapper.dart';
 import 'organizer_fields.dart';
 
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
@@ -65,35 +66,33 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         if (workspaceId == null) {
           throw Exception('No tax-year workspace. Select a year and try again.');
         }
-        final org = await ref.read(laravelOrganizerRepositoryProvider).show(workspaceId);
+        final year = tax.workspace?.taxYear ?? preferred ?? DateTime.now().year - 1;
+        final defaults = await OrganizerDefaults.load();
+        final org = await ref.read(laravelOrganizerRepositoryProvider).show(
+              workspaceId,
+              prepType: '${defaults['prepType'] ?? 'personal'}',
+            );
         if (!mounted) return;
-        final sections = org?['sections'] is Map
-            ? Map<String, dynamic>.from(org!['sections'] as Map)
-            : <String, dynamic>{};
-        final answers = sections['answers'] is Map
-            ? Map<String, dynamic>.from(sections['answers'] as Map)
-            : <String, dynamic>{};
-        final flat = <String, dynamic>{
-          'prepType': org?['prep_type'] ?? 'personal',
-          'filingYear': tax.workspace?.taxYear ?? preferred ?? DateTime.now().year - 1,
-          'serverCatalog': sections['catalog'],
-          'serverAnswers': answers,
-          'filingStatus':
-              (answers['filing_info'] is Map ? (answers['filing_info'] as Map)['answers'] : null)
-                      is Map
-                  ? (((answers['filing_info'] as Map)['answers'] as Map)['filingStatus'] ?? 'single')
-                  : 'single',
-        };
-        // Flatten known filing_info answers into canonical keys for existing widgets.
-        final filing = answers['filing_info'];
-        if (filing is Map && filing['answers'] is Map) {
-          flat.addAll(Map<String, dynamic>.from(filing['answers'] as Map));
-        }
+        final hydrated = OrganizerSectionMapper.hydrateFromServer(
+          defaults: defaults,
+          organizer: org,
+          fallbackYear: year,
+        );
+        // Re-fetch with the hydrated prep type so entity catalogs match.
+        final prep = '${hydrated['prepType'] ?? 'personal'}';
+        final orgTyped = prep == '${org?['prep_type'] ?? 'personal'}'
+            ? org
+            : await ref.read(laravelOrganizerRepositoryProvider).show(workspaceId, prepType: prep);
+        final data = OrganizerSectionMapper.hydrateFromServer(
+          defaults: defaults,
+          organizer: orgTyped ?? org,
+          fallbackYear: year,
+        );
         setState(() {
-          _returnId = org?['id'] ?? workspaceId;
-          _year = (flat['filingYear'] as num?)?.toInt() ?? DateTime.now().year - 1;
-          _status = (org?['status'] ?? 'draft').toString();
-          _data = flat;
+          _returnId = (orgTyped ?? org)?['id'] ?? workspaceId;
+          _year = (data['filingYear'] as num?)?.toInt() ?? year;
+          _status = ((orgTyped ?? org)?['status'] ?? 'draft').toString();
+          _data = data;
           _loading = false;
           _step = 0;
           _showHub = true;
@@ -149,17 +148,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (AppConfig.usesLaravelAuth) {
         final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
         if (workspaceId == null) throw StateError('No tax-year workspace for organizer save.');
-        await ref.read(laravelOrganizerRepositoryProvider).updateSection(
+        await ref.read(laravelOrganizerRepositoryProvider).saveAllSections(
               workspaceId: workspaceId,
-              sectionKey: 'filing_info',
-              answers: {
+              data: {
+                ..._data,
                 'filingStatus': filingStatus,
-                'firstName': _data['firstName'],
-                'lastName': _data['lastName'],
-                // Never send SSN/ITIN — server strips if present.
+                'source': 'mkg-tax-mobile',
+                'clientPlatform': 'flutter',
               },
-              sectionComplete: submit || isOrganizerStepComplete('Filing info', _data),
-              prepType: '${_data['prepType'] ?? 'personal'}',
+              submit: submit,
             );
       } else {
         await ref.read(organizerRepositoryProvider).save(
@@ -415,8 +412,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     if (title == 'Filing Info') return _filingInfoStep();
     if (title == 'Personal Info') return _personalInfoStep();
     if (title == 'Income (1040)') return _incomeStep();
-    if (title == 'Credits & Deductions') return _creditsStep();
+    if (title == 'Schedule B') return _scheduleBStep();
     if (title == 'Schedule C') return _scheduleCStep();
+    if (title == 'Schedule D') return _scheduleDStep();
+    if (title == 'Schedule E') return _scheduleEStep();
+    if (title == 'Schedule F') return _scheduleFStep();
+    if (title == 'Credits & Deductions') return _creditsStep();
     if (title == 'CA 540 State Tax') return _ca540Step();
     if (title == 'Direct Deposit') return _directDepositStep();
     if (title == 'Review & Sign') return _reviewStep();
@@ -466,7 +467,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         ),
         const MkgCard(
           child: Text(
-            'Personal & Schedule C use the 1040 workflow. Entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow — same schemas as the web portal.',
+            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow — same schemas as the web portal.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),
@@ -652,18 +653,24 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     _setRoot('taxWithheld', withheld);
   }
 
-  Widget _incomeStep() {
-    final scheduleE = _map('scheduleE');
-    final rentals = List<Map<String, dynamic>>.from(
-      ((scheduleE['rentalProperties'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-    );
+  void _patchW2(int index, String key, dynamic value, {bool syncWages = false}) {
     final w2s = _listMaps('w2Forms');
+    if (index < 0 || index >= w2s.length) return;
+    final next = List<Map<String, dynamic>>.from(w2s);
+    next[index] = Map<String, dynamic>.from(next[index])..[key] = value;
+    _setList('w2Forms', next);
+    if (syncWages) _syncWagesFromW2(next);
+  }
+
+  Widget _incomeStep() {
+    final w2s = _listMaps('w2Forms');
+    final schedule1 = _map('schedule1');
 
     return Column(
       children: [
         OrganizerSection(
           title: 'W-2 forms',
-          subtitle: 'Canonical w2Forms[] — totals roll into wages / taxWithheld.',
+          subtitle: 'Form W-2 wages — totals roll into Form 1040 wages / tax withheld.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -688,89 +695,24 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                             ),
                         ],
                       ),
-                      OrganizerTextField(
-                        label: 'Employer name',
-                        value: '${w2s[i]['employerName'] ?? ''}',
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['employerName'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerTextField(
-                        label: 'Employer EIN',
-                        value: '${w2s[i]['employerEIN'] ?? ''}',
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['employerEIN'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 1 — Wages, tips',
-                        value: w2s[i]['box1_wagesTips'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box1_wagesTips'] = v;
-                          _setList('w2Forms', next);
-                          _syncWagesFromW2(next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 2 — Federal tax withheld',
-                        value: w2s[i]['box2_fedTaxWithheld'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box2_fedTaxWithheld'] = v;
-                          _setList('w2Forms', next);
-                          _syncWagesFromW2(next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 3 — Social Security wages',
-                        value: w2s[i]['box3_ssWages'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box3_ssWages'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 5 — Medicare wages',
-                        value: w2s[i]['box5_medicareWages'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box5_medicareWages'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerTextField(
-                        label: 'Box 15 — State',
-                        value: '${w2s[i]['box15_state'] ?? ''}',
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box15_state'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 16 — State wages',
-                        value: w2s[i]['box16_stateWages'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box16_stateWages'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
-                      OrganizerMoneyField(
-                        label: 'Box 17 — State tax',
-                        value: w2s[i]['box17_stateTax'],
-                        onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(w2s);
-                          next[i] = Map<String, dynamic>.from(next[i])..['box17_stateTax'] = v;
-                          _setList('w2Forms', next);
-                        },
-                      ),
+                      OrganizerTextField(label: 'Employer name', value: '${w2s[i]['employerName'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerName', v)),
+                      OrganizerTextField(label: 'Employer EIN', value: '${w2s[i]['employerEIN'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerEIN', v)),
+                      OrganizerTextField(label: 'Employer address', value: '${w2s[i]['employerAddress'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerAddress', v)),
+                      OrganizerMoneyField(label: 'Box 1 — Wages, tips', value: w2s[i]['box1_wagesTips'], onChanged: (v) => _patchW2(i, 'box1_wagesTips', v, syncWages: true)),
+                      OrganizerMoneyField(label: 'Box 2 — Federal tax withheld', value: w2s[i]['box2_fedTaxWithheld'], onChanged: (v) => _patchW2(i, 'box2_fedTaxWithheld', v, syncWages: true)),
+                      OrganizerMoneyField(label: 'Box 3 — Social Security wages', value: w2s[i]['box3_ssWages'], onChanged: (v) => _patchW2(i, 'box3_ssWages', v)),
+                      OrganizerMoneyField(label: 'Box 4 — Social Security tax', value: w2s[i]['box4_ssTaxWithheld'], onChanged: (v) => _patchW2(i, 'box4_ssTaxWithheld', v)),
+                      OrganizerMoneyField(label: 'Box 5 — Medicare wages', value: w2s[i]['box5_medicareWages'], onChanged: (v) => _patchW2(i, 'box5_medicareWages', v)),
+                      OrganizerMoneyField(label: 'Box 6 — Medicare tax', value: w2s[i]['box6_medicareTaxWithheld'], onChanged: (v) => _patchW2(i, 'box6_medicareTaxWithheld', v)),
+                      OrganizerMoneyField(label: 'Box 7 — Social Security tips', value: w2s[i]['box7_ssTips'], onChanged: (v) => _patchW2(i, 'box7_ssTips', v)),
+                      OrganizerMoneyField(label: 'Box 10 — Dependent care benefits', value: w2s[i]['box10_dependentCareBenefits'], onChanged: (v) => _patchW2(i, 'box10_dependentCareBenefits', v)),
+                      OrganizerTextField(label: 'Box 12a code', value: '${w2s[i]['box12a_code'] ?? ''}', onChanged: (v) => _patchW2(i, 'box12a_code', v)),
+                      OrganizerMoneyField(label: 'Box 12a amount', value: w2s[i]['box12a_amount'], onChanged: (v) => _patchW2(i, 'box12a_amount', v)),
+                      OrganizerCheckbox(label: 'Box 13 — Retirement plan', value: w2s[i]['box13_retirementPlan'] == true, onChanged: (v) => _patchW2(i, 'box13_retirementPlan', v)),
+                      OrganizerTextField(label: 'Box 14 — Other', value: '${w2s[i]['box14_other'] ?? ''}', onChanged: (v) => _patchW2(i, 'box14_other', v)),
+                      OrganizerTextField(label: 'Box 15 — State', value: '${w2s[i]['box15_state'] ?? ''}', onChanged: (v) => _patchW2(i, 'box15_state', v)),
+                      OrganizerMoneyField(label: 'Box 16 — State wages', value: w2s[i]['box16_stateWages'], onChanged: (v) => _patchW2(i, 'box16_stateWages', v)),
+                      OrganizerMoneyField(label: 'Box 17 — State tax', value: w2s[i]['box17_stateTax'], onChanged: (v) => _patchW2(i, 'box17_stateTax', v)),
                     ],
                   ),
                 ),
@@ -799,74 +741,129 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           ),
         ),
         OrganizerSection(
-          title: 'Income summary (1040)',
+          title: 'Form 1040 income summary',
+          subtitle: 'Roll-up lines. Detailed interest/dividends, business, capital gains, rentals, and farm live on Schedules B–F.',
           child: Column(
             children: [
-              OrganizerMoneyField(label: 'Wages (W-2 total)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
+              OrganizerMoneyField(label: '1 — Wages (W-2 total)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
               OrganizerMoneyField(label: 'Federal tax withheld', value: _data['taxWithheld'], onChanged: (v) => _setRoot('taxWithheld', v)),
-              OrganizerMoneyField(label: 'Interest income', value: _data['interestIncome'], onChanged: (v) => _setRoot('interestIncome', v)),
-              OrganizerMoneyField(label: 'Dividend income', value: _data['dividendIncome'], onChanged: (v) => _setRoot('dividendIncome', v)),
+              OrganizerMoneyField(label: '2b — Taxable interest (Schedule B)', value: _data['interestIncome'], onChanged: (v) => _setRoot('interestIncome', v)),
+              OrganizerMoneyField(label: '3b — Ordinary dividends (Schedule B)', value: _data['dividendIncome'], onChanged: (v) => _setRoot('dividendIncome', v)),
+              OrganizerMoneyField(label: '7 — Capital gain (Schedule D)', value: _data['capitalGains'], onChanged: (v) => _setRoot('capitalGains', v)),
+              OrganizerMoneyField(label: '8 — Additional income / Schedule 1', value: _data['otherIncome'], onChanged: (v) => _setRoot('otherIncome', v)),
               OrganizerMoneyField(label: 'Business income (Schedule C)', value: _data['businessIncome'], onChanged: (v) => _setRoot('businessIncome', v)),
-              OrganizerMoneyField(label: 'Capital gains', value: _data['capitalGains'], onChanged: (v) => _setRoot('capitalGains', v)),
-              OrganizerMoneyField(label: 'Rental income', value: _data['rentalIncome'], onChanged: (v) => _setRoot('rentalIncome', v)),
-              OrganizerMoneyField(label: 'Unemployment', value: _data['unemploymentComp'], onChanged: (v) => _setRoot('unemploymentComp', v)),
+              OrganizerMoneyField(label: 'Rental income (Schedule E)', value: _data['rentalIncome'], onChanged: (v) => _setRoot('rentalIncome', v)),
+              OrganizerMoneyField(label: 'Farm income (Schedule F)', value: _data['farmIncome'], onChanged: (v) => _setRoot('farmIncome', v)),
+              OrganizerMoneyField(label: 'Unemployment compensation', value: _data['unemploymentComp'], onChanged: (v) => _setRoot('unemploymentComp', v)),
               OrganizerMoneyField(label: 'Social Security benefits', value: _data['socialSecurityBenefits'], onChanged: (v) => _setRoot('socialSecurityBenefits', v)),
-              OrganizerMoneyField(label: 'Other income', value: _data['otherIncome'], onChanged: (v) => _setRoot('otherIncome', v)),
+              OrganizerMoneyField(label: 'IRA distributions', value: _data['iraDistributions'], onChanged: (v) => _setRoot('iraDistributions', v)),
+              OrganizerMoneyField(label: 'Pensions and annuities', value: _data['pensionAnnuities'], onChanged: (v) => _setRoot('pensionAnnuities', v)),
+              OrganizerMoneyField(label: 'Alimony received', value: _data['alimonyReceived'], onChanged: (v) => _setRoot('alimonyReceived', v)),
             ],
           ),
         ),
         OrganizerSection(
-          title: 'Schedule E — Rental / Royalty',
-          subtitle: 'Same rentalProperties[] schema as web Organizer.',
+          title: 'Schedule 1 highlights',
+          child: NestedMapEditor(
+            data: schedule1,
+            onlyKeys: const [
+              'unemployment',
+              'alimonyReceived',
+              'otherIncome',
+              'otherIncomeType',
+              'educatorExpenses',
+              'hsaDeduction',
+              'selfEmploymentTax',
+              'studentLoanInterest',
+              'iraDeduction',
+            ],
+            onChanged: (m) => _setNested('schedule1', m),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _scheduleBStep() {
+    final scheduleB = _map('scheduleB');
+    final interest = List<Map<String, dynamic>>.from(
+      ((scheduleB['interestPayers'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+    final dividends = List<Map<String, dynamic>>.from(
+      ((scheduleB['dividendPayers'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+
+    void syncInterestTotal(List<Map<String, dynamic>> rows) {
+      num total = 0;
+      for (final r in rows) {
+        total += r['amount'] is num ? r['amount'] as num : num.tryParse('${r['amount']}') ?? 0;
+      }
+      _setRoot('interestIncome', total);
+    }
+
+    void syncDividendTotal(List<Map<String, dynamic>> rows) {
+      num total = 0;
+      for (final r in rows) {
+        total += r['ordinaryDividends'] is num
+            ? r['ordinaryDividends'] as num
+            : num.tryParse('${r['ordinaryDividends']}') ?? 0;
+      }
+      _setRoot('dividendIncome', total);
+    }
+
+    return Column(
+      children: [
+        OrganizerSection(
+          title: 'Schedule B — Interest',
+          subtitle: 'List each 1099-INT payer. Totals update Form 1040 interest.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var i = 0; i < rentals.length; i++) ...[
+              for (var i = 0; i < interest.length; i++) ...[
                 MkgCard(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Property ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                          Expanded(child: Text('Payer ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
                           IconButton(
                             onPressed: () {
-                              final next = List<Map<String, dynamic>>.from(rentals)..removeAt(i);
-                              _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                              final next = List<Map<String, dynamic>>.from(interest)..removeAt(i);
+                              _setNested('scheduleB', {...scheduleB, 'interestPayers': next});
+                              syncInterestTotal(next);
                             },
                             icon: const Icon(Icons.delete_outline, color: MkgColors.red),
                           ),
                         ],
                       ),
                       OrganizerTextField(
-                        label: 'Address',
-                        value: '${rentals[i]['address'] ?? ''}',
+                        label: 'Payer name',
+                        value: '${interest[i]['payerName'] ?? ''}',
                         onChanged: (v) {
-                          final next = List<Map<String, dynamic>>.from(rentals);
-                          next[i] = Map<String, dynamic>.from(next[i])..['address'] = v;
-                          _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                          final next = List<Map<String, dynamic>>.from(interest);
+                          next[i] = Map<String, dynamic>.from(next[i])..['payerName'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'interestPayers': next});
                         },
                       ),
-                      for (final field in const [
-                        ('rentReceived', 'Rent received'),
-                        ('mortgage', 'Mortgage interest'),
-                        ('insurance', 'Insurance'),
-                        ('repairs', 'Repairs'),
-                        ('taxes', 'Taxes'),
-                        ('utilities', 'Utilities'),
-                        ('depreciation', 'Depreciation'),
-                        ('advertising', 'Advertising'),
-                        ('otherExpenses', 'Other expenses'),
-                      ])
-                        OrganizerMoneyField(
-                          label: field.$2,
-                          value: rentals[i][field.$1],
-                          onChanged: (v) {
-                            final next = List<Map<String, dynamic>>.from(rentals);
-                            next[i] = Map<String, dynamic>.from(next[i])..[field.$1] = v;
-                            _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
-                          },
-                        ),
+                      OrganizerMoneyField(
+                        label: 'Interest amount',
+                        value: interest[i]['amount'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(interest);
+                          next[i] = Map<String, dynamic>.from(next[i])..['amount'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'interestPayers': next});
+                          syncInterestTotal(next);
+                        },
+                      ),
+                      OrganizerCheckbox(
+                        label: 'Tax-exempt interest',
+                        value: interest[i]['taxExempt'] == true,
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(interest);
+                          next[i] = Map<String, dynamic>.from(next[i])..['taxExempt'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'interestPayers': next});
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -874,13 +871,369 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               ],
               OutlinedButton.icon(
                 onPressed: () {
-                  final next = [...rentals, emptyRentalProperty()];
-                  _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                  final next = [...interest, emptyInterestPayer()];
+                  _setNested('scheduleB', {...scheduleB, 'interestPayers': next});
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('Add rental property'),
+                label: const Text('Add interest payer'),
               ),
             ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Schedule B — Dividends',
+          subtitle: 'List each 1099-DIV payer. Totals update Form 1040 dividends.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < dividends.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text('Payer ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(dividends)..removeAt(i);
+                              _setNested('scheduleB', {...scheduleB, 'dividendPayers': next});
+                              syncDividendTotal(next);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Payer name',
+                        value: '${dividends[i]['payerName'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dividends);
+                          next[i] = Map<String, dynamic>.from(next[i])..['payerName'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'dividendPayers': next});
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Ordinary dividends',
+                        value: dividends[i]['ordinaryDividends'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dividends);
+                          next[i] = Map<String, dynamic>.from(next[i])..['ordinaryDividends'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'dividendPayers': next});
+                          syncDividendTotal(next);
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Qualified dividends',
+                        value: dividends[i]['qualifiedDividends'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(dividends);
+                          next[i] = Map<String, dynamic>.from(next[i])..['qualifiedDividends'] = v;
+                          _setNested('scheduleB', {...scheduleB, 'dividendPayers': next});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  final next = [...dividends, emptyDividendPayer()];
+                  _setNested('scheduleB', {...scheduleB, 'dividendPayers': next});
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add dividend payer'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _scheduleDStep() {
+    final scheduleD = _map('scheduleD');
+    final txs = List<Map<String, dynamic>>.from(
+      ((scheduleD['transactions'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+
+    void syncCapitalGains(Map<String, dynamic> next) {
+      num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+      _setRoot('capitalGains', n(next['shortTermGains']) + n(next['longTermGains']));
+    }
+
+    return Column(
+      children: [
+        OrganizerSection(
+          title: 'Schedule D — Capital gains',
+          child: Column(
+            children: [
+              OrganizerMoneyField(
+                label: 'Short-term capital gain (loss)',
+                value: scheduleD['shortTermGains'],
+                onChanged: (v) {
+                  final next = {...scheduleD, 'shortTermGains': v};
+                  _setNested('scheduleD', next);
+                  syncCapitalGains(next);
+                },
+              ),
+              OrganizerMoneyField(
+                label: 'Long-term capital gain (loss)',
+                value: scheduleD['longTermGains'],
+                onChanged: (v) {
+                  final next = {...scheduleD, 'longTermGains': v};
+                  _setNested('scheduleD', next);
+                  syncCapitalGains(next);
+                },
+              ),
+              OrganizerMoneyField(
+                label: 'Form 1040 capital gain total',
+                value: _data['capitalGains'],
+                onChanged: (v) => _setRoot('capitalGains', v),
+              ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Transactions (Form 8949 detail)',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < txs.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text('Transaction ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(txs)..removeAt(i);
+                              _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Description',
+                        value: '${txs[i]['description'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          next[i] = Map<String, dynamic>.from(next[i])..['description'] = v;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerDropdown<String>(
+                        label: 'Term',
+                        value: '${txs[i]['term'] ?? 'long'}',
+                        items: const [('short', 'Short-term'), ('long', 'Long-term')],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          next[i] = Map<String, dynamic>.from(next[i])..['term'] = v ?? 'long';
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Date acquired',
+                        value: '${txs[i]['dateAcquired'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          next[i] = Map<String, dynamic>.from(next[i])..['dateAcquired'] = v;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Date sold',
+                        value: '${txs[i]['dateSold'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          next[i] = Map<String, dynamic>.from(next[i])..['dateSold'] = v;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Proceeds',
+                        value: txs[i]['proceeds'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          final row = Map<String, dynamic>.from(next[i])..['proceeds'] = v;
+                          final basis = row['costBasis'] is num ? row['costBasis'] as num : num.tryParse('${row['costBasis']}') ?? 0;
+                          row['gainOrLoss'] = v - basis;
+                          next[i] = row;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Cost basis',
+                        value: txs[i]['costBasis'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          final row = Map<String, dynamic>.from(next[i])..['costBasis'] = v;
+                          final proceeds = row['proceeds'] is num ? row['proceeds'] as num : num.tryParse('${row['proceeds']}') ?? 0;
+                          row['gainOrLoss'] = proceeds - v;
+                          next[i] = row;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Gain or loss',
+                        value: txs[i]['gainOrLoss'],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(txs);
+                          next[i] = Map<String, dynamic>.from(next[i])..['gainOrLoss'] = v;
+                          _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  final next = [...txs, emptyCapitalTransaction()];
+                  _setNested('scheduleD', {...scheduleD, 'transactions': next});
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add capital transaction'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _scheduleEStep() {
+    final scheduleE = _map('scheduleE');
+    final rentals = List<Map<String, dynamic>>.from(
+      ((scheduleE['rentalProperties'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+
+    void syncRentalIncome(List<Map<String, dynamic>> rows) {
+      num net = 0;
+      for (final r in rows) {
+        num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+        net += n(r['rentReceived']) -
+            n(r['mortgage']) -
+            n(r['insurance']) -
+            n(r['repairs']) -
+            n(r['taxes']) -
+            n(r['utilities']) -
+            n(r['depreciation']) -
+            n(r['advertising']) -
+            n(r['otherExpenses']);
+      }
+      _setRoot('rentalIncome', net);
+    }
+
+    return OrganizerSection(
+      title: 'Schedule E — Rental / Royalty',
+      subtitle: 'Same rentalProperties[] schema as the web organizer.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < rentals.length; i++) ...[
+            MkgCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text('Property ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                      IconButton(
+                        onPressed: () {
+                          final next = List<Map<String, dynamic>>.from(rentals)..removeAt(i);
+                          _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                          syncRentalIncome(next);
+                        },
+                        icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                      ),
+                    ],
+                  ),
+                  OrganizerTextField(
+                    label: 'Address',
+                    value: '${rentals[i]['address'] ?? ''}',
+                    onChanged: (v) {
+                      final next = List<Map<String, dynamic>>.from(rentals);
+                      next[i] = Map<String, dynamic>.from(next[i])..['address'] = v;
+                      _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                    },
+                  ),
+                  for (final field in const [
+                    ('rentReceived', 'Rent received'),
+                    ('mortgage', 'Mortgage interest'),
+                    ('insurance', 'Insurance'),
+                    ('repairs', 'Repairs'),
+                    ('taxes', 'Taxes'),
+                    ('utilities', 'Utilities'),
+                    ('depreciation', 'Depreciation'),
+                    ('advertising', 'Advertising'),
+                    ('otherExpenses', 'Other expenses'),
+                  ])
+                    OrganizerMoneyField(
+                      label: field.$2,
+                      value: rentals[i][field.$1],
+                      onChanged: (v) {
+                        final next = List<Map<String, dynamic>>.from(rentals);
+                        next[i] = Map<String, dynamic>.from(next[i])..[field.$1] = v;
+                        _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+                        syncRentalIncome(next);
+                      },
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          OutlinedButton.icon(
+            onPressed: () {
+              final next = [...rentals, emptyRentalProperty()];
+              _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add rental property'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scheduleFStep() {
+    final scheduleF = _map('scheduleF');
+    const identity = [
+      'farmName',
+      'farmEIN',
+      'principalProduct',
+      'accountingMethod',
+      'employerIDNumber',
+    ];
+    final rest = scheduleF.keys.where((k) => !identity.contains(k)).toList();
+    return Column(
+      children: [
+        OrganizerSection(
+          title: 'Schedule F — Farm identity',
+          child: NestedMapEditor(
+            data: scheduleF,
+            onlyKeys: identity,
+            onChanged: (m) {
+              _setNested('scheduleF', m);
+              final gross = m['grossFarmIncome'];
+              if (gross != null) _setRoot('farmIncome', gross);
+            },
+          ),
+        ),
+        OrganizerSection(
+          title: 'Farm income & expenses',
+          child: NestedMapEditor(
+            data: scheduleF,
+            onlyKeys: rest,
+            onChanged: (m) {
+              _setNested('scheduleF', m);
+              final gross = m['grossFarmIncome'];
+              if (gross != null) _setRoot('farmIncome', gross);
+            },
           ),
         ),
       ],
@@ -899,6 +1252,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               OrganizerMoneyField(label: 'Student loan interest', value: _data['studentLoanInterest'], onChanged: (v) => _setRoot('studentLoanInterest', v)),
               OrganizerMoneyField(label: 'IRA deduction', value: _data['iraDeduction'], onChanged: (v) => _setRoot('iraDeduction', v)),
               OrganizerMoneyField(label: 'Dependent care expenses', value: _data['dependentCareExpenses'], onChanged: (v) => _setRoot('dependentCareExpenses', v)),
+              OrganizerMoneyField(label: 'Education credits', value: _data['educationCredits'], onChanged: (v) => _setRoot('educationCredits', v)),
+              OrganizerMoneyField(label: 'Child tax credit — qualifying children', value: _data['childTaxCreditChildren'], onChanged: (v) => _setRoot('childTaxCreditChildren', v)),
+              OrganizerMoneyField(label: 'Charitable contributions', value: _data['charitableContributions'], onChanged: (v) => _setRoot('charitableContributions', v)),
+              OrganizerCheckbox(
+                label: 'Claim Earned Income Credit (EIC)',
+                value: _data['hasEIC'] == true,
+                onChanged: (v) => _setRoot('hasEIC', v),
+              ),
               OrganizerCheckbox(
                 label: 'Itemize deductions (Schedule A)',
                 value: _data['itemizeDeductions'] == true,
@@ -909,7 +1270,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         ),
         if (_data['itemizeDeductions'] == true)
           OrganizerSection(
-            title: 'Schedule A',
+            title: 'Schedule A — Itemized deductions',
             child: NestedMapEditor(
               data: scheduleA,
               onChanged: (m) => _setNested('scheduleA', m),
@@ -957,21 +1318,52 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   }
 
   Widget _ca540Step() {
-    final ca540 = _map('ca540');
-    return OrganizerSection(
-      title: 'California Form 540',
-      subtitle: 'Key CA fields from web organizer (server may recalculate AGI/tax).',
-      child: NestedMapEditor(
-        data: ca540.isEmpty
-            ? {
-                'caWages': _data['wages'] ?? 0,
-                'caTaxWithheld': 0,
-                'caEstimatedPayments': 0,
-                'residencyStatus': 'resident',
-              }
-            : ca540,
-        onChanged: (m) => _setNested('ca540', m),
-      ),
+    final ca540 = Map<String, dynamic>.from(_map('ca540'));
+    if (ca540.isEmpty) {
+      ca540.addAll({
+        'residencyStatus': 'resident',
+        'stateWages': _data['wages'] ?? 0,
+        'caWithholding': 0,
+        'estimatedPayments': 0,
+        'federalAGI': 0,
+        'caAGI': 0,
+        'taxableIncome': 0,
+      });
+    }
+    const priority = [
+      'residencyStatus',
+      'stateWages',
+      'federalAGI',
+      'caAGI',
+      'taxableIncome',
+      'caWithholding',
+      'estimatedPayments',
+      'caTax',
+      'calEITC',
+      'rentersCredit',
+      'useTax',
+    ];
+    final rest = ca540.keys.where((k) => !priority.contains(k)).toList();
+    return Column(
+      children: [
+        OrganizerSection(
+          title: 'California Form 540',
+          subtitle: 'Canonical ca540 keys (stateWages, caWithholding) matching the web portal.',
+          child: NestedMapEditor(
+            data: ca540,
+            onlyKeys: priority.where(ca540.containsKey).toList(),
+            onChanged: (m) => _setNested('ca540', m),
+          ),
+        ),
+        OrganizerSection(
+          title: 'Additional CA 540 fields',
+          child: NestedMapEditor(
+            data: ca540,
+            onlyKeys: rest,
+            onChanged: (m) => _setNested('ca540', m),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1064,10 +1456,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               Text('Dependents: ${_listMaps('dependents').length}'),
               Text('W-2 forms: ${_listMaps('w2Forms').where((w) => '${w['employerName'] ?? ''}'.trim().isNotEmpty || (w['box1_wagesTips'] is num && w['box1_wagesTips'] > 0)).length}'),
               Text('Wages total: ${_data['wages'] ?? 0}'),
+              Text('Interest / dividends: ${_data['interestIncome'] ?? 0} / ${_data['dividendIncome'] ?? 0}'),
+              Text('Capital gains: ${_data['capitalGains'] ?? 0}'),
               if (prep == 'business' || showScheduleCStep(_data))
                 Text('Schedule C: ${_map('scheduleC')['businessName'] ?? '(not named)'}'),
               if ((_map('scheduleE')['rentalProperties'] as List?)?.isNotEmpty == true)
                 Text('Schedule E properties: ${(_map('scheduleE')['rentalProperties'] as List).length}'),
+              if ('${_map('scheduleF')['farmName'] ?? ''}'.trim().isNotEmpty || (_data['farmIncome'] is num && (_data['farmIncome'] as num) > 0))
+                Text('Schedule F farm: ${_map('scheduleF')['farmName'] ?? 'entered'}'),
+              if (_data['itemizeDeductions'] == true) const Text('Schedule A: itemizing'),
               if (businessEntityTypes.contains(prep))
                 Text('Entity: ${businessFormLabels[prep]}'),
             ],

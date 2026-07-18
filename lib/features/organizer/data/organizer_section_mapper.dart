@@ -1,0 +1,397 @@
+import 'organizer_defaults.dart';
+
+/// Maps canonical web `tax_returns.data` keys ↔ Laravel workspace section answers.
+///
+/// Section keys match `OrganizerSectionCatalog` on mkg-tax-backend-2.
+class OrganizerSectionMapper {
+  OrganizerSectionMapper._();
+
+  static const personalSectionKeys = <String>[
+    'filing_info',
+    'personal_info',
+    'income_1040',
+    'schedule_b',
+    'schedule_c',
+    'schedule_d',
+    'schedule_e',
+    'schedule_f',
+    'credits_deductions',
+    'state_ca_540',
+    'direct_deposit',
+    'review_sign',
+  ];
+
+  static const entitySectionKeys = <String>[
+    'filing_info',
+    'entity_form',
+    'direct_deposit',
+    'review_sign',
+  ];
+
+  static String stepToSectionKey(String step) {
+    switch (step) {
+      case 'Filing Info':
+        return 'filing_info';
+      case 'Personal Info':
+        return 'personal_info';
+      case 'Income (1040)':
+        return 'income_1040';
+      case 'Schedule B':
+        return 'schedule_b';
+      case 'Schedule C':
+        return 'schedule_c';
+      case 'Schedule D':
+        return 'schedule_d';
+      case 'Schedule E':
+        return 'schedule_e';
+      case 'Schedule F':
+        return 'schedule_f';
+      case 'Credits & Deductions':
+        return 'credits_deductions';
+      case 'CA 540 State Tax':
+        return 'state_ca_540';
+      case 'Direct Deposit':
+        return 'direct_deposit';
+      case 'Review & Sign':
+        return 'review_sign';
+      default:
+        if (step.startsWith('Form ')) return 'entity_form';
+        return 'filing_info';
+    }
+  }
+
+  /// Build canonical organizer data from Laravel `sections.answers` + defaults.
+  static Map<String, dynamic> hydrateFromServer({
+    required Map<String, dynamic> defaults,
+    required Map<String, dynamic>? organizer,
+    required int fallbackYear,
+  }) {
+    final base = Map<String, dynamic>.from(defaults);
+    final prep = '${organizer?['prep_type'] ?? base['prepType'] ?? 'personal'}';
+    base['prepType'] = prep;
+    base['filingYear'] = base['filingYear'] ?? fallbackYear;
+
+    final sections = organizer?['sections'] is Map
+        ? Map<String, dynamic>.from(organizer!['sections'] as Map)
+        : <String, dynamic>{};
+    final answersRoot = sections['answers'] is Map
+        ? Map<String, dynamic>.from(sections['answers'] as Map)
+        : <String, dynamic>{};
+
+    Map<String, dynamic> sectionAnswers(String key) {
+      final block = answersRoot[key];
+      if (block is Map && block['answers'] is Map) {
+        return Map<String, dynamic>.from(block['answers'] as Map);
+      }
+      if (block is Map) {
+        return Map<String, dynamic>.from(block);
+      }
+      return {};
+    }
+
+    void mergeRoot(Map<String, dynamic> src, Iterable<String> keys) {
+      for (final k in keys) {
+        if (src.containsKey(k) && src[k] != null) base[k] = src[k];
+      }
+    }
+
+    final filing = sectionAnswers('filing_info');
+    mergeRoot(filing, const ['prepType', 'filingStatus', 'filingYear']);
+
+    final personal = sectionAnswers('personal_info');
+    mergeRoot(personal, const [
+      'firstName',
+      'middleInitial',
+      'lastName',
+      'ssnType',
+      'dateOfBirth',
+      'phone',
+      'email',
+      'address',
+      'apartment',
+      'city',
+      'state',
+      'zip',
+      'spouseFirstName',
+      'spouseLastName',
+      'numDependents',
+      'dependents',
+    ]);
+
+    final income = sectionAnswers('income_1040');
+    mergeRoot(income, const [
+      'wages',
+      'taxWithheld',
+      'interestIncome',
+      'dividendIncome',
+      'businessIncome',
+      'capitalGains',
+      'rentalIncome',
+      'farmIncome',
+      'unemploymentComp',
+      'socialSecurityBenefits',
+      'otherIncome',
+      'iraDistributions',
+      'pensionAnnuities',
+      'alimonyReceived',
+      'w2Forms',
+      'schedule1',
+    ]);
+
+    final sb = sectionAnswers('schedule_b');
+    if (sb.isNotEmpty) {
+      base['scheduleB'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleB'] as Map?) ?? {}),
+        sb['scheduleB'] is Map ? Map<String, dynamic>.from(sb['scheduleB'] as Map) : sb,
+      );
+      if (sb['interestIncome'] != null) base['interestIncome'] = sb['interestIncome'];
+      if (sb['dividendIncome'] != null) base['dividendIncome'] = sb['dividendIncome'];
+    }
+
+    final sc = sectionAnswers('schedule_c');
+    if (sc.isNotEmpty) {
+      base['scheduleC'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleC'] as Map?) ?? {}),
+        sc['scheduleC'] is Map ? Map<String, dynamic>.from(sc['scheduleC'] as Map) : sc,
+      );
+      if (sc['businessIncome'] != null) base['businessIncome'] = sc['businessIncome'];
+    }
+
+    final sd = sectionAnswers('schedule_d');
+    if (sd.isNotEmpty) {
+      base['scheduleD'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleD'] as Map?) ?? {}),
+        sd['scheduleD'] is Map ? Map<String, dynamic>.from(sd['scheduleD'] as Map) : sd,
+      );
+      if (sd['capitalGains'] != null) base['capitalGains'] = sd['capitalGains'];
+    }
+
+    final se = sectionAnswers('schedule_e');
+    if (se.isNotEmpty) {
+      base['scheduleE'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleE'] as Map?) ?? {}),
+        se['scheduleE'] is Map ? Map<String, dynamic>.from(se['scheduleE'] as Map) : se,
+      );
+      if (se['rentalIncome'] != null) base['rentalIncome'] = se['rentalIncome'];
+    }
+
+    final sf = sectionAnswers('schedule_f');
+    if (sf.isNotEmpty) {
+      base['scheduleF'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleF'] as Map?) ?? {}),
+        sf['scheduleF'] is Map ? Map<String, dynamic>.from(sf['scheduleF'] as Map) : sf,
+      );
+      if (sf['farmIncome'] != null) base['farmIncome'] = sf['farmIncome'];
+    }
+
+    final credits = sectionAnswers('credits_deductions');
+    mergeRoot(credits, const [
+      'educatorExpenses',
+      'studentLoanInterest',
+      'iraDeduction',
+      'dependentCareExpenses',
+      'educationCredits',
+      'childTaxCreditChildren',
+      'itemizeDeductions',
+      'charitableContributions',
+      'hasEIC',
+    ]);
+    if (credits['scheduleA'] is Map) {
+      base['scheduleA'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['scheduleA'] as Map?) ?? {}),
+        Map<String, dynamic>.from(credits['scheduleA'] as Map),
+      );
+    }
+
+    final ca = sectionAnswers('state_ca_540');
+    if (ca.isNotEmpty) {
+      base['ca540'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['ca540'] as Map?) ?? {}),
+        ca['ca540'] is Map ? Map<String, dynamic>.from(ca['ca540'] as Map) : ca,
+      );
+    }
+
+    final dd = sectionAnswers('direct_deposit');
+    mergeRoot(dd, const ['bankName', 'routingNumber', 'accountNumber', 'accountType']);
+
+    final review = sectionAnswers('review_sign');
+    mergeRoot(review, const [
+      'typedSignature',
+      'printedName',
+      'signatureType',
+      'consentToEFile',
+      'consentPerjury',
+      'consent7216Use',
+      'consent7216Disclosure',
+      'consentToDisclosure',
+      'consentEngagement',
+      'consentBookkeeping',
+    ]);
+
+    final entity = sectionAnswers('entity_form');
+    if (entity.isNotEmpty && businessEntityTypes.contains(prep)) {
+      final formKey = entity['formKey']?.toString() ?? prep;
+      final formData = entity['form'] is Map
+          ? Map<String, dynamic>.from(entity['form'] as Map)
+          : Map<String, dynamic>.from(entity);
+      base[formKey] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base[formKey] as Map?) ?? {}),
+        formData,
+      );
+    }
+
+    base['serverCatalog'] = sections['catalog'];
+    return base;
+  }
+
+  /// Slice canonical data into one Laravel section payload (SSN fields omitted).
+  static Map<String, dynamic> answersForSection(String sectionKey, Map<String, dynamic> data) {
+    final prep = '${data['prepType'] ?? 'personal'}';
+    switch (sectionKey) {
+      case 'filing_info':
+        return {
+          'prepType': prep,
+          'filingStatus': data['filingStatus'] ?? 'single',
+          'filingYear': data['filingYear'],
+        };
+      case 'personal_info':
+        return {
+          'firstName': data['firstName'],
+          'middleInitial': data['middleInitial'],
+          'lastName': data['lastName'],
+          'ssnType': data['ssnType'],
+          // Never send SSN/ITIN — server also strips identifiers.
+          'dateOfBirth': data['dateOfBirth'],
+          'phone': data['phone'],
+          'email': data['email'],
+          'address': data['address'],
+          'apartment': data['apartment'],
+          'city': data['city'],
+          'state': data['state'],
+          'zip': data['zip'],
+          'spouseFirstName': data['spouseFirstName'],
+          'spouseLastName': data['spouseLastName'],
+          'numDependents': data['numDependents'],
+          'dependents': _scrubDependentList(data['dependents']),
+        };
+      case 'income_1040':
+        return {
+          'wages': data['wages'],
+          'taxWithheld': data['taxWithheld'],
+          'interestIncome': data['interestIncome'],
+          'dividendIncome': data['dividendIncome'],
+          'businessIncome': data['businessIncome'],
+          'capitalGains': data['capitalGains'],
+          'rentalIncome': data['rentalIncome'],
+          'farmIncome': data['farmIncome'],
+          'unemploymentComp': data['unemploymentComp'],
+          'socialSecurityBenefits': data['socialSecurityBenefits'],
+          'otherIncome': data['otherIncome'],
+          'iraDistributions': data['iraDistributions'],
+          'pensionAnnuities': data['pensionAnnuities'],
+          'alimonyReceived': data['alimonyReceived'],
+          'w2Forms': _scrubW2List(data['w2Forms']),
+          'schedule1': data['schedule1'],
+        };
+      case 'schedule_b':
+        return {
+          'scheduleB': data['scheduleB'] ?? {'interestPayers': [], 'dividendPayers': []},
+          'interestIncome': data['interestIncome'],
+          'dividendIncome': data['dividendIncome'],
+        };
+      case 'schedule_c':
+        return {
+          'scheduleC': data['scheduleC'] ?? {},
+          'businessIncome': data['businessIncome'],
+        };
+      case 'schedule_d':
+        return {
+          'scheduleD': data['scheduleD'] ?? {},
+          'capitalGains': data['capitalGains'],
+        };
+      case 'schedule_e':
+        return {
+          'scheduleE': data['scheduleE'] ?? {'rentalProperties': []},
+          'rentalIncome': data['rentalIncome'],
+        };
+      case 'schedule_f':
+        return {
+          'scheduleF': data['scheduleF'] ?? {},
+          'farmIncome': data['farmIncome'],
+        };
+      case 'credits_deductions':
+        return {
+          'educatorExpenses': data['educatorExpenses'],
+          'studentLoanInterest': data['studentLoanInterest'],
+          'iraDeduction': data['iraDeduction'],
+          'dependentCareExpenses': data['dependentCareExpenses'],
+          'educationCredits': data['educationCredits'],
+          'childTaxCreditChildren': data['childTaxCreditChildren'],
+          'itemizeDeductions': data['itemizeDeductions'],
+          'charitableContributions': data['charitableContributions'],
+          'hasEIC': data['hasEIC'],
+          'scheduleA': data['scheduleA'] ?? {},
+        };
+      case 'state_ca_540':
+        return {'ca540': data['ca540'] ?? {}};
+      case 'direct_deposit':
+        return {
+          'bankName': data['bankName'],
+          'routingNumber': data['routingNumber'],
+          'accountNumber': data['accountNumber'],
+          'accountType': data['accountType'],
+        };
+      case 'review_sign':
+        return {
+          'typedSignature': data['typedSignature'],
+          'printedName': data['printedName'],
+          'signatureType': data['signatureType'],
+          'consentToEFile': data['consentToEFile'],
+          'consentPerjury': data['consentPerjury'],
+          'consent7216Use': data['consent7216Use'],
+          'consent7216Disclosure': data['consent7216Disclosure'],
+          'consentToDisclosure': data['consentToDisclosure'],
+          'consentEngagement': data['consentEngagement'],
+          'consentBookkeeping': data['consentBookkeeping'],
+        };
+      case 'entity_form':
+        final form = Map<String, dynamic>.from((data[prep] as Map?) ?? {});
+        return {'formKey': prep, 'form': form};
+      default:
+        return {};
+    }
+  }
+
+  static List<String> sectionKeysForPrep(String prepType) {
+    if (businessEntityTypes.contains(prepType)) return List<String>.from(entitySectionKeys);
+    return List<String>.from(personalSectionKeys);
+  }
+
+  static List<dynamic> _scrubDependentList(dynamic raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final e in raw)
+        if (e is Map)
+          {
+            'name': e['name'],
+            'ssnType': e['ssnType'],
+            'relationship': e['relationship'],
+            'dob': e['dob'],
+            // omit ssn
+          },
+    ];
+  }
+
+  static List<dynamic> _scrubW2List(dynamic raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final e in raw)
+        if (e is Map)
+          () {
+            final m = Map<String, dynamic>.from(e);
+            m.remove('employeeSSN');
+            return m;
+          }(),
+    ];
+  }
+}

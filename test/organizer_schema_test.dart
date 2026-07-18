@@ -3,18 +3,22 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mkg_tax_mobile/features/organizer/data/organizer_defaults.dart';
+import 'package:mkg_tax_mobile/features/organizer/data/organizer_section_mapper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('default form data includes Schedule C/E and entity forms', () async {
+  test('default form data includes Schedule A–F and entity forms', () async {
     final raw = await rootBundle.loadString('assets/organizer/default_form_data.json');
     final data = Map<String, dynamic>.from(jsonDecode(raw) as Map);
 
     expect(data['prepType'], 'personal');
-    expect(data['scheduleC'], isA<Map>());
+    expect(data['scheduleA'], isA<Map>());
+    expect(data['scheduleB']['interestPayers'], isA<List>());
     expect(data['scheduleC']['businessName'], '');
+    expect(data['scheduleD']['transactions'], isA<List>());
     expect(data['scheduleE']['rentalProperties'], isA<List>());
+    expect(data['scheduleF']['farmName'], '');
     expect(data['dependents'], isA<List>());
     expect(data['w2Forms'], isA<List>());
     expect(data['w2Forms'], isNotEmpty);
@@ -24,6 +28,7 @@ void main() {
     expect(data['form1065'], isA<Map>());
     expect(data['form990EZ'], isA<Map>());
     expect(data['scheduleA']['medicalExpenses'], 0);
+    expect(data['ca540']['stateWages'], isA<num>());
   });
 
   test('empty dependent and w2 helpers match web keys', () {
@@ -32,6 +37,9 @@ void main() {
     final w2 = emptyW2Form(employeeFirstName: 'Pat');
     expect(w2['employeeFirstName'], 'Pat');
     expect(w2['box1_wagesTips'], 0);
+    expect(emptyInterestPayer()['payerName'], '');
+    expect(emptyDividendPayer()['ordinaryDividends'], 0);
+    expect(emptyCapitalTransaction()['term'], 'long');
   });
 
   test('income completion recognizes w2Forms', () {
@@ -45,8 +53,55 @@ void main() {
     );
   });
 
-  test('prepType steps match web Organizer', () {
-    expect(stepsForPrepType('personal').length, 8);
+  test('schedule step completion heuristics', () {
+    expect(
+      isOrganizerStepComplete('Schedule B', {
+        'scheduleB': {
+          'interestPayers': [
+            {'payerName': 'Bank', 'amount': 50},
+          ],
+        },
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('Schedule D', {
+        'scheduleD': {'shortTermGains': 10, 'longTermGains': 0, 'transactions': []},
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('Schedule F', {
+        'scheduleF': {'farmName': 'Green Acres', 'grossFarmIncome': 0},
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('CA 540 State Tax', {
+        'ca540': {'residencyStatus': 'resident', 'stateWages': 0},
+      }),
+      isTrue,
+    );
+    expect(
+      isOrganizerStepComplete('Form 1041 - Trust / Estate', {
+        'form1041': {'entityName': 'Smith Trust'},
+      }),
+      isTrue,
+    );
+  });
+
+  test('prepType steps include 1040 and federal schedules', () {
+    final personal = stepsForPrepType('personal');
+    expect(personal, containsAll([
+      'Income (1040)',
+      'Schedule B',
+      'Schedule C',
+      'Schedule D',
+      'Schedule E',
+      'Schedule F',
+      'Credits & Deductions',
+    ]));
+    expect(personal.length, 12);
     expect(stepsForPrepType('business').contains('Schedule C'), isTrue);
     expect(stepsForPrepType('form1120'), [
       'Filing Info',
@@ -71,5 +126,85 @@ void main() {
     expect(merged['prepType'], 'business');
     expect(merged['scheduleC']['businessName'], 'Acme Gig');
     expect(merged['scheduleC']['grossReceipts'], 12000);
+  });
+
+  test('section mapper hydrates and slices schedule answers', () {
+    final defaults = {
+      'prepType': 'personal',
+      'filingStatus': 'single',
+      'wages': 0,
+      'scheduleB': {'interestPayers': <dynamic>[], 'dividendPayers': <dynamic>[]},
+      'scheduleC': {'businessName': '', 'grossReceipts': 0},
+      'scheduleD': {'shortTermGains': 0, 'longTermGains': 0, 'transactions': <dynamic>[]},
+      'scheduleE': {'rentalProperties': <dynamic>[]},
+      'scheduleF': {'farmName': ''},
+      'scheduleA': {'medicalExpenses': 0},
+      'ca540': {'stateWages': 0, 'residencyStatus': ''},
+      'w2Forms': <dynamic>[],
+    };
+    final org = {
+      'prep_type': 'business',
+      'status': 'draft',
+      'sections': {
+        'answers': {
+          'filing_info': {
+            'answers': {'prepType': 'business', 'filingStatus': 'single', 'filingYear': 2025},
+            'complete': true,
+          },
+          'income_1040': {
+            'answers': {
+              'wages': 52000,
+              'w2Forms': [
+                {'employerName': 'Acme', 'box1_wagesTips': 52000},
+              ],
+            },
+          },
+          'schedule_c': {
+            'answers': {
+              'scheduleC': {'businessName': 'Side Gig', 'grossReceipts': 8000},
+              'businessIncome': 8000,
+            },
+          },
+          'schedule_b': {
+            'answers': {
+              'scheduleB': {
+                'interestPayers': [
+                  {'payerName': 'Bank', 'amount': 120},
+                ],
+                'dividendPayers': <dynamic>[],
+              },
+              'interestIncome': 120,
+            },
+          },
+        },
+      },
+    };
+    final hydrated = OrganizerSectionMapper.hydrateFromServer(
+      defaults: defaults,
+      organizer: org,
+      fallbackYear: 2025,
+    );
+    expect(hydrated['prepType'], 'business');
+    expect(hydrated['wages'], 52000);
+    expect(hydrated['scheduleC']['businessName'], 'Side Gig');
+    expect(hydrated['interestIncome'], 120);
+    expect(hydrated['scheduleB']['interestPayers'], isNotEmpty);
+
+    final incomeSlice = OrganizerSectionMapper.answersForSection('income_1040', hydrated);
+    expect(incomeSlice['wages'], 52000);
+    expect(incomeSlice['w2Forms'], isA<List>());
+
+    final personalSlice = OrganizerSectionMapper.answersForSection('personal_info', {
+      ...hydrated,
+      'firstName': 'Pat',
+      'dependents': [
+        {'name': 'Kid', 'ssn': '123-45-6789', 'relationship': 'son'},
+      ],
+    });
+    expect(personalSlice.containsKey('ssn'), isFalse);
+    expect((personalSlice['dependents'] as List).first.containsKey('ssn'), isFalse);
+
+    expect(OrganizerSectionMapper.sectionKeysForPrep('business'), contains('schedule_c'));
+    expect(OrganizerSectionMapper.sectionKeysForPrep('form1065'), contains('entity_form'));
   });
 }

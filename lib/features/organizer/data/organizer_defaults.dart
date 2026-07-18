@@ -3,13 +3,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Web-parity step labels (mkgtaxconsultants.com Organizer.tsx).
+/// Personal / Schedule C walkthrough — 1040 + federal schedules + CA 540.
 const personalOrganizerSteps = <String>[
   'Filing Info',
   'Personal Info',
   'Income (1040)',
-  'Credits & Deductions',
+  'Schedule B',
   'Schedule C',
+  'Schedule D',
+  'Schedule E',
+  'Schedule F',
+  'Credits & Deductions',
   'CA 540 State Tax',
   'Direct Deposit',
   'Review & Sign',
@@ -20,8 +24,12 @@ IconData iconForOrganizerStep(String step) {
   if (step == 'Filing Info') return Icons.flag_outlined;
   if (step == 'Personal Info') return Icons.person_outline;
   if (step == 'Income (1040)') return Icons.payments_outlined;
-  if (step == 'Credits & Deductions') return Icons.savings_outlined;
+  if (step == 'Schedule B') return Icons.account_balance_wallet_outlined;
   if (step == 'Schedule C') return Icons.storefront_outlined;
+  if (step == 'Schedule D') return Icons.show_chart_outlined;
+  if (step == 'Schedule E') return Icons.home_work_outlined;
+  if (step == 'Schedule F') return Icons.agriculture_outlined;
+  if (step == 'Credits & Deductions') return Icons.savings_outlined;
   if (step == 'CA 540 State Tax') return Icons.map_outlined;
   if (step == 'Direct Deposit') return Icons.account_balance_outlined;
   if (step == 'Review & Sign') return Icons.draw_outlined;
@@ -33,11 +41,15 @@ IconData iconForOrganizerStep(String step) {
 }
 
 String cueForOrganizerStep(String step) {
-  if (step == 'Filing Info') return 'Choose personal or business filing';
+  if (step == 'Filing Info') return 'Choose personal, business, or entity filing';
   if (step == 'Personal Info') return 'Name, SSN, address, dependents';
-  if (step == 'Income (1040)') return 'Wages, interest, Schedule E rentals';
-  if (step == 'Credits & Deductions') return 'Credits and Schedule A';
+  if (step == 'Income (1040)') return 'W-2 wages and Form 1040 income lines';
+  if (step == 'Schedule B') return 'Interest and dividend payers';
   if (step == 'Schedule C') return 'Sole prop / gig profit & loss';
+  if (step == 'Schedule D') return 'Capital gains and transactions';
+  if (step == 'Schedule E') return 'Rental and royalty properties';
+  if (step == 'Schedule F') return 'Farm income and expenses';
+  if (step == 'Credits & Deductions') return 'Credits and Schedule A';
   if (step == 'CA 540 State Tax') return 'California Form 540';
   if (step == 'Direct Deposit') return 'Bank routing & account';
   if (step == 'Review & Sign') return 'Consent and submit';
@@ -59,7 +71,6 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
     return root('firstName').isNotEmpty && root('lastName').isNotEmpty;
   }
   if (step == 'Income (1040)') {
-    final rentals = (m('scheduleE')['rentalProperties'] as List?) ?? const [];
     final w2s = (data['w2Forms'] as List?) ?? const [];
     final hasW2 = w2s.any((e) {
       if (e is! Map) return false;
@@ -67,24 +78,55 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
     });
     return n(data['wages']) > 0 ||
         hasW2 ||
-        n(data['interestIncome']) > 0 ||
-        n(data['businessIncome']) > 0 ||
-        n(data['otherIncome']) > 0 ||
-        rentals.isNotEmpty;
+        n(data['unemploymentComp']) > 0 ||
+        n(data['socialSecurityBenefits']) > 0 ||
+        n(data['otherIncome']) > 0;
   }
-  if (step == 'Credits & Deductions') {
-    return data['itemizeDeductions'] == true ||
-        n(data['educatorExpenses']) > 0 ||
-        n(data['studentLoanInterest']) > 0 ||
-        n(data['iraDeduction']) > 0;
+  if (step == 'Schedule B') {
+    final sb = m('scheduleB');
+    final interest = (sb['interestPayers'] as List?) ?? const [];
+    final dividends = (sb['dividendPayers'] as List?) ?? const [];
+    return interest.isNotEmpty ||
+        dividends.isNotEmpty ||
+        n(data['interestIncome']) > 0 ||
+        n(data['dividendIncome']) > 0;
   }
   if (step == 'Schedule C') {
     final sc = m('scheduleC');
     return nested(sc, 'businessName').isNotEmpty || n(sc['grossReceipts']) > 0;
   }
+  if (step == 'Schedule D') {
+    final sd = m('scheduleD');
+    final txs = (sd['transactions'] as List?) ?? const [];
+    return n(sd['shortTermGains']) != 0 ||
+        n(sd['longTermGains']) != 0 ||
+        n(data['capitalGains']) != 0 ||
+        txs.isNotEmpty;
+  }
+  if (step == 'Schedule E') {
+    final rentals = (m('scheduleE')['rentalProperties'] as List?) ?? const [];
+    return rentals.isNotEmpty || n(data['rentalIncome']) > 0;
+  }
+  if (step == 'Schedule F') {
+    final sf = m('scheduleF');
+    return nested(sf, 'farmName').isNotEmpty ||
+        n(sf['grossFarmIncome']) > 0 ||
+        n(data['farmIncome']) > 0;
+  }
+  if (step == 'Credits & Deductions') {
+    return data['itemizeDeductions'] == true ||
+        n(data['educatorExpenses']) > 0 ||
+        n(data['studentLoanInterest']) > 0 ||
+        n(data['iraDeduction']) > 0 ||
+        n(data['educationCredits']) > 0 ||
+        n(data['childTaxCreditChildren']) > 0;
+  }
   if (step == 'CA 540 State Tax') {
     final ca = m('ca540');
-    return ca.isNotEmpty && (n(ca['caWages']) > 0 || nested(ca, 'residencyStatus').isNotEmpty);
+    return ca.isNotEmpty &&
+        (n(ca['stateWages']) > 0 ||
+            n(ca['caWithholding']) > 0 ||
+            nested(ca, 'residencyStatus').isNotEmpty);
   }
   if (step == 'Direct Deposit') {
     return root('routingNumber').isNotEmpty && root('accountNumber').isNotEmpty;
@@ -98,7 +140,7 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
     if (step == (businessFormLabels[prep] ?? '')) {
       final form = m(prep);
       final name =
-          '${form['corporationName'] ?? form['partnershipName'] ?? form['organizationName'] ?? form['trustName'] ?? ''}'
+          '${form['corporationName'] ?? form['partnershipName'] ?? form['organizationName'] ?? form['entityName'] ?? form['fiduciaryName'] ?? form['trustName'] ?? ''}'
               .trim();
       return name.isNotEmpty;
     }
@@ -155,6 +197,28 @@ Map<String, dynamic> emptyRentalProperty() => {
       'depreciation': 0,
       'mortgage': 0,
       'otherExpenses': 0,
+    };
+
+Map<String, dynamic> emptyInterestPayer() => {
+      'payerName': '',
+      'amount': 0,
+      'taxExempt': false,
+    };
+
+Map<String, dynamic> emptyDividendPayer() => {
+      'payerName': '',
+      'ordinaryDividends': 0,
+      'qualifiedDividends': 0,
+    };
+
+Map<String, dynamic> emptyCapitalTransaction() => {
+      'description': '',
+      'dateAcquired': '',
+      'dateSold': '',
+      'proceeds': 0,
+      'costBasis': 0,
+      'gainOrLoss': 0,
+      'term': 'long',
     };
 
 /// Web Organizer dependent row: `{ name, ssn, ssnType, relationship, dob }`.
