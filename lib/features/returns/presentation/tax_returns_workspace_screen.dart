@@ -6,6 +6,7 @@ import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../organizer/data/us_states.dart';
 import '../../states/data/states_repository.dart';
 
 /// Tax-year workspace: federal + state returns, statuses, prior-year filing.
@@ -48,15 +49,44 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     });
   }
 
-  String? get _unsupportedMessage {
+  String? get _stateSupportMessage {
     final match = _stateDetails.where((e) => e['code']?.toString() == _selectedState);
-    if (match.isEmpty) return null;
+    if (match.isEmpty) {
+      if (statesWithIncomeTax.contains(_selectedState) && _selectedState != 'CA') {
+        return 'This state has a personal income tax. Mobile collects organizer intake for professional review.';
+      }
+      return null;
+    }
     final row = match.first;
-    if (row['tax_filing_support']?.toString() == 'unsupported') {
-      return row['unsupported_message']?.toString() ??
-          'State tax preparation for this jurisdiction is not yet available in the mobile testing version.';
+    final support = row['tax_filing_support']?.toString();
+    if (support == 'organizer_supported') return null;
+    if (support == 'organizer_intake' || support == 'unsupported' || support == 'no_income_tax') {
+      return row['unsupported_message']?.toString();
     }
     return null;
+  }
+
+  List<Map<String, dynamic>> get _sortedStateDetails {
+    final details = _stateDetails.isEmpty
+        ? [
+            for (final opt in incomeTaxStateOptions)
+              {
+                'code': opt.$1,
+                'display_name': opt.$2,
+                'has_personal_income_tax': true,
+                'tax_filing_support': opt.$1 == 'CA' ? 'organizer_supported' : 'organizer_intake',
+              },
+          ]
+        : List<Map<String, dynamic>>.from(_stateDetails);
+    details.sort((a, b) {
+      final ac = a['code']?.toString() ?? '';
+      final bc = b['code']?.toString() ?? '';
+      final ai = statesWithIncomeTax.contains(ac);
+      final bi = statesWithIncomeTax.contains(bc);
+      if (ai != bi) return ai ? -1 : 1;
+      return ac.compareTo(bc);
+    });
+    return details;
   }
 
   Future<void> _addState() async {
@@ -82,7 +112,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
       } else {
         await ref.read(taxYearProvider.notifier).refreshWorkspace();
         if (!mounted) return;
-        final msg = _unsupportedMessage;
+        final msg = _stateSupportMessage;
         if (msg != null) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
         }
@@ -177,22 +207,28 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Text(
+                'Income-tax states are listed first (42 jurisdictions). California has deep Form 540 support; other income-tax states use organizer intake for professional review.',
+                style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       // ignore: deprecated_member_use
-                      value: _selectedState,
+                      value: _sortedStateDetails.any((e) => e['code']?.toString() == _selectedState)
+                          ? _selectedState
+                          : (_sortedStateDetails.isNotEmpty ? _sortedStateDetails.first['code']?.toString() : 'CA'),
                       decoration: const InputDecoration(labelText: 'State'),
                       items: [
-                        for (final s in (_stateDetails.isEmpty
-                            ? [
-                                {'code': 'CA', 'display_name': 'California'},
-                              ]
-                            : _stateDetails))
+                        for (final s in _sortedStateDetails)
                           DropdownMenuItem(
                             value: s['code']?.toString(),
-                            child: Text('${s['code']} · ${s['display_name'] ?? s['code']}'),
+                            child: Text(
+                              '${s['code']} · ${s['display_name'] ?? s['code']}'
+                              '${(s['has_personal_income_tax'] == true || statesWithIncomeTax.contains('${s['code']}')) ? ' · income tax' : ''}',
+                            ),
                           ),
                       ],
                       onChanged: _busy
@@ -210,10 +246,10 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
                   ),
                 ],
               ),
-              if (_unsupportedMessage != null) ...[
+              if (_stateSupportMessage != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  _unsupportedMessage!,
+                  _stateSupportMessage!,
                   style: const TextStyle(color: MkgColors.orange, fontSize: 12),
                 ),
               ],

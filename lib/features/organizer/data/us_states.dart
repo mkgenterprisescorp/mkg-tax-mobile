@@ -54,11 +54,18 @@ const usStateOptions = <(String, String)>[
 ];
 
 /// States/DC with a personal income tax (web Organizer `STATES_WITH_INCOME_TAX`).
+/// Count: 41 states + DC = 42 jurisdictions.
 const statesWithIncomeTax = <String>{
   'AL', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY',
   'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH',
   'OK', 'OR', 'PA', 'RI', 'SC', 'UT', 'VT', 'VA', 'WV', 'WI',
 };
+
+/// Income-tax jurisdictions as dropdown options (sorted by name).
+List<(String, String)> get incomeTaxStateOptions => [
+      for (final opt in usStateOptions)
+        if (statesWithIncomeTax.contains(opt.$1)) opt,
+    ];
 
 const residencyTypeOptions = <(String, String)>[
   ('resident', 'Full-year resident'),
@@ -66,13 +73,25 @@ const residencyTypeOptions = <(String, String)>[
   ('nonresident', 'Nonresident'),
 ];
 
-Map<String, dynamic> emptyAdditionalStateReturn({String stateCode = 'NY'}) => {
+String displayNameForState(String code) {
+  for (final opt in usStateOptions) {
+    if (opt.$1 == code) return opt.$2;
+  }
+  return code;
+}
+
+Map<String, dynamic> emptyAdditionalStateReturn({
+  String stateCode = 'NY',
+  String residencyType = 'nonresident',
+}) =>
+    {
       'stateCode': stateCode,
-      'residencyType': 'nonresident',
+      'residencyType': residencyType,
       'reason': '',
       'wages': 0,
       'withholding': 0,
       'estimatedPayments': 0,
       'filingRequired': statesWithIncomeTax.contains(stateCode),
-      'professionalReview': true,
+      'professionalReview': stateCode != 'CA',
+      'hasPersonalIncomeTax': statesWithIncomeTax.contains(stateCode),
     };

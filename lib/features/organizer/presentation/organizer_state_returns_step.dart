@@ -5,7 +5,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../data/us_states.dart';
 import 'organizer_fields.dart';
 
-/// Multi-state intake (all 50 + DC) plus deep California forms from assets.
+/// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms.
 class OrganizerStateReturnsStep extends StatelessWidget {
   const OrganizerStateReturnsStep({
     super.key,
@@ -30,9 +30,52 @@ class OrganizerStateReturnsStep extends StatelessWidget {
     ];
   }
 
+  void _toggleIncomeTaxState(String code, bool enabled, String homeState) {
+    final rows = _additional;
+    final exists = rows.any((e) => '${e['stateCode']}' == code);
+    if (enabled && !exists) {
+      onList('additionalStateReturns', [
+        ...rows,
+        emptyAdditionalStateReturn(
+          stateCode: code,
+          residencyType: code == homeState ? 'resident' : 'nonresident',
+        ),
+      ]);
+    } else if (!enabled && exists) {
+      onList(
+        'additionalStateReturns',
+        rows.where((e) => '${e['stateCode']}' != code).toList(),
+      );
+    }
+  }
+
+  void _addAllIncomeTaxStates(String homeState) {
+    final existing = {for (final r in _additional) '${r['stateCode']}'};
+    final next = List<Map<String, dynamic>>.from(_additional);
+    for (final code in statesWithIncomeTax) {
+      if (existing.contains(code)) continue;
+      next.add(
+        emptyAdditionalStateReturn(
+          stateCode: code,
+          residencyType: code == homeState ? 'resident' : 'nonresident',
+        ),
+      );
+    }
+    // Stable sort: home first, then alpha by code.
+    next.sort((a, b) {
+      final ac = '${a['stateCode']}';
+      final bc = '${b['stateCode']}';
+      if (ac == homeState) return -1;
+      if (bc == homeState) return 1;
+      return ac.compareTo(bc);
+    });
+    onList('additionalStateReturns', next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _additional;
+    final selected = {for (final r in rows) '${r['stateCode']}'};
     final homeState = '${data['state'] ?? ''}'.toUpperCase();
     final ca540 = Map<String, dynamic>.from(_map('ca540'));
     if (ca540.isEmpty) {
@@ -44,27 +87,90 @@ class OrganizerStateReturnsStep extends StatelessWidget {
       });
     }
 
+    final incomeTaxSelectedCount =
+        selected.where(statesWithIncomeTax.contains).length;
+
     return Column(
       children: [
         OrganizerSection(
           title: 'Home state',
-          subtitle: 'Address state from Personal Info. California deep forms are below; add every other state where you had income or nexus.',
+          subtitle: 'Address state from Personal Info.',
           child: MkgCard(
             child: Text(
               homeState.isEmpty
                   ? 'No home state set yet — complete Personal Info first.'
-                  : 'Home state: $homeState'
-                      '${statesWithIncomeTax.contains(homeState) ? ' (income tax state)' : ' (no personal income tax / special rules)'}',
+                  : 'Home state: $homeState · ${displayNameForState(homeState)}'
+                      '${statesWithIncomeTax.contains(homeState) ? ' (personal income tax)' : ' (no broad personal income tax)'}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ),
         OrganizerSection(
-          title: 'Additional state returns',
-          subtitle: 'All 50 states + DC. Non-CA jurisdictions are intake for professional review (mobile filing engine is CA-first).',
+          title: 'Personal income tax states (${statesWithIncomeTax.length})',
+          subtitle:
+              'Select every income-tax jurisdiction where you lived, worked, or had nexus. '
+              'California includes the deep Form 540 suite below; other states are organizer intake for professional review.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                '$incomeTaxSelectedCount of ${statesWithIncomeTax.length} income-tax states selected',
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: () => _addAllIncomeTaxStates(homeState),
+                    icon: const Icon(Icons.select_all),
+                    label: const Text('Add all income-tax states'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => onList('additionalStateReturns', const []),
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear all'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final opt in incomeTaxStateOptions)
+                    FilterChip(
+                      label: Text(opt.$1),
+                      selected: selected.contains(opt.$1),
+                      onSelected: (v) => _toggleIncomeTaxState(opt.$1, v, homeState),
+                      selectedColor: MkgColors.primary.withValues(alpha: 0.18),
+                      checkmarkColor: MkgColors.primary,
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: selected.contains(opt.$1) ? MkgColors.primary : MkgColors.dark,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Selected state return details',
+          subtitle: 'Enter wages, withholding, and residency for each selected income-tax state.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (rows.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No states selected yet. Tap chips above or “Add all income-tax states”.',
+                    style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
+                  ),
+                ),
               for (var i = 0; i < rows.length; i++) ...[
                 MkgCard(
                   child: Column(
@@ -74,7 +180,8 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'State return ${i + 1}',
+                              '${rows[i]['stateCode']} · ${displayNameForState('${rows[i]['stateCode']}')}'
+                              '${statesWithIncomeTax.contains('${rows[i]['stateCode']}') ? '' : ' (no income tax)'}',
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -89,16 +196,24 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                       ),
                       OrganizerDropdown<String>(
                         label: 'State',
-                        value: usStateOptions.any((e) => e.$1 == '${rows[i]['stateCode']}')
+                        value: incomeTaxStateOptions.any((e) => e.$1 == '${rows[i]['stateCode']}') ||
+                                usStateOptions.any((e) => e.$1 == '${rows[i]['stateCode']}')
                             ? '${rows[i]['stateCode']}'
                             : 'NY',
-                        items: usStateOptions,
+                        items: [
+                          ...incomeTaxStateOptions,
+                          // Keep non-income-tax available for specialty/nexus rows.
+                          for (final opt in usStateOptions)
+                            if (!statesWithIncomeTax.contains(opt.$1)) opt,
+                        ],
                         onChanged: (v) {
                           final code = v ?? 'NY';
                           final next = List<Map<String, dynamic>>.from(rows);
                           next[i] = Map<String, dynamic>.from(next[i])
                             ..['stateCode'] = code
-                            ..['filingRequired'] = statesWithIncomeTax.contains(code);
+                            ..['filingRequired'] = statesWithIncomeTax.contains(code)
+                            ..['hasPersonalIncomeTax'] = statesWithIncomeTax.contains(code)
+                            ..['professionalReview'] = code != 'CA';
                           onList('additionalStateReturns', next);
                         },
                       ),
@@ -168,36 +283,17 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                           onList('additionalStateReturns', next);
                         },
                       ),
-                      if ('${rows[i]['stateCode']}' != 'CA')
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Detailed non-CA state return forms are prepared by your tax professional from this intake.',
-                            style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
-                          ),
-                        ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
               ],
-              OutlinedButton.icon(
-                onPressed: () {
-                  final used = rows.map((e) => '${e['stateCode']}').toSet();
-                  final nextCode = usStateOptions
-                      .map((e) => e.$1)
-                      .firstWhere((c) => c != homeState && !used.contains(c), orElse: () => 'NY');
-                  onList('additionalStateReturns', [...rows, emptyAdditionalStateReturn(stateCode: nextCode)]);
-                },
-                icon: const Icon(Icons.add_location_alt_outlined),
-                label: const Text('Add state return'),
-              ),
             ],
           ),
         ),
         OrganizerSection(
           title: 'California Form 540',
-          subtitle: 'Canonical ca540 keys matching the web portal.',
+          subtitle: 'Deep CA suite — available when CA is home or selected above.',
           child: NestedMapEditor(
             data: ca540,
             onlyKeys: const [
@@ -277,7 +373,6 @@ class OrganizerStateReturnsStep extends StatelessWidget {
         ),
         OrganizerSection(
           title: 'CA business entity forms (if applicable)',
-          subtitle: 'Also used with entity prep types (100 / 100S / 565 / 541 / 199).',
           child: Column(
             children: [
               for (final entry in const [
