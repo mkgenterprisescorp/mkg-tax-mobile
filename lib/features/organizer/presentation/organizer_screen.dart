@@ -16,10 +16,10 @@ import '../data/organizer_defaults.dart';
 import '../data/organizer_profile_prefill.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
-import '../data/us_states.dart';
 import 'organizer_credits_step.dart';
 import 'organizer_fields.dart';
 import 'organizer_form_1040x_step.dart';
+import 'organizer_income_forms_step.dart';
 import 'organizer_state_returns_step.dart';
 
 enum _AutoSaveStatus { idle, pending, saving, saved, error }
@@ -580,7 +580,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final prep = '${_data['prepType'] ?? 'personal'}';
     if (title == 'Filing Info') return _filingInfoStep();
     if (title == 'Personal Info') return _personalInfoStep();
-    if (title == 'Income (1040)') return _incomeStep();
+    if (title == 'Income (1040)') {
+      return OrganizerIncomeFormsStep(
+        data: _data,
+        onRoot: _setRoot,
+        onNested: _setNested,
+        onPatch: _patchData,
+      );
+    }
     if (title == 'Schedule B') return _scheduleBStep();
     if (title == 'Schedule C') return _scheduleCStep();
     if (title == 'Schedule D') return _scheduleDStep();
@@ -916,162 +923,6 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                 label: const Text('Add dependent'),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _syncWagesFromW2(List<Map<String, dynamic>> w2s) {
-    num wages = 0;
-    num withheld = 0;
-    for (final w in w2s) {
-      wages += (w['box1_wagesTips'] is num)
-          ? w['box1_wagesTips'] as num
-          : num.tryParse('${w['box1_wagesTips']}') ?? 0;
-      withheld += (w['box2_fedTaxWithheld'] is num)
-          ? w['box2_fedTaxWithheld'] as num
-          : num.tryParse('${w['box2_fedTaxWithheld']}') ?? 0;
-    }
-    _setRoot('wages', wages);
-    _setRoot('taxWithheld', withheld);
-  }
-
-  void _patchW2(int index, String key, dynamic value, {bool syncWages = false}) {
-    final w2s = _listMaps('w2Forms');
-    if (index < 0 || index >= w2s.length) return;
-    final next = List<Map<String, dynamic>>.from(w2s);
-    next[index] = Map<String, dynamic>.from(next[index])..[key] = value;
-    _setList('w2Forms', next);
-    if (syncWages) _syncWagesFromW2(next);
-  }
-
-  Widget _incomeStep() {
-    final w2s = _listMaps('w2Forms');
-    final schedule1 = _map('schedule1');
-
-    return Column(
-      children: [
-        OrganizerSection(
-          title: 'W-2 forms',
-          subtitle: 'Form W-2 wages — totals roll into Form 1040 wages / tax withheld.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < w2s.length; i++) ...[
-                MkgCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text('W-2 #${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                          ),
-                          if (w2s.length > 1)
-                            IconButton(
-                              onPressed: () {
-                                final next = List<Map<String, dynamic>>.from(w2s)..removeAt(i);
-                                _setList('w2Forms', next);
-                                _syncWagesFromW2(next);
-                              },
-                              icon: const Icon(Icons.delete_outline, color: MkgColors.red),
-                            ),
-                        ],
-                      ),
-                      OrganizerTextField(label: 'Employer name', value: '${w2s[i]['employerName'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerName', v)),
-                      OrganizerTextField(label: 'Employer EIN', value: '${w2s[i]['employerEIN'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerEIN', v)),
-                      OrganizerTextField(label: 'Employer address', value: '${w2s[i]['employerAddress'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerAddress', v)),
-                      OrganizerMoneyField(label: 'Box 1 — Wages, tips', value: w2s[i]['box1_wagesTips'], onChanged: (v) => _patchW2(i, 'box1_wagesTips', v, syncWages: true)),
-                      OrganizerMoneyField(label: 'Box 2 — Federal tax withheld', value: w2s[i]['box2_fedTaxWithheld'], onChanged: (v) => _patchW2(i, 'box2_fedTaxWithheld', v, syncWages: true)),
-                      OrganizerMoneyField(label: 'Box 3 — Social Security wages', value: w2s[i]['box3_ssWages'], onChanged: (v) => _patchW2(i, 'box3_ssWages', v)),
-                      OrganizerMoneyField(label: 'Box 4 — Social Security tax', value: w2s[i]['box4_ssTaxWithheld'], onChanged: (v) => _patchW2(i, 'box4_ssTaxWithheld', v)),
-                      OrganizerMoneyField(label: 'Box 5 — Medicare wages', value: w2s[i]['box5_medicareWages'], onChanged: (v) => _patchW2(i, 'box5_medicareWages', v)),
-                      OrganizerMoneyField(label: 'Box 6 — Medicare tax', value: w2s[i]['box6_medicareTaxWithheld'], onChanged: (v) => _patchW2(i, 'box6_medicareTaxWithheld', v)),
-                      OrganizerMoneyField(label: 'Box 7 — Social Security tips', value: w2s[i]['box7_ssTips'], onChanged: (v) => _patchW2(i, 'box7_ssTips', v)),
-                      OrganizerMoneyField(label: 'Box 10 — Dependent care benefits', value: w2s[i]['box10_dependentCareBenefits'], onChanged: (v) => _patchW2(i, 'box10_dependentCareBenefits', v)),
-                      OrganizerTextField(label: 'Box 12a code', value: '${w2s[i]['box12a_code'] ?? ''}', onChanged: (v) => _patchW2(i, 'box12a_code', v)),
-                      OrganizerMoneyField(label: 'Box 12a amount', value: w2s[i]['box12a_amount'], onChanged: (v) => _patchW2(i, 'box12a_amount', v)),
-                      OrganizerCheckbox(label: 'Box 13 — Retirement plan', value: w2s[i]['box13_retirementPlan'] == true, onChanged: (v) => _patchW2(i, 'box13_retirementPlan', v)),
-                      OrganizerTextField(label: 'Box 14 — Other', value: '${w2s[i]['box14_other'] ?? ''}', onChanged: (v) => _patchW2(i, 'box14_other', v)),
-                      OrganizerDropdown<String>(
-                        label: 'Box 15 — State',
-                        value: usStateOptions.any((e) => e.$1 == '${w2s[i]['box15_state'] ?? ''}')
-                            ? '${w2s[i]['box15_state']}'
-                            : '',
-                        items: [
-                          ('', 'Select state'),
-                          for (final opt in usStateOptions) (opt.$1, opt.$1),
-                        ],
-                        onChanged: (v) => _patchW2(i, 'box15_state', v ?? ''),
-                      ),
-                      OrganizerMoneyField(label: 'Box 16 — State wages', value: w2s[i]['box16_stateWages'], onChanged: (v) => _patchW2(i, 'box16_stateWages', v)),
-                      OrganizerMoneyField(label: 'Box 17 — State tax', value: w2s[i]['box17_stateTax'], onChanged: (v) => _patchW2(i, 'box17_stateTax', v)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              OutlinedButton.icon(
-                onPressed: () {
-                  final next = [
-                    ...w2s,
-                    emptyW2Form(
-                      employeeSSN: '${_data['ssn'] ?? ''}',
-                      employeeFirstName: '${_data['firstName'] ?? ''}',
-                      employeeLastName: '${_data['lastName'] ?? ''}',
-                      employeeAddress: '${_data['address'] ?? ''}',
-                      employeeCity: '${_data['city'] ?? ''}',
-                      employeeState: '${_data['state'] ?? ''}',
-                      employeeZip: '${_data['zip'] ?? ''}',
-                    ),
-                  ];
-                  _setList('w2Forms', next);
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add W-2'),
-              ),
-            ],
-          ),
-        ),
-        OrganizerSection(
-          title: 'Form 1040 income summary',
-          subtitle: 'Roll-up lines. Detailed interest/dividends, business, capital gains, rentals, and farm live on Schedules B–F.',
-          child: Column(
-            children: [
-              OrganizerMoneyField(label: '1 — Wages (W-2 total)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
-              OrganizerMoneyField(label: 'Federal tax withheld', value: _data['taxWithheld'], onChanged: (v) => _setRoot('taxWithheld', v)),
-              OrganizerMoneyField(label: '2b — Taxable interest (Schedule B)', value: _data['interestIncome'], onChanged: (v) => _setRoot('interestIncome', v)),
-              OrganizerMoneyField(label: '3b — Ordinary dividends (Schedule B)', value: _data['dividendIncome'], onChanged: (v) => _setRoot('dividendIncome', v)),
-              OrganizerMoneyField(label: '7 — Capital gain (Schedule D)', value: _data['capitalGains'], onChanged: (v) => _setRoot('capitalGains', v)),
-              OrganizerMoneyField(label: '8 — Additional income / Schedule 1', value: _data['otherIncome'], onChanged: (v) => _setRoot('otherIncome', v)),
-              OrganizerMoneyField(label: 'Business income (Schedule C)', value: _data['businessIncome'], onChanged: (v) => _setRoot('businessIncome', v)),
-              OrganizerMoneyField(label: 'Rental income (Schedule E)', value: _data['rentalIncome'], onChanged: (v) => _setRoot('rentalIncome', v)),
-              OrganizerMoneyField(label: 'Farm income (Schedule F)', value: _data['farmIncome'], onChanged: (v) => _setRoot('farmIncome', v)),
-              OrganizerMoneyField(label: 'Unemployment compensation', value: _data['unemploymentComp'], onChanged: (v) => _setRoot('unemploymentComp', v)),
-              OrganizerMoneyField(label: 'Social Security benefits', value: _data['socialSecurityBenefits'], onChanged: (v) => _setRoot('socialSecurityBenefits', v)),
-              OrganizerMoneyField(label: 'IRA distributions', value: _data['iraDistributions'], onChanged: (v) => _setRoot('iraDistributions', v)),
-              OrganizerMoneyField(label: 'Pensions and annuities', value: _data['pensionAnnuities'], onChanged: (v) => _setRoot('pensionAnnuities', v)),
-              OrganizerMoneyField(label: 'Alimony received', value: _data['alimonyReceived'], onChanged: (v) => _setRoot('alimonyReceived', v)),
-            ],
-          ),
-        ),
-        OrganizerSection(
-          title: 'Schedule 1 highlights',
-          child: NestedMapEditor(
-            data: schedule1,
-            onlyKeys: const [
-              'unemployment',
-              'alimonyReceived',
-              'otherIncome',
-              'otherIncomeType',
-              'educatorExpenses',
-              'hsaDeduction',
-              'selfEmploymentTax',
-              'studentLoanInterest',
-              'iraDeduction',
-            ],
-            onChanged: (m) => _setNested('schedule1', m),
           ),
         ),
       ],

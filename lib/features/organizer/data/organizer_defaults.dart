@@ -45,7 +45,9 @@ IconData iconForOrganizerStep(String step) {
 String cueForOrganizerStep(String step) {
   if (step == 'Filing Info') return 'Choose personal, business, or entity filing';
   if (step == 'Personal Info') return 'Name, SSN, address, dependents';
-  if (step == 'Income (1040)') return 'W-2 wages and Form 1040 income lines';
+  if (step == 'Income (1040)') {
+    return 'Form 1040 Lines 1–8 / 25: W-2, 1099-NEC/R/DA/G, SSA-1099, INT/DIV/B/K';
+  }
   if (step == 'Schedule B') return 'Interest and dividend payers';
   if (step == 'Schedule C') return 'Sole prop / gig profit & loss';
   if (step == 'Schedule D') return 'Capital gains and transactions';
@@ -83,8 +85,19 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
       if (e is! Map) return false;
       return n(e['box1_wagesTips']) > 0 || '${e['employerName'] ?? ''}'.trim().isNotEmpty;
     });
+    bool hasForms(String key) {
+      final list = (data[key] as List?) ?? const [];
+      return list.any((e) => e is Map && e.values.any((v) => v is num ? v != 0 : '$v'.trim().isNotEmpty));
+    }
     return n(data['wages']) > 0 ||
         hasW2 ||
+        hasForms('form1099NEC') ||
+        hasForms('form1099R') ||
+        hasForms('form1099DA') ||
+        hasForms('formSSA1099') ||
+        hasForms('form1099G') ||
+        hasForms('form1099INT') ||
+        hasForms('form1099DIV') ||
         n(data['unemploymentComp']) > 0 ||
         n(data['socialSecurityBenefits']) > 0 ||
         n(data['otherIncome']) > 0;
@@ -274,7 +287,7 @@ Map<String, dynamic> emptyDependent() => {
       'dob': '',
     };
 
-/// Minimal W-2 form matching mkgtaxconsultants.com `defaultW2Data` keys used on mobile.
+/// Full W-2 form matching mkgtaxconsultants.com `defaultW2Data` / Form W-2 boxes.
 Map<String, dynamic> emptyW2Form({
   String employeeSSN = '',
   String employeeFirstName = '',
@@ -309,14 +322,22 @@ Map<String, dynamic> emptyW2Form({
       'box6_medicareTaxWithheld': 0,
       'box7_ssTips': 0,
       'box8_allocatedTips': 0,
+      'box9_blank': '',
       'box10_dependentCareBenefits': 0,
       'box11_nonqualifiedPlans': 0,
       'box12a_code': '',
       'box12a_amount': 0,
+      'box12b_code': '',
+      'box12b_amount': 0,
+      'box12c_code': '',
+      'box12c_amount': 0,
+      'box12d_code': '',
+      'box12d_amount': 0,
       'box13_statutory': false,
       'box13_retirementPlan': false,
       'box13_thirdPartySickPay': false,
       'box14_other': '',
+      'box14b_tippedOccupationCode': '',
       'box15_state': '',
       'box15_stateId': '',
       'box16_stateWages': 0,
@@ -324,6 +345,142 @@ Map<String, dynamic> emptyW2Form({
       'box18_localWages': 0,
       'box19_localTax': 0,
       'box20_localityName': '',
+      'regularPay': 0,
+      'overtimePay': 0,
+    };
+
+/// Form 1099-NEC — Box 1 → Schedule C / Form 1040 Line 8 path.
+Map<String, dynamic> emptyForm1099Nec() => {
+      'payerName': '',
+      'payerTIN': '',
+      'payerAddress': '',
+      'accountNumber': '',
+      'box1_nonemployeeComp': 0,
+      'box2_directSales5000': false,
+      'box4_fedTaxWithheld': 0,
+      'box5_stateTaxWithheld': 0,
+      'box6_stateIncome': 0,
+      'box7_state': '',
+    };
+
+/// Form 1099-R — Boxes 1/2a → Form 1040 Lines 4a–5b.
+Map<String, dynamic> emptyForm1099R() => {
+      'payerName': '',
+      'payerTIN': '',
+      'payerAddress': '',
+      'accountNumber': '',
+      'recipientTIN': '',
+      'box1_grossDistribution': 0,
+      'box2a_taxableAmount': 0,
+      'box2b_taxableAmountNotDetermined': false,
+      'box2b_totalDistribution': false,
+      'box3_capitalGain': 0,
+      'box4_fedTaxWithheld': 0,
+      'box5_employeeContributions': 0,
+      'box6_unrealizedNetApprec': 0,
+      'box7_distributionCode': '',
+      'box7_iraSepSimple': false,
+      'box8_other': 0,
+      'box9a_percentTotalDist': 0,
+      'box10_amountAllocableIRR': 0,
+      'box14_stateTaxWithheld': 0,
+      'box15_state': '',
+      'box16_stateDistribution': 0,
+    };
+
+/// Form 1099-DA — digital asset proceeds → Form 1040 Line 7 / Schedule D.
+Map<String, dynamic> emptyForm1099Da() => {
+      'exchangeName': '',
+      'payerTIN': '',
+      'accountNumber': '',
+      'digitalAssetName': '',
+      'quantity': 0,
+      'dateAcquired': '',
+      'dateSold': '',
+      'proceeds': 0,
+      'costBasis': 0,
+      'gainLoss': 0,
+      'box4_fedTaxWithheld': 0,
+      'proceedsType': 'cash',
+    };
+
+/// SSA-1099 — Box 5 → Form 1040 Line 6a; taxable estimate → Line 6b.
+Map<String, dynamic> emptyFormSsa1099() => {
+      'beneficiaryName': '',
+      'claimNumber': '',
+      'box3_benefitsPaid': 0,
+      'box4_benefitsRepaid': 0,
+      'box5_netBenefits': 0,
+      'box6_voluntaryTaxWithheld': 0,
+      'taxableBenefits': 0,
+      'medicarePartB': 0,
+      'medicarePrescriptionDrug': 0,
+    };
+
+/// Form 1099-G — Box 1 unemployment (Sch. 1); Box 2 state refund (Sch. 1).
+Map<String, dynamic> emptyForm1099G() => {
+      'payerName': '',
+      'payerTIN': '',
+      'box1_unemployment': 0,
+      'box2_stateLocalRefund': 0,
+      'box3_box2TaxYear': '',
+      'box4_fedTaxWithheld': 0,
+      'box5_rttaPayments': 0,
+      'box6_taxableGrants': 0,
+      'box7_agriculturePayments': 0,
+      'box10a_state': '',
+      'box10b_stateId': '',
+      'box11_stateIncome': 0,
+    };
+
+Map<String, dynamic> emptyForm1099Int() => {
+      'payerName': '',
+      'payerTIN': '',
+      'box1_interestIncome': 0,
+      'box2_earlyWithdrawalPenalty': 0,
+      'box3_usBondInterest': 0,
+      'box4_fedTaxWithheld': 0,
+      'box8_taxExemptInterest': 0,
+      'box17_state': '',
+    };
+
+Map<String, dynamic> emptyForm1099Div() => {
+      'payerName': '',
+      'payerTIN': '',
+      'box1a_ordinaryDividends': 0,
+      'box1b_qualifiedDividends': 0,
+      'box2a_capitalGainDist': 0,
+      'box4_fedTaxWithheld': 0,
+      'box5_section199A': 0,
+      'box12_exemptInterestDividends': 0,
+    };
+
+Map<String, dynamic> emptyForm1099B() => {
+      'brokerageName': '',
+      'payerTIN': '',
+      'description': '',
+      'dateAcquired': '',
+      'dateSold': '',
+      'proceeds': 0,
+      'costBasis': 0,
+      'gainLoss': 0,
+      'shortOrLong': 'long',
+      'box4_fedTaxWithheld': 0,
+      'washSaleLossDisallowed': 0,
+      'reportedToIrs': true,
+    };
+
+Map<String, dynamic> emptyForm1099K() => {
+      'payerName': '',
+      'payerTIN': '',
+      'box1a_grossAmount': 0,
+      'box1b_cardNotPresent': 0,
+      'box2_merchantCategory': '',
+      'box3_numberOfTransactions': 0,
+      'box4_fedTaxWithheld': 0,
+      'box5_state': '',
+      'box6_stateId': '',
+      'box7_stateIncome': 0,
     };
 
 const dependentRelationshipOptions = <(String, String)>[
