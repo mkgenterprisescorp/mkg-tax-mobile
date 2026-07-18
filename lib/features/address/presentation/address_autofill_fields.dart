@@ -20,6 +20,9 @@ class AddressAutofillFields extends ConsumerStatefulWidget {
     this.stateKey = 'state',
     this.zipKey = 'zip',
     this.apartmentKey = 'apartment',
+    this.showApartment = true,
+    this.streetLabel = 'Street',
+    this.helperText = 'Map search (OpenStreetMap) fills city, state, and ZIP',
   });
 
   final Map<String, dynamic> data;
@@ -29,6 +32,9 @@ class AddressAutofillFields extends ConsumerStatefulWidget {
   final String stateKey;
   final String zipKey;
   final String apartmentKey;
+  final bool showApartment;
+  final String streetLabel;
+  final String helperText;
 
   @override
   ConsumerState<AddressAutofillFields> createState() => _AddressAutofillFieldsState();
@@ -141,9 +147,9 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
         TextField(
           controller: _streetCtrl,
           decoration: InputDecoration(
-            labelText: 'Street',
+            labelText: widget.streetLabel,
             hintText: 'Start typing — e.g. 4021 N Fresno',
-            helperText: 'Map search (OpenStreetMap) fills city, state, and ZIP',
+            helperText: widget.helperText,
             helperMaxLines: 2,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _loading
@@ -213,11 +219,12 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
           ),
         ],
         const SizedBox(height: 8),
-        OrganizerTextField(
-          label: 'Apt / Suite',
-          value: widget.data[widget.apartmentKey]?.toString() ?? '',
-          onChanged: (v) => widget.onChanged(widget.apartmentKey, v),
-        ),
+        if (widget.showApartment)
+          OrganizerTextField(
+            label: 'Apt / Suite',
+            value: widget.data[widget.apartmentKey]?.toString() ?? '',
+            onChanged: (v) => widget.onChanged(widget.apartmentKey, v),
+          ),
         OrganizerTextField(
           label: 'City',
           value: widget.data[widget.cityKey]?.toString() ?? '',

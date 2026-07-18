@@ -1390,15 +1390,19 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     const identity = [
       'businessName',
       'businessEIN',
+      'businessType',
+      'accountingMethod',
+    ];
+    final addressKeys = {
       'businessAddress',
       'businessApartment',
       'businessCity',
       'businessState',
       'businessZip',
-      'businessType',
-      'accountingMethod',
-    ];
-    final expenseKeys = scheduleC.keys.where((k) => !identity.contains(k)).toList();
+    };
+    final expenseKeys = scheduleC.keys
+        .where((k) => !identity.contains(k) && !addressKeys.contains(k))
+        .toList();
     return Column(
       children: [
         OrganizerSection(
@@ -1408,6 +1412,24 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             data: scheduleC,
             onlyKeys: identity,
             onChanged: (m) => _setNested('scheduleC', m),
+          ),
+        ),
+        OrganizerSection(
+          title: 'Business address (street map)',
+          subtitle: 'Search the map to fill city, state, and ZIP.',
+          child: AddressAutofillFields(
+            data: scheduleC,
+            onChanged: (key, value) {
+              final next = Map<String, dynamic>.from(scheduleC)..[key] = value;
+              _setNested('scheduleC', next);
+            },
+            streetKey: 'businessAddress',
+            cityKey: 'businessCity',
+            stateKey: 'businessState',
+            zipKey: 'businessZip',
+            apartmentKey: 'businessApartment',
+            streetLabel: 'Business street',
+            helperText: 'Map search fills business city, state, and ZIP',
           ),
         ),
         OrganizerSection(

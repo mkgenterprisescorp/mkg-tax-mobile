@@ -32,6 +32,7 @@ class ApiErrorMapper {
           msg.startsWith('The requested') ||
           msg.startsWith('Too many') ||
           msg.startsWith('Please check') ||
+          msg.startsWith('Please sign in') ||
           msg.startsWith('We’re unable') ||
           msg.startsWith("We're unable")) {
         return msg;
@@ -91,7 +92,7 @@ class ApiErrorMapper {
       case 422:
         return 'Some information could not be validated. Please check your entries and try again.';
       case 429:
-        return loginTooManyAttemptsMessage;
+        return 'Too many requests — wait a moment and try again.';
       case 500:
         return loginServerUnavailableMessage;
       case 503:
