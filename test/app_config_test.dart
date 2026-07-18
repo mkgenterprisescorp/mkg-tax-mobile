@@ -78,5 +78,25 @@ void main() {
       // the getter's logic is host-string-based and not a hardcoded guess.
       expect(AppConfig.usesLaravelAuth, AppConfig.apiRoot.toLowerCase().contains('/api/v1'));
     });
+
+    test('paymentsWebUrl targets mkgtaxconsultants.com and never financemkgtax.com', () {
+      expect(AppConfig.paymentsWebUrl, contains('mkgtaxconsultants.com'));
+      expect(AppConfig.paymentsWebUrl, contains('/payments'));
+      expect(AppConfig.paymentsWebUrl.contains('financemkgtax.com'), isFalse);
+    });
+
+    test('rewriteLegacyPortalUri remaps financemkgtax.com payments deep links', () {
+      final rewritten = AppConfig.rewriteLegacyPortalUri(
+        Uri.parse('https://financemkgtax.com/payments'),
+      );
+      expect(rewritten.host, 'mkgtaxconsultants.com');
+      expect(rewritten.path, '/payments');
+      expect(rewritten.scheme, 'https');
+    });
+
+    test('rewriteLegacyPortalUri leaves Stripe checkout hosts alone', () {
+      final stripe = Uri.parse('https://checkout.stripe.com/c/pay/cs_test_123');
+      expect(AppConfig.rewriteLegacyPortalUri(stripe), stripe);
+    });
   });
 }

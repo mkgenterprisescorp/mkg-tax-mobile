@@ -25,12 +25,27 @@ class AppConfig {
     defaultValue: 'https://mkgtaxconsultants.com',
   );
 
+  /// Hosted invoices/payments page opened from the mobile billing UI.
+  /// Always defaults to the authoritative portal — never `financemkgtax.com`.
+  static const String _paymentsWebUrlEnv = String.fromEnvironment(
+    'PAYMENTS_WEB_URL',
+    defaultValue: '',
+  );
+
   /// Optional override for Laravel host origin (defaults derived from [apiBaseUrl]).
   /// Used when Dio needs the host without `/api/v1` (paths then include `/api/v1/...`).
   static const String laravelApiBaseUrl = String.fromEnvironment(
     'LARAVEL_API_BASE_URL',
     defaultValue: '',
   );
+
+  /// Legacy Replit portal hosts — rewrite to [canonicalPortalHost] for deep links.
+  static const Set<String> legacyPortalHosts = {
+    'financemkgtax.com',
+    'www.financemkgtax.com',
+  };
+
+  static const String canonicalPortalHost = 'mkgtaxconsultants.com';
 
   /// Set only for local-development builds against a plain-HTTP dev server
   /// (e.g. an Android emulator hitting `http://10.0.2.2:8000`). Never set
@@ -44,7 +59,26 @@ class AppConfig {
 
   static String get apiRoot => _trim(apiBaseUrl);
 
-  static String get webRoot => _trim(webBaseUrl);
+  static String get webRoot => rewriteLegacyPortalUri(Uri.parse(_trim(webBaseUrl))).toString();
+
+  /// Authoritative hosted payments URL for "Open hosted payments on web".
+  static String get paymentsWebUrl {
+    final configured = _paymentsWebUrlEnv.trim();
+    if (configured.isNotEmpty) {
+      return rewriteLegacyPortalUri(Uri.parse(_trim(configured))).toString();
+    }
+    return 'https://$canonicalPortalHost/payments';
+  }
+
+  /// Rewrites legacy `financemkgtax.com` portal hosts to `mkgtaxconsultants.com`.
+  /// Leaves Stripe/checkout and unrelated hosts unchanged.
+  static Uri rewriteLegacyPortalUri(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (legacyPortalHosts.contains(host)) {
+      return uri.replace(scheme: 'https', host: canonicalPortalHost);
+    }
+    return uri;
+  }
 
   /// Laravel origin (strip trailing `/api/v1` when present).
   static String get laravelApiRoot {

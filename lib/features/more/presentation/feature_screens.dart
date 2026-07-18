@@ -320,14 +320,10 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   Future<void> _openHostedUrl(String? url) async {
-    if (url != null && url.isNotEmpty) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      return;
-    }
-    await launchUrl(
-      Uri.parse('${AppConfig.webRoot}/payments'),
-      mode: LaunchMode.externalApplication,
-    );
+    final uri = (url != null && url.isNotEmpty)
+        ? AppConfig.rewriteLegacyPortalUri(Uri.parse(url))
+        : Uri.parse(AppConfig.paymentsWebUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _checkout(Map<String, dynamic> inv) async {
@@ -469,7 +465,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             OutlinedButton.icon(
               onPressed: () => _openHostedUrl(null),
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Open hosted payments on web'),
+              label: const Text('Open payments on mkgtaxconsultants.com'),
             ),
             const SizedBox(height: 12),
             if (_invoices.isEmpty)
