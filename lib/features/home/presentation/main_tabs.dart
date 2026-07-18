@@ -252,6 +252,7 @@ class BankingScreen extends ConsumerStatefulWidget {
 class _BankingScreenState extends ConsumerState<BankingScreen> {
   Map<String, dynamic>? _status;
   bool _loading = true;
+  bool _checking = false;
   String? _error;
 
   @override
@@ -290,20 +291,57 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     }
   }
 
-  Future<void> _beginKyc() async {
+  String _statusLabel() {
+    final connection = _status?['connection'];
+    if (connection is Map && connection['status_label'] != null) {
+      return connection['status_label'].toString();
+    }
+    final raw = connection is Map ? '${connection['status'] ?? ''}' : '';
+    return switch (raw) {
+      'not_connected' => 'Not connected',
+      'pending_kyc' => 'Verification in progress',
+      'active' => 'Connected',
+      'revoked' => 'Disconnected',
+      _ => 'Not connected',
+    };
+  }
+
+  String _providerLabel() {
+    final labeled = _status?['provider_label']?.toString();
+    if (labeled != null && labeled.isNotEmpty && labeled != 'unset' && labeled != 'null') {
+      return labeled;
+    }
+    final connection = _status?['connection'];
+    if (connection is Map) {
+      final cl = connection['provider_label']?.toString();
+      if (cl != null && cl.isNotEmpty && cl != 'unset') return cl;
+    }
+    final raw = (_status?['provider'] ?? '').toString();
+    if (raw.isEmpty || raw == 'unset' || raw == 'null' || raw == 'none') {
+      return 'No banking partner';
+    }
+    return raw;
+  }
+
+  bool get _kycAvailable =>
+      _status?['kyc_available'] == true || _status?['available'] == true;
+
+  Future<void> _checkAvailability() async {
     final entity = await ref.read(entitiesRepositoryProvider).ensurePrimaryEntity();
     final entityId = entity?['id']?.toString();
     if (entityId == null) return;
-    final result = await ref.read(bankingConnectionsRepositoryProvider).beginKyc(entityId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          (result?['message'] ?? result?['code'] ?? 'Banking partner not configured').toString(),
-        ),
-      ),
-    );
-    await _load();
+    setState(() => _checking = true);
+    try {
+      final result = await ref.read(bankingConnectionsRepositoryProvider).beginKyc(entityId);
+      if (!mounted) return;
+      final message = (result?['message'] ??
+              'A regulated banking partner is not configured yet. Tax prep continues without bank linking.')
+          .toString();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      await _load();
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   @override
@@ -311,8 +349,11 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     final disclaimer = (_status?['disclaimer'] ??
             'MKG Tax Consultants / Finance Advisors are not a bank. No money movement is enabled.')
         .toString();
-    final connection = _status?['connection'];
-    final provider = (_status?['provider'] ?? 'null').toString();
+    final headline = (_status?['headline'] ?? 'Business banking is not connected yet').toString();
+    final message = (_status?['message'] ??
+            'Business bank linking requires an approved regulated partner. MKG is not a bank.')
+        .toString();
+    final nextStep = _status?['next_step']?.toString();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -321,7 +362,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.info_outline, color: MkgColors.primary),
-            title: const Text('Compliance boundary'),
+            title: const Text('Not a bank'),
             subtitle: Text(disclaimer),
           ),
         ),
@@ -341,18 +382,24 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.account_balance_outlined, color: MkgColors.primary),
-              title: Text('Provider: $provider'),
+              title: Text(headline),
               subtitle: Text(
-                connection is Map
-                    ? 'Status: ${connection['status'] ?? 'unknown'}'
-                    : 'No connection stub yet',
+                'Partner: ${_providerLabel()} · Status: ${_statusLabel()}\n\n$message'
+                '${nextStep != null && nextStep.isNotEmpty ? '\n\n$nextStep' : ''}',
               ),
+              isThreeLine: true,
             ),
           ),
-          FilledButton(
-            onPressed: _beginKyc,
-            child: const Text('Begin partner KYC (stub)'),
-          ),
+          if (_kycAvailable)
+            FilledButton(
+              onPressed: _checking ? null : _checkAvailability,
+              child: Text(_checking ? 'Starting…' : 'Begin partner verification'),
+            )
+          else
+            OutlinedButton(
+              onPressed: _checking ? null : _checkAvailability,
+              child: Text(_checking ? 'Checking…' : 'Check partner availability'),
+            ),
           const SizedBox(height: 8),
           const Text(
             'No bank credentials are collected in-app. Live ACH/card movement is not enabled.',
