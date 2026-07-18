@@ -597,7 +597,7 @@ class SupportScreen extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
             title: const Text('Tessa AI'),
-            subtitle: const Text('Replaces legacy chat'),
+            subtitle: const Text('Chat with your tax assistant'),
             onTap: () => context.go('/tessa'),
           ),
         ),
@@ -616,13 +616,6 @@ class SupportScreen extends StatelessWidget {
             leading: Icon(Icons.phone, color: MkgColors.primary),
             title: Text('Call office'),
             subtitle: Text('Use contact info from your engagement letter'),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.info_outline, color: MkgColors.primary),
-            title: const Text('Connection info'),
-            subtitle: Text(AppConfig.authModeLabel),
           ),
         ),
       ],

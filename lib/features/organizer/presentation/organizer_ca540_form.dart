@@ -442,7 +442,7 @@ class OrganizerCa540Form extends StatelessWidget {
         ),
         OrganizerSection(
           title: 'Additional Form 540 fields',
-          subtitle: 'Any remaining keys from the full schema.',
+          subtitle: 'Additional California Form 540 details.',
           child: NestedMapEditor(
             data: ca540,
             excludeKeys: _typedKeys,

@@ -35,11 +35,6 @@ class OrganizerCreditsStep extends StatelessWidget {
     onPatch(applyCreditsRollups(next));
   }
 
-  String _money(num v) {
-    final fixed = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-    return '\$$fixed';
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheduleA = _map('scheduleA');
@@ -57,12 +52,11 @@ class OrganizerCreditsStep extends StatelessWidget {
     final form8995 = _map('form8995');
     final form8839 = _map('form8839');
     final form2441 = _map('form2441');
-    final summary = summarizeForm1040Credits(data);
 
     return Column(
       children: [
         OfficialFormLinksCard(
-          title: 'Official Form 1040 references (TY2025)',
+          title: 'Official Form 1040 references',
           subtitle: 'Credits & deductions map to these IRS schedules and forms.',
           links: const [
             ('Form 1040', OfficialFormLinks.form1040Pdf),
@@ -71,33 +65,6 @@ class OrganizerCreditsStep extends StatelessWidget {
             ('Schedule 8812 (CTC/ACTC)', OfficialFormLinks.schedule8812Pdf),
             ('Schedule 3 (credits)', OfficialFormLinks.schedule3Pdf),
           ],
-        ),
-        const SizedBox(height: 12),
-        MkgCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Form 1040 line rollup (live estimate)',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Line 10 adjustments: ${_money(summary.line10Adjustments)}\n'
-                'Line 12e itemized (Sch. A): ${_money(summary.line12eItemized)}\n'
-                'Line 13a QBI (Form 8995): ${_money(summary.line13aQbi)}\n'
-                'Line 13b Sch. 1-A: ${_money(summary.line13bSchedule1A)}\n'
-                'Line 19 CTC/ODC (Sch. 8812): ${_money(summary.line19CtcOdc)}\n'
-                'Line 20 nonrefundable (Sch. 3): ${_money(summary.line20Schedule3)}\n'
-                'Line 23 other taxes (Sch. 2 / SE): ${_money(summary.line23OtherTaxes)}\n'
-                'Line 27a EIC claimed: ${summary.line27aEicClaimed ? 'Yes' : 'No'}\n'
-                'Line 28 ACTC: ${_money(summary.line28Actc)}\n'
-                'Line 29 AOTC refundable: ${_money(summary.line29Aotc)}\n'
-                'Line 30 adoption (8839): ${_money(summary.line30Adoption)}',
-                style: const TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.45),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: 18),
         OrganizerSection(
@@ -504,8 +471,7 @@ class OrganizerCreditsStep extends StatelessWidget {
         ),
         const MkgCard(
           child: Text(
-            'These credit and deduction rows match default_form_data.json and Form 1040 (2025) line references. '
-            'Rollup totals are intake estimates for professional review — not a certified e-file calculation.',
+            'Credit and deduction totals update as you enter forms. Your tax professional reviews everything before filing.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),

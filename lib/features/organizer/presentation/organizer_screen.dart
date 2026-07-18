@@ -717,7 +717,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _filingYearDropdown(),
         const MkgCard(
           child: Text(
-            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow — same schemas as the web portal.',
+            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Business entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),
@@ -859,7 +859,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           ),
         OrganizerSection(
           title: 'Dependents',
-          subtitle: 'Same dependents[] schema as web Organizer (name, SSN, relationship, DOB).',
+          subtitle: 'Add each dependent’s name, SSN, relationship, and date of birth.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1307,7 +1307,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
     return OrganizerSection(
       title: 'Schedule E — Rental / Royalty',
-      subtitle: 'Same rentalProperties[] schema as the web organizer.',
+      subtitle: 'Add each rental property you own.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

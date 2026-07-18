@@ -105,8 +105,6 @@ class AppConfig {
 
   /// Short, non-secret label for a diagnostics/about screen.
   /// Client-facing — never includes implementation hostnames or stack names.
-  static String get authModeLabel => 'Secure client sign-in';
-
   /// Validates [apiBaseUrl] and throws [AppConfigError] — with a message
   /// naming exactly what's wrong — if it is missing or malformed. Call this
   /// once, early in `main()`, before running the real app widget tree. A

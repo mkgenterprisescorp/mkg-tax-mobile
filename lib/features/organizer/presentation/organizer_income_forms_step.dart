@@ -41,20 +41,14 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
     _setListAndRollup(listKey, next);
   }
 
-  String _money(num v) {
-    final fixed = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-    return '\$$fixed';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final summary = summarizeForm1040Income(data);
     final schedule1 = Map<String, dynamic>.from((data['schedule1'] as Map?) ?? {});
 
     return Column(
       children: [
         OfficialFormLinksCard(
-          title: 'Official income form references (TY2025)',
+          title: 'Official income form references',
           subtitle: 'Enter paper forms box-by-box. Totals roll into Form 1040 lines.',
           links: const [
             ('Form 1040 line-by-line (Free File)', OfficialFormLinks.form1040LineByLine),
@@ -64,32 +58,6 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
             ('Form 1099-G', OfficialFormLinks.form1099GPdf),
             ('SSA-1099', OfficialFormLinks.ssa1099About),
           ],
-        ),
-        const SizedBox(height: 12),
-        MkgCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Form 1040 income line rollup (live)',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '1a Wages (W-2): ${_money(summary.line1aWages)}\n'
-                '2b Interest: ${_money(summary.line2bInterest)}\n'
-                '3a / 3b Dividends: ${_money(summary.line3aQualifiedDividends)} / ${_money(summary.line3bOrdinaryDividends)}\n'
-                '4a / 4b IRA: ${_money(summary.line4aIraGross)} / ${_money(summary.line4bIraTaxable)}\n'
-                '5a / 5b Pensions: ${_money(summary.line5aPensionGross)} / ${_money(summary.line5bPensionTaxable)}\n'
-                '6a / 6b Social Security: ${_money(summary.line6aSsGross)} / ${_money(summary.line6bSsTaxable)}\n'
-                '7 Capital gain: ${_money(summary.line7CapitalGain)}\n'
-                '8 Additional income (Sch. 1): ${_money(summary.line8AdditionalIncome)}\n'
-                '25a / 25b Withholding: ${_money(summary.line25aW2Withheld)} / ${_money(summary.line25b1099Withheld)}\n'
-                '1099-NEC / unemployment / state refund: ${_money(summary.necCompensation)} / ${_money(summary.unemployment)} / ${_money(summary.stateTaxRefund)}',
-                style: const TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.45),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: 18),
         _w2Section(),
@@ -155,8 +123,7 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
         ),
         const MkgCard(
           child: Text(
-            'Income forms match default_form_data.json schemas and Form 1040 (2025) Free File line-by-line mapping. '
-            'Rollups are intake estimates for professional review — not a certified e-file calculation.',
+            'Totals update from the forms you enter. Your tax professional reviews everything before filing.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),
