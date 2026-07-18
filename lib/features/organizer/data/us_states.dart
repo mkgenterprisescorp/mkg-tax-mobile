@@ -67,8 +67,9 @@ List<(String, String)> get incomeTaxStateOptions => [
         if (statesWithIncomeTax.contains(opt.$1)) opt,
     ];
 
+/// CA Form 540 / multi-state residency (web Organizer parity).
 const residencyTypeOptions = <(String, String)>[
-  ('resident', 'Full-year resident'),
+  ('resident', 'Resident'),
   ('part_year', 'Part-year resident'),
   ('nonresident', 'Nonresident'),
 ];
