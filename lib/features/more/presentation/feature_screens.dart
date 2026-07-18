@@ -14,6 +14,8 @@ import '../../home/presentation/main_tabs.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
+import '../../tessa/data/tessa_repository.dart';
+import '../../address/presentation/address_autofill_fields.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -144,17 +146,17 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
 
   Future<void> _bootstrap() async {
     try {
-      final portal = ref.read(portalRepositoryProvider);
-      final existing = await portal.listConversations();
+      final tessa = ref.read(tessaRepositoryProvider);
+      final existing = await tessa.listConversations();
       Map<String, dynamic> convo;
       if (existing.isNotEmpty) {
         convo = existing.first;
       } else {
-        convo = await portal.createConversation(title: 'Mobile TaxPro Assist');
+        convo = await tessa.createConversation(title: 'Mobile TaxPro Assist');
       }
       final id = convo['id'];
       if (id != null) {
-        final full = await portal.getConversation(id);
+        final full = await tessa.getConversation(id);
         final history = (full?['messages'] as List?) ?? const [];
         for (final m in history) {
           if (m is! Map) continue;
@@ -203,7 +205,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       _sending = true;
     });
     try {
-      final reply = await ref.read(portalRepositoryProvider).sendAiMessage(_conversationId, text);
+      final reply = await ref.read(tessaRepositoryProvider).sendMessage(_conversationId, text);
       if (mounted) setState(() => _messages.add((false, reply)));
     } catch (e) {
       if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
@@ -521,43 +523,76 @@ class BookkeepingScreen extends StatelessWidget {
   }
 }
 
+/// Financial Tools hub — paycheck/W-4, refund estimate, advances, payments, savings, checklist.
 class ToolsScreen extends StatelessWidget {
   const ToolsScreen({super.key});
+
+  static const _tiles = <(IconData, String, String, String)>[
+    (Icons.calculate_outlined, 'Paycheck & W-4', 'Withholding estimates', '/payroll-tools'),
+    (Icons.savings_outlined, 'Refund estimator', 'Federal estimate · organizer', '/refund-advance/estimate'),
+    (Icons.payments_outlined, 'Refund advance loans', '0% & 36% APR · TILA', '/refund-advance'),
+    (Icons.receipt_long_outlined, 'Payments', 'Fee schedule · invoices', '/billing'),
+    (Icons.tips_and_updates_outlined, 'Tax savings', 'Credits & deductions checklist', '/tax-savings'),
+    (Icons.checklist_outlined, 'Things to bring', 'Appointment document list', '/things-to-bring'),
+    (Icons.description_outlined, 'Autofill Form 1040', 'From Tax Organizer', '/organizer/form-1040'),
+    (Icons.edit_note, 'Form 1040-X', 'Amended federal return', '/organizer'),
+    (Icons.map_outlined, 'CA Form 540 calculator', 'Tax & refund · FTB lines', '/ca-540'),
+    (Icons.track_changes_outlined, 'Refund tracker', 'IRS & FTB status links', '/refund-tracker'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        const SectionHeader('Tax tools'),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.calculate_outlined, color: MkgColors.primary),
-            title: const Text('Paycheck & W-4 estimates'),
-            subtitle: const Text('Paycheck and W-4 estimates (estimate only)'),
-            onTap: () => context.go('/payroll-tools'),
-          ),
+        const Text('Financial Tools', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text(
+          'Calculators, advances, payments, and appointment prep — all in one place.',
+          style: TextStyle(color: MkgColors.textGrey),
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
-            title: const Text('Refund advance calculator'),
-            subtitle: const Text('Estimate refund advance options'),
-            onTap: () => context.go('/financial'),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _tiles.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.05,
           ),
+          itemBuilder: (context, i) {
+            final t = _tiles[i];
+            return Material(
+              color: MkgColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.go(t.$4),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(t.$1, color: MkgColors.primary),
+                      const Spacer(),
+                      Text(t.$2, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text(t.$3, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.track_changes_outlined, color: MkgColors.primary),
-            title: const Text('Refund tracker'),
-            onTap: () => context.go('/refund-tracker'),
-          ),
-        ),
+        const SizedBox(height: 16),
         Card(
           child: ListTile(
             leading: const Icon(Icons.open_in_browser, color: MkgColors.primary),
             title: const Text('More calculators on web'),
-            subtitle: const Text('Budget, paycheck, overtime, withholding'),
+            subtitle: const Text('Budget, overtime, full paycheck tools'),
             onTap: () => launchUrl(
               Uri.parse('${AppConfig.webRoot}/dashboard'),
               mode: LaunchMode.externalApplication,
@@ -624,11 +659,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _phone;
-  late final TextEditingController _address;
-  late final TextEditingController _city;
-  late final TextEditingController _state;
-  late final TextEditingController _zip;
   late final TextEditingController _ssn;
+  late Map<String, dynamic> _addressData;
   bool _saving = false;
 
   @override
@@ -636,20 +668,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     final user = ref.read(authProvider).user;
     _phone = TextEditingController(text: user?.phone ?? '');
-    _address = TextEditingController(text: user?.address ?? '');
-    _city = TextEditingController(text: user?.city ?? '');
-    _state = TextEditingController(text: user?.state ?? '');
-    _zip = TextEditingController(text: user?.zipCode ?? '');
     _ssn = TextEditingController();
+    _addressData = {
+      'address': user?.address ?? '',
+      'city': user?.city ?? '',
+      'state': user?.state ?? '',
+      'zip': user?.zipCode ?? '',
+      'apartment': '',
+    };
   }
 
   @override
   void dispose() {
     _phone.dispose();
-    _address.dispose();
-    _city.dispose();
-    _state.dispose();
-    _zip.dispose();
     _ssn.dispose();
     super.dispose();
   }
@@ -661,10 +692,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final updated = await portal.submitKyc({
         'role': 'client',
         'phone': _phone.text.trim(),
-        'address': _address.text.trim(),
-        'city': _city.text.trim(),
-        'state': _state.text.trim().toUpperCase(),
-        'zipCode': _zip.text.trim(),
+        'address': '${_addressData['address'] ?? ''}'.trim(),
+        'city': '${_addressData['city'] ?? ''}'.trim(),
+        'state': '${_addressData['state'] ?? ''}'.trim().toUpperCase(),
+        'zipCode': '${_addressData['zip'] ?? ''}'.trim(),
       });
       final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
       if (digits.length == 9) {
@@ -722,16 +753,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SectionHeader('KYC / profile details'),
         TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone),
         const SizedBox(height: 10),
-        TextField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
-        const SizedBox(height: 10),
-        TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(child: TextField(controller: _state, decoration: const InputDecoration(labelText: 'State'), textCapitalization: TextCapitalization.characters)),
-            const SizedBox(width: 10),
-            Expanded(child: TextField(controller: _zip, decoration: const InputDecoration(labelText: 'ZIP'), keyboardType: TextInputType.number)),
-          ],
+        AddressAutofillFields(
+          data: _addressData,
+          onChanged: (key, value) => setState(() => _addressData[key] = value),
         ),
         const SizedBox(height: 10),
         TextField(

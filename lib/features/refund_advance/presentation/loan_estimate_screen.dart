@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/portal_repository.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/refund_advance_repository.dart';
 import 'refund_advance_hub_screen.dart';
 
 sealed class _AdvanceOption {
@@ -74,7 +74,7 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
       _error = null;
     });
     try {
-      final quote = await ref.read(portalRepositoryProvider).calculateLoan(amount);
+      final quote = await ref.read(refundAdvanceRepositoryProvider).calculateLoan(amount);
       if (!mounted) return;
       final apr = (quote['apr'] as num?)?.toDouble() ?? _selected.apr;
       setState(() {

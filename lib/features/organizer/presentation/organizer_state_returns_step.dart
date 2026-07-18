@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/official_form_links.dart';
 import '../data/us_states.dart';
 import 'organizer_fields.dart';
 
@@ -291,6 +293,22 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ],
           ),
         ),
+        const OfficialFormLinksCard(
+          title: 'Official California Form 540 (complete)',
+          subtitle: 'FTB tax year 2025 — booklet, instructions, and blank form.',
+          links: [
+            ('2025 Form 540 booklet', OfficialFormLinks.ca540Booklet),
+            ('2025 Form 540 instructions', OfficialFormLinks.ca540Instructions),
+            ('2025 Form 540 PDF', OfficialFormLinks.ca540Pdf),
+          ],
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => context.go('/ca-540'),
+          icon: const Icon(Icons.calculate_outlined),
+          label: const Text('Open Form 540 tax & refund calculator'),
+        ),
+        const SizedBox(height: 12),
         OrganizerSection(
           title: 'California Form 540',
           subtitle: 'Deep CA suite — available when CA is home or selected above.',
@@ -358,8 +376,18 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           title: 'Schedule S — Other state tax credit',
           child: NestedMapEditor(data: _map('scheduleS'), onChanged: (m) => onNested('scheduleS', m)),
         ),
+        const OfficialFormLinksCard(
+          title: 'Official California Form 540-X',
+          subtitle: 'Amended California resident income tax return (FTB 2025).',
+          links: [
+            ('2025 Form 540-X PDF', OfficialFormLinks.ca540xPdf),
+            ('2025 Form 540 booklet (includes Schedule X notes)', OfficialFormLinks.ca540Booklet),
+          ],
+        ),
+        const SizedBox(height: 12),
         OrganizerSection(
           title: 'Form 540X — Amended CA return',
+          subtitle: 'Complete when amending a previously filed CA Form 540.',
           child: NestedMapEditor(data: _map('ca540x'), onChanged: (m) => onNested('ca540x', m)),
         ),
         OrganizerSection(

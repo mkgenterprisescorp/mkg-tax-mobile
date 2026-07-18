@@ -31,7 +31,11 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/documents') ||
         location.startsWith('/all-returns') ||
         location.startsWith('/refund-tracker') ||
-        location.startsWith('/tools')) {
+        location.startsWith('/tools') ||
+        location.startsWith('/payroll-tools') ||
+        location.startsWith('/things-to-bring') ||
+        location.startsWith('/tax-savings') ||
+        location.startsWith('/ca-540')) {
       return 1;
     }
     if (location.startsWith('/financial') ||
@@ -72,7 +76,14 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/bookkeeping')) return 'BOOKKEEPING';
     if (location.startsWith('/profile')) return 'PROFILE';
     if (location.startsWith('/support')) return 'SUPPORT';
-    if (location.startsWith('/tools')) return 'TAX TOOLS';
+    if (location.startsWith('/tools') || location.startsWith('/financial-tools') || location.startsWith('/payroll-tools')) {
+      return 'FINANCIAL TOOLS';
+    }
+    if (location.startsWith('/tax-savings')) return 'TAX SAVINGS';
+    if (location.startsWith('/things-to-bring')) return 'THINGS TO BRING';
+    if (location.startsWith('/ca-540') || location.startsWith('/organizer/ca-540')) {
+      return 'CA FORM 540';
+    }
     if (location.startsWith('/financial') || location.startsWith('/refund-advance')) {
       return 'REFUND ADVANCE';
     }
@@ -177,6 +188,8 @@ class AppShell extends ConsumerWidget {
               tile(Icons.upload_file_outlined, 'Upload Document', '/documents'),
               tile(Icons.assignment_outlined, 'Start Tax Organizer', '/organizer'),
               tile(Icons.description_outlined, 'Continue Tax Return', '/returns'),
+              tile(Icons.calculate_outlined, 'Financial Tools', '/tools'),
+              tile(Icons.checklist_outlined, 'Things to Bring', '/things-to-bring'),
               tile(Icons.trending_up_outlined, 'Financial Planning', '/advisory'),
               tile(Icons.forum_outlined, 'Advisor Chat', '/chat'),
               tile(Icons.smart_toy_outlined, 'Ask TESSA', '/tessa'),
@@ -250,6 +263,9 @@ class _AppDrawer extends ConsumerWidget {
             item(Icons.description_outlined, 'Tax Returns', '/returns'),
             item(Icons.assignment_outlined, 'Tax Organizer', '/organizer'),
             item(Icons.folder_outlined, 'Documents', '/documents'),
+            item(Icons.calculate_outlined, 'Financial Tools', '/tools'),
+            item(Icons.payments_outlined, 'Refund Advance', '/refund-advance'),
+            item(Icons.receipt_long_outlined, 'Payments', '/billing'),
             item(Icons.smart_toy_outlined, 'TESSA AI', '/tessa'),
             if (caps.canManageClients) item(Icons.groups_outlined, 'My Clients', '/my-clients'),
             if (caps.canUseIeroTools) item(Icons.travel_explore_outlined, 'IRS iERO Extraction', '/iero'),

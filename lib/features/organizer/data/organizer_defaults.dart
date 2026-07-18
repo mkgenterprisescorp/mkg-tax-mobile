@@ -14,6 +14,7 @@ const personalOrganizerSteps = <String>[
   'Schedule E',
   'Schedule F',
   'Credits & Deductions',
+  'Form 1040-X',
   'State Tax Returns',
   'Direct Deposit',
   'Review & Sign',
@@ -30,6 +31,7 @@ IconData iconForOrganizerStep(String step) {
   if (step == 'Schedule E') return Icons.home_work_outlined;
   if (step == 'Schedule F') return Icons.agriculture_outlined;
   if (step == 'Credits & Deductions') return Icons.savings_outlined;
+  if (step == 'Form 1040-X') return Icons.edit_note;
   if (step == 'State Tax Returns' || step == 'CA 540 State Tax') return Icons.map_outlined;
   if (step == 'Direct Deposit') return Icons.account_balance_outlined;
   if (step == 'Review & Sign') return Icons.draw_outlined;
@@ -50,8 +52,9 @@ String cueForOrganizerStep(String step) {
   if (step == 'Schedule E') return 'Rental and royalty properties';
   if (step == 'Schedule F') return 'Farm income and expenses';
   if (step == 'Credits & Deductions') return 'Federal credits, Schedule A, Forms 8863/5695/8962';
+  if (step == 'Form 1040-X') return 'Amended federal return (IRS Form 1040-X)';
   if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
-    return 'All states intake + California 540 suite';
+    return 'All states intake + California 540 / 540X suite';
   }
   if (step == 'Direct Deposit') return 'Bank routing & account';
   if (step == 'Review & Sign') return 'Consent and submit';
@@ -130,6 +133,11 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
         nested(f8863, 'studentName').isNotEmpty ||
         n(f5695['solarElectric']) > 0 ||
         n(m('form8962')['premiumTaxCreditAllowed']) > 0;
+  }
+  if (step == 'Form 1040-X') {
+    final x = m('form1040x');
+    return x['isAmended'] == true &&
+        (nested(x, 'explanation').isNotEmpty || nested(x, 'amendedReason').isNotEmpty);
   }
   if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
     final ca = m('ca540');

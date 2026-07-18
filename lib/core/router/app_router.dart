@@ -19,12 +19,17 @@ import '../../features/iero/presentation/iero_extraction_screen.dart';
 import '../../features/more/presentation/feature_screens.dart';
 import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
+import '../../features/organizer/presentation/ca_540_calculator_screen.dart';
+import '../../features/organizer/presentation/form_1040_autofill_screen.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
+import '../../features/checklist/presentation/things_to_bring_screen.dart';
 import '../../features/payroll/presentation/payroll_tools_screen.dart';
 import '../../features/refund_advance/presentation/loan_estimate_screen.dart';
 import '../../features/refund_advance/presentation/refund_advance_hub_screen.dart';
 import '../../features/refund_advance/presentation/refund_advance_info_screens.dart';
+import '../../features/refund_advance/presentation/refund_estimate_screen.dart';
 import '../../features/refund_advance/presentation/tila_disclosure_screen.dart';
+import '../../features/tax_savings/presentation/tax_savings_screen.dart';
 import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/returns/presentation/tax_returns_workspace_screen.dart';
 import '../../features/shell/app_shell.dart';
@@ -89,13 +94,33 @@ GoRouter createRouter({
           '/tessa',
           '/more',
           '/profile',
+          '/tools',
+          '/payroll-tools',
+          '/billing',
+          '/refund-advance',
+          '/financial',
         };
-        if (pendingApproval && !primaryIa.contains(loc) && !loc.startsWith('/profile')) {
+        bool allowedWhileSoftGated(String location) {
+          if (primaryIa.contains(location)) return true;
+          if (location.startsWith('/profile')) return true;
+          if (location.startsWith('/organizer')) return true;
+          if (location.startsWith('/refund-advance')) return true;
+          if (location.startsWith('/documents')) return true;
+          if (location.startsWith('/tools')) return true;
+          if (location.startsWith('/payroll-tools')) return true;
+          if (location.startsWith('/tax-savings')) return true;
+          if (location.startsWith('/things-to-bring')) return true;
+          if (location.startsWith('/ca-540') || location.contains('/ca-540')) return true;
+          if (location.startsWith('/billing') || location.startsWith('/payments')) return true;
+          if (location.startsWith('/financial')) return true;
+          return false;
+        }
+        if (pendingApproval && !allowedWhileSoftGated(loc)) {
           return '/profile';
         }
         final created = user.createdAt != null ? DateTime.tryParse(user.createdAt!) : null;
         final isNew = created != null && !created.isBefore(DateTime.utc(2026, 2, 22));
-        if (isNew && kycIncomplete && !primaryIa.contains(loc) && !loc.startsWith('/profile')) {
+        if (isNew && kycIncomplete && !allowedWhileSoftGated(loc)) {
           return '/profile';
         }
       }
@@ -122,6 +147,7 @@ GoRouter createRouter({
           GoRoute(path: '/financials', redirect: (context, state) => '/refund-advance'),
           GoRoute(path: '/refund-advance', builder: (context, state) => const RefundAdvanceHubScreen()),
           GoRoute(path: '/refund-advance/overview', builder: (context, state) => const RefundAdvanceOverviewScreen()),
+          GoRoute(path: '/refund-advance/estimate', builder: (context, state) => const RefundEstimateScreen()),
           GoRoute(path: '/refund-advance/loan-estimate', builder: (context, state) => const LoanEstimateScreen()),
           GoRoute(path: '/refund-advance/tila', builder: (context, state) => const TilaDisclosureScreen()),
           GoRoute(path: '/refund-advance/guarantee', builder: (context, state) => const WrittenGuaranteeScreen()),
@@ -129,6 +155,9 @@ GoRouter createRouter({
           GoRoute(path: '/banking', builder: (context, state) => const BankingScreen()),
           GoRoute(path: '/blogs', builder: (context, state) => const BlogsScreen()),
           GoRoute(path: '/organizer', builder: (context, state) => const OrganizerScreen()),
+          GoRoute(path: '/organizer/form-1040', builder: (context, state) => const Form1040AutofillScreen()),
+          GoRoute(path: '/organizer/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
+          GoRoute(path: '/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
           GoRoute(path: '/engagements', builder: (context, state) => const EngagementsScreen()),
           GoRoute(path: '/documents', builder: (context, state) => const DocumentsScreen()),
           GoRoute(path: '/documents/smart-intake', builder: (context, state) => const SmartDocumentIntakeScreen()),
@@ -140,7 +169,10 @@ GoRouter createRouter({
           GoRoute(path: '/bookkeeping', builder: (context, state) => const BookkeepingScreen()),
           GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
           GoRoute(path: '/tools', builder: (context, state) => const ToolsScreen()),
+          GoRoute(path: '/financial-tools', redirect: (context, state) => '/tools'),
           GoRoute(path: '/payroll-tools', builder: (context, state) => const PayrollToolsScreen()),
+          GoRoute(path: '/tax-savings', builder: (context, state) => const TaxSavingsScreen()),
+          GoRoute(path: '/things-to-bring', builder: (context, state) => const ThingsToBringScreen()),
           GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/refund-tracker', builder: (context, state) => const RefundTrackerScreen()),

@@ -119,6 +119,8 @@ class OrganizerDropdown<T> extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: DropdownButtonFormField<T>(
+        // Rebuild when parent value changes (e.g. address/ZIP autofill).
+        key: ValueKey<Object?>('dd-$label-$value'),
         initialValue: value,
         decoration: InputDecoration(labelText: label),
         items: [
