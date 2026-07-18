@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/portal_repository.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../banking/data/banking_connections_repository.dart';
 import '../../entities/data/entities_repository.dart';
+import '../../refund_advance/data/refund_advance_repository.dart';
 
 class FinancialScreen extends ConsumerStatefulWidget {
   const FinancialScreen({super.key});
@@ -40,7 +40,7 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
       _error = null;
     });
     try {
-      final quote = await ref.read(portalRepositoryProvider).calculateLoan(value);
+      final quote = await ref.read(refundAdvanceRepositoryProvider).calculateLoan(value);
       if (!mounted) return;
       setState(() {
         _quote = quote;
@@ -60,8 +60,11 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
     if (value == null) return;
     setState(() => _applying = true);
     try {
-      await ref.read(portalRepositoryProvider).applyLoan({
+      await ref.read(refundAdvanceRepositoryProvider).apply({
         'amount': value,
+        'tilaSignedName': 'Mobile applicant',
+        'tierLabel': 'custom',
+        'expectedRefund': value,
         ...?_quote,
       });
       if (mounted) {
