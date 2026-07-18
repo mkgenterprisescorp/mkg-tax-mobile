@@ -9,7 +9,9 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../data/laravel_organizer_repository.dart';
+import '../data/organizer_autofill_settings.dart';
 import '../data/organizer_defaults.dart';
+import '../data/organizer_profile_prefill.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
 import '../data/us_states.dart';
@@ -93,11 +95,13 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           organizer: orgTyped ?? org,
           fallbackYear: year,
         );
+        final filled = await _maybeAutofillProfile(data);
+        if (!mounted) return;
         setState(() {
           _returnId = (orgTyped ?? org)?['id'] ?? workspaceId;
-          _year = (data['filingYear'] as num?)?.toInt() ?? year;
+          _year = (filled['filingYear'] as num?)?.toInt() ?? year;
           _status = ((orgTyped ?? org)?['status'] ?? 'draft').toString();
-          _data = data;
+          _data = filled;
           _loading = false;
           _step = 0;
           _showHub = true;
@@ -112,12 +116,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             returnId: explicitId,
           );
       if (!mounted) return;
+      final merged = Map<String, dynamic>.from(result.data)..['filingStatus'] = result.filingStatus;
+      final filled = await _maybeAutofillProfile(merged);
+      if (!mounted) return;
       setState(() {
         _returnId = result.returnId;
         _year = result.year;
         _status = result.status;
-        _data = result.data;
-        _data['filingStatus'] = result.filingStatus;
+        _data = filled;
         _loading = false;
         _step = 0;
         _showHub = true;
@@ -133,6 +139,35 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _error = ApiErrorMapper.map(e);
       });
     }
+  }
+
+  Future<Map<String, dynamic>> _maybeAutofillProfile(
+    Map<String, dynamic> data, {
+    bool overwrite = false,
+  }) async {
+    final enabled = ref.read(organizerAutofillEnabledProvider);
+    if (!enabled) return data;
+    try {
+      final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
+      return ref.read(organizerProfilePrefillRepositoryProvider).applyTo(
+            data,
+            prefill,
+            overwrite: overwrite,
+          );
+    } catch (_) {
+      return data;
+    }
+  }
+
+  Future<void> _onAutofillToggled(bool enabled) async {
+    await ref.read(organizerAutofillEnabledProvider.notifier).setEnabled(enabled);
+    if (!enabled || !mounted) return;
+    final filled = await _maybeAutofillProfile(_data, overwrite: false);
+    if (!mounted) return;
+    setState(() => _data = filled);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Auto-filled empty fields from your account profile.')),
+    );
   }
 
   void _setRoot(String key, dynamic value) {
@@ -547,8 +582,29 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   Widget _personalInfoStep() {
     final dependents = _listMaps('dependents');
+    final autofillOn = ref.watch(organizerAutofillEnabledProvider);
     return Column(
       children: [
+        OrganizerSection(
+          title: 'Auto-fill my information',
+          subtitle: 'Use your account profile so you do not retype name, email, phone, or address.',
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: autofillOn,
+            activeThumbColor: MkgColors.primary,
+            title: Text(
+              autofillOn ? 'Auto-fill is on' : 'Auto-fill is off',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              autofillOn
+                  ? 'Empty fields are filled from your signed-in profile. Turn off to enter everything manually.'
+                  : 'Turn on to fill taxpayer fields from your account.',
+              style: const TextStyle(color: MkgColors.textGrey, fontSize: 13),
+            ),
+            onChanged: _onAutofillToggled,
+          ),
+        ),
         OrganizerSection(
           title: 'Taxpayer',
           child: Column(
@@ -571,7 +627,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         ),
         OrganizerSection(
           title: 'Address',
-          subtitle: 'Start typing a street or ZIP — suggestions autofill city, state, and ZIP.',
+          subtitle: 'Search the free map directory, then tap a result to fill city, state, and ZIP.',
           child: AddressAutofillFields(
             data: _data,
             onChanged: (key, value) => _setRoot(key, value),

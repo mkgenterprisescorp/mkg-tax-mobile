@@ -8,7 +8,8 @@ import '../../organizer/data/us_states.dart';
 import '../../organizer/presentation/organizer_fields.dart';
 import '../data/address_repository.dart';
 
-/// Street + ZIP autocomplete with state dropdown (US states).
+/// Street address search via free OpenStreetMap Nominatim (Laravel proxy).
+/// Selecting a suggestion fills street, city, state, and ZIP.
 class AddressAutofillFields extends ConsumerStatefulWidget {
   const AddressAutofillFields({
     super.key,
@@ -39,6 +40,7 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
   Timer? _debounce;
   List<Map<String, dynamic>> _suggestions = const [];
   bool _loading = false;
+  String? _searchHint;
 
   @override
   void initState() {
@@ -67,20 +69,28 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
   void _queueSearch(String query) {
     widget.onChanged(widget.streetKey, query);
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () => _search(query));
+    _debounce = Timer(const Duration(milliseconds: 350), () => _search(query));
   }
 
   Future<void> _search(String query) async {
-    if (query.trim().length < 3) {
-      setState(() => _suggestions = const []);
+    final q = query.trim();
+    if (q.length < 3) {
+      setState(() {
+        _suggestions = const [];
+        _searchHint = q.isEmpty ? null : 'Keep typing to search the map…';
+      });
       return;
     }
-    setState(() => _loading = true);
-    final rows = await ref.read(addressRepositoryProvider).suggest(query);
+    setState(() {
+      _loading = true;
+      _searchHint = null;
+    });
+    final rows = await ref.read(addressRepositoryProvider).suggest(q);
     if (!mounted) return;
     setState(() {
       _suggestions = rows;
       _loading = false;
+      _searchHint = rows.isEmpty ? 'No map matches — enter city, state, and ZIP manually.' : null;
     });
   }
 
@@ -110,7 +120,10 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
       _zipCtrl.text = zip;
       widget.onChanged(widget.zipKey, zip);
     }
-    setState(() => _suggestions = const []);
+    setState(() {
+      _suggestions = const [];
+      _searchHint = 'Address applied from map search.';
+    });
   }
 
   @override
@@ -128,33 +141,70 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
         TextField(
           controller: _streetCtrl,
           decoration: InputDecoration(
-            labelText: 'Street address',
-            prefixIcon: const Icon(Icons.place_outlined),
+            labelText: 'Street',
+            hintText: 'Start typing — e.g. 4021 N Fresno',
+            helperText: 'Map search (OpenStreetMap) fills city, state, and ZIP',
+            helperMaxLines: 2,
+            prefixIcon: const Icon(Icons.search),
             suffixIcon: _loading
                 ? const Padding(
                     padding: EdgeInsets.all(12),
                     child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                   )
-                : null,
+                : (_streetCtrl.text.trim().length >= 3
+                    ? IconButton(
+                        tooltip: 'Search address',
+                        onPressed: () => _search(_streetCtrl.text),
+                        icon: const Icon(Icons.travel_explore_outlined),
+                      )
+                    : null),
           ),
+          textInputAction: TextInputAction.search,
           onChanged: _queueSearch,
+          onSubmitted: _search,
         ),
-        if (_suggestions.isNotEmpty) ...[
+        if (_searchHint != null) ...[
           const SizedBox(height: 4),
-          Card(
-            margin: EdgeInsets.zero,
+          Text(
+            _searchHint!,
+            style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+          ),
+        ],
+        if (_suggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.white,
             child: Column(
               children: [
+                const ListTile(
+                  dense: true,
+                  leading: Icon(Icons.map_outlined, color: MkgColors.primary, size: 20),
+                  title: Text(
+                    'Select an address',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+                const Divider(height: 1),
                 for (final s in _suggestions)
                   ListTile(
                     dense: true,
-                    leading: const Icon(Icons.map_outlined, color: MkgColors.primary),
+                    leading: const Icon(Icons.place_outlined, color: MkgColors.primary),
                     title: Text(
                       s['description']?.toString() ??
                           '${s['street'] ?? ''}, ${s['city'] ?? ''} ${s['state'] ?? ''} ${s['zip'] ?? ''}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 13),
+                    ),
+                    subtitle: Text(
+                      [
+                        if ('${s['city'] ?? ''}'.isNotEmpty) '${s['city']}',
+                        if ('${s['state'] ?? ''}'.isNotEmpty) '${s['state']}',
+                        if ('${s['zip'] ?? ''}'.isNotEmpty) '${s['zip']}',
+                      ].join(', '),
+                      style: const TextStyle(fontSize: 12, color: MkgColors.textGrey),
                     ),
                     onTap: () => _apply(s),
                   ),
@@ -164,7 +214,7 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
         ],
         const SizedBox(height: 8),
         OrganizerTextField(
-          label: 'Apt / suite',
+          label: 'Apt / Suite',
           value: widget.data[widget.apartmentKey]?.toString() ?? '',
           onChanged: (v) => widget.onChanged(widget.apartmentKey, v),
         ),
@@ -185,8 +235,8 @@ class _AddressAutofillFieldsState extends ConsumerState<AddressAutofillFields> {
           controller: _zipCtrl,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-            labelText: 'ZIP code',
-            helperText: 'Enter ZIP to autofill city/state',
+            labelText: 'ZIP',
+            helperText: 'Or enter ZIP to look up city/state',
           ),
           onChanged: (v) {
             _debounce?.cancel();
