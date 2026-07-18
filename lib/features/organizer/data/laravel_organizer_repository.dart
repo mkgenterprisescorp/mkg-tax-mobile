@@ -28,7 +28,9 @@ class LaravelOrganizerRepository {
     String prepType = 'personal',
     String? status,
   }) async {
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to save your organizer.');
+    }
     final res = await _api.put<Map<String, dynamic>>(
       '/api/v1/tax-year-workspaces/$workspaceId/organizer',
       data: {
@@ -36,29 +38,47 @@ class LaravelOrganizerRepository {
         'section_key': sectionKey,
         'answers': answers,
         'section_complete': sectionComplete,
-        if (status != null) 'status': status,
+        if (status case final statusValue?) 'status': statusValue,
       },
     );
-    if (!PlatformApi.ok(res)) return null;
+    if (!PlatformApi.ok(res)) {
+      throw StateError(_saveFailureMessage(res.statusCode));
+    }
     return PlatformApi.unwrapMap(res);
   }
 
-  /// Persist every catalog section from canonical organizer [data].
+  /// Persist organizer sections in **one** PUT.
+  ///
+  /// Pass [onlySectionKeys] for fast autosave (dirty sections only).
+  /// Omit it (or pass null) for a full draft/submit save.
   Future<Map<String, dynamic>?> saveAllSections({
     required String workspaceId,
     required Map<String, dynamic> data,
     bool submit = false,
+    Set<String>? onlySectionKeys,
   }) async {
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to save your organizer.');
+    }
     final prep = '${data['prepType'] ?? 'personal'}';
-    Map<String, dynamic>? last;
     final keys = OrganizerSectionMapper.sectionKeysForPrep(prep);
-    // Skip Schedule C when not applicable so completion % is not inflated.
     final effectiveKeys = [
       for (final k in keys)
         if (k != 'schedule_c' || showScheduleCStep(data)) k,
     ];
-    for (var i = 0; i < effectiveKeys.length; i++) {
-      final key = effectiveKeys[i];
+    final targetKeys = onlySectionKeys == null || onlySectionKeys.isEmpty
+        ? effectiveKeys
+        : [
+            for (final k in effectiveKeys)
+              if (onlySectionKeys.contains(k)) k,
+          ];
+    if (targetKeys.isEmpty) {
+      // Nothing dirty — treat as success without a network round-trip.
+      return {'skipped': true};
+    }
+
+    final sections = <Map<String, dynamic>>[];
+    for (final key in targetKeys) {
       final stepTitle = switch (key) {
         'filing_info' => 'Filing Info',
         'personal_info' => 'Personal Info',
@@ -77,16 +97,40 @@ class LaravelOrganizerRepository {
         'entity_form' => businessFormLabels[prep] ?? 'Entity Form',
         _ => key,
       };
-      last = await updateSection(
-        workspaceId: workspaceId,
-        sectionKey: key,
-        answers: OrganizerSectionMapper.answersForSection(key, data),
-        sectionComplete: isOrganizerStepComplete(stepTitle, data),
-        prepType: prep,
-        status: submit && i == effectiveKeys.length - 1 ? 'processing' : null,
-      );
+      sections.add({
+        'section_key': key,
+        'answers': OrganizerSectionMapper.answersForSection(key, data),
+        'section_complete': isOrganizerStepComplete(stepTitle, data),
+      });
     }
-    return last;
+
+    final res = await _api.put<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId/organizer',
+      data: {
+        'prep_type': prep,
+        'sections': sections,
+        if (submit) 'status': 'processing' else 'status': 'draft',
+      },
+    );
+    if (!PlatformApi.ok(res)) {
+      throw StateError(_saveFailureMessage(res.statusCode));
+    }
+    return PlatformApi.unwrapMap(res);
+  }
+
+  String _saveFailureMessage(int? statusCode) {
+    switch (statusCode) {
+      case 401:
+        return 'Please sign in again to save your organizer.';
+      case 403:
+        return 'This action is not authorized.';
+      case 422:
+        return 'Some information could not be validated. Please check your entries and try again.';
+      case 429:
+        return 'Too many save requests — wait a moment and try again.';
+      default:
+        return 'We’re unable to save your organizer right now. Please try again.';
+    }
   }
 
   Future<Map<String, dynamic>?> requestChange({

@@ -10,6 +10,34 @@ class ApiErrorMapper {
     if (error is DioException) {
       return _mapDioException(error);
     }
+    // Avoid importing PortalException (circular with portal_repository).
+    if (error.runtimeType.toString() == 'PortalException') {
+      final msg = error.toString().trim();
+      // PortalException.toString() returns the user message only.
+      if (msg.isNotEmpty &&
+          !msg.contains('Exception') &&
+          msg.length < 180 &&
+          !msg.contains('\n')) {
+        return msg;
+      }
+    }
+    if (error is StateError) {
+      final msg = error.message.trim();
+      // Prefer safe messages we throw ourselves; never raw internals.
+      if (msg == loginSessionExpiredMessage ||
+          msg == loginNoInternetMessage ||
+          msg == loginServerUnavailableMessage ||
+          msg.startsWith('This action') ||
+          msg.startsWith('Some information') ||
+          msg.startsWith('The requested') ||
+          msg.startsWith('Too many') ||
+          msg.startsWith('Please check') ||
+          msg.startsWith('Please sign in') ||
+          msg.startsWith('We’re unable') ||
+          msg.startsWith("We're unable")) {
+        return msg;
+      }
+    }
 
     return genericMessage;
   }
@@ -64,7 +92,7 @@ class ApiErrorMapper {
       case 422:
         return 'Some information could not be validated. Please check your entries and try again.';
       case 429:
-        return loginTooManyAttemptsMessage;
+        return 'Too many requests — wait a moment and try again.';
       case 500:
         return loginServerUnavailableMessage;
       case 503:

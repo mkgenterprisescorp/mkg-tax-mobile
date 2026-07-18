@@ -79,22 +79,35 @@
   ],
   "wages": 0,
   "taxWithheld": 0,
+  "taxWithheldW2": 0,
+  "taxWithheld1099": 0,
   "interestIncome": 0,
   "dividendIncome": 0,
+  "qualifiedDividends": 0,
   "businessIncome": 0,
+  "necCompensation": 0,
+  "form1099KGross": 0,
   "capitalGains": 0,
   "rentalIncome": 0,
   "unemploymentComp": 0,
+  "stateTaxRefund": 0,
   "socialSecurityBenefits": 0,
+  "socialSecurityGross": 0,
   "ihssIncome": 0,
   "otherIncome": 0,
   "alimonyReceived": 0,
   "iraDistributions": 0,
+  "iraDistributionsGross": 0,
   "pensionAnnuities": 0,
+  "pensionAnnuitiesGross": 0,
   "farmIncome": 0,
   "hasEIC": false,
   "numEICChildren": 0,
   "childTaxCreditChildren": 0,
+  "childTaxCredit": 0,
+  "additionalChildTaxCredit": 0,
+  "otherDependentsCreditCount": 0,
+  "otherDependentsCredit": 0,
   "dependentCareExpenses": 0,
   "dependentCareProvider": "",
   "dependentCareProviderTIN": "",
@@ -113,6 +126,9 @@
   "iraDeduction": 0,
   "selfEmploymentTax": 0,
   "residentialEnergyCredit": 0,
+  "qbiDeduction": 0,
+  "adoptionCredit": 0,
+  "itemizedDeductions": 0,
   "itemizeDeductions": false,
   "scheduleC": {
     "businessName": "",
@@ -157,7 +173,8 @@
     "charitableCash": 0,
     "charitableNonCash": 0,
     "casualtyLosses": 0,
-    "otherItemized": 0
+    "otherItemized": 0,
+    "totalItemized": 0
   },
   "scheduleB": {
     "interestPayers": [],
@@ -177,19 +194,56 @@
     "alimonyRecipientSSN": "",
     "otherIncome": 0,
     "otherIncomeType": "",
+    "stateTaxRefund": 0,
     "educatorExpenses": 0,
     "hsaDeduction": 0,
     "selfEmploymentTax": 0,
+    "sepSimpleQualifiedPlans": 0,
+    "selfEmployedHealthInsurance": 0,
     "studentLoanInterest": 0,
     "iraDeduction": 0,
     "movingExpenses": 0,
     "alimonyPaid": 0,
-    "alimonyPaidRecipientSSN": ""
+    "alimonyPaidRecipientSSN": "",
+    "otherAdjustments": 0,
+    "totalAdjustments": 0,
+    "totalAdditionalIncome": 0
   },
   "schedule1A": {
     "tipIncome": 0,
     "overtimeDeduction": 0,
-    "autoLoanInterest": 0
+    "autoLoanInterest": 0,
+    "otherDeductions": 0,
+    "totalAdditionalDeductions": 0
+  },
+  "schedule8812": {
+    "qualifyingChildren": 0,
+    "otherDependents": 0,
+    "childTaxCredit": 0,
+    "otherDependentsCredit": 0,
+    "additionalChildTaxCredit": 0,
+    "totalCreditLine19": 0
+  },
+  "form8995": {
+    "qualifiedBusinessIncome": 0,
+    "qbiDeduction": 0,
+    "taxableIncomeBeforeQbi": 0,
+    "reitDividends": 0,
+    "ptpIncome": 0
+  },
+  "form8839": {
+    "qualifiedAdoptionExpenses": 0,
+    "adoptionCredit": 0,
+    "refundableAdoptionCredit": 0,
+    "employerAdoptionBenefits": 0,
+    "childName": ""
+  },
+  "form2441": {
+    "qualifiedExpenses": 0,
+    "creditAmount": 0,
+    "providerName": "",
+    "providerTIN": "",
+    "careForQualifyingPersons": 0
   },
   "form1099B": [],
   "form1099NEC": [],
@@ -197,6 +251,9 @@
   "form1099DIV": [],
   "form1099K": [],
   "form1099DA": [],
+  "form1099R": [],
+  "formSSA1099": [],
+  "form1099G": [],
   "form1041": {
     "entityName": "",
     "ein": "",
@@ -584,7 +641,11 @@
     "institution": "",
     "tuitionPaid": 0,
     "scholarships": 0,
-    "creditType": "american_opportunity"
+    "creditType": "american_opportunity",
+    "americanOpportunityCredit": 0,
+    "lifetimeLearningCredit": 0,
+    "refundableAotc": 0,
+    "nonrefundableCredit": 0
   },
   "form5695": {
     "solarElectric": 0,
@@ -596,7 +657,8 @@
     "evCharger": 0,
     "insulationWindows": 0,
     "energyEfficientHVAC": 0,
-    "waterHeater": 0
+    "waterHeater": 0,
+    "totalCredit": 0
   },
   "schedule2": {
     "altMinimumTax": 0,
@@ -636,7 +698,7 @@
     "churchEmployeeIncome": 0,
     "totalSEIncome": 0,
     "taxRate": 0.153,
-    "maxSEEarnings": 168600
+    "maxSEEarnings": 176100
   },
   "form8949": {
     "shortTermTransactions": [],

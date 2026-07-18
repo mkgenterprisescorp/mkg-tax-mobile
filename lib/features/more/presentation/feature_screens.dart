@@ -320,14 +320,10 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   Future<void> _openHostedUrl(String? url) async {
-    if (url != null && url.isNotEmpty) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      return;
-    }
-    await launchUrl(
-      Uri.parse('${AppConfig.webRoot}/payments'),
-      mode: LaunchMode.externalApplication,
-    );
+    final uri = (url != null && url.isNotEmpty)
+        ? AppConfig.rewriteLegacyPortalUri(Uri.parse(url))
+        : Uri.parse(AppConfig.paymentsWebUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _checkout(Map<String, dynamic> inv) async {
@@ -469,7 +465,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             OutlinedButton.icon(
               onPressed: () => _openHostedUrl(null),
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Open hosted payments on web'),
+              label: const Text('Open payments on mkgtaxconsultants.com'),
             ),
             const SizedBox(height: 12),
             if (_invoices.isEmpty)
@@ -503,22 +499,6 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ],
         ],
       ),
-    );
-  }
-}
-
-class BookkeepingScreen extends StatelessWidget {
-  const BookkeepingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        SectionHeader('Bookkeeping'),
-        Card(child: ListTile(title: Text('Monthly close'), subtitle: Text('Complete intake on web for full workflow'), trailing: Icon(Icons.chevron_right))),
-        Card(child: ListTile(title: Text('Transactions to categorize'), subtitle: Text('Synced from portal when available'), trailing: Icon(Icons.chevron_right))),
-      ],
     );
   }
 }
@@ -617,7 +597,7 @@ class SupportScreen extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
             title: const Text('Tessa AI'),
-            subtitle: const Text('Replaces legacy chat'),
+            subtitle: const Text('Chat with your tax assistant'),
             onTap: () => context.go('/tessa'),
           ),
         ),
@@ -636,13 +616,6 @@ class SupportScreen extends StatelessWidget {
             leading: Icon(Icons.phone, color: MkgColors.primary),
             title: Text('Call office'),
             subtitle: Text('Use contact info from your engagement letter'),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.info_outline, color: MkgColors.primary),
-            title: const Text('Connection info'),
-            subtitle: Text(AppConfig.authModeLabel),
           ),
         ),
       ],

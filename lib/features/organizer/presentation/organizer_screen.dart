@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,14 +11,18 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../data/laravel_organizer_repository.dart';
+import '../data/organizer_autofill_settings.dart';
 import '../data/organizer_defaults.dart';
+import '../data/organizer_profile_prefill.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
-import '../data/us_states.dart';
 import 'organizer_credits_step.dart';
 import 'organizer_fields.dart';
 import 'organizer_form_1040x_step.dart';
+import 'organizer_income_forms_step.dart';
 import 'organizer_state_returns_step.dart';
+
+enum _AutoSaveStatus { idle, pending, saving, saved, error }
 
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
@@ -39,6 +45,16 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   bool _showHub = true;
   Map<String, dynamic> _data = {};
 
+  /// Fast debounce — dirty-section PUT keeps payloads small.
+  static const _autoSaveDebounce = Duration(milliseconds: 700);
+  Timer? _autoSaveTimer;
+  Timer? _autoSaveIdleTimer;
+  bool _autoSaveReady = false;
+  bool _autoSaving = false;
+  _AutoSaveStatus _autoSaveStatus = _AutoSaveStatus.idle;
+  String? _autoSaveError;
+  final Set<String> _dirtySectionKeys = {};
+
   List<String> get _steps {
     final prep = '${_data['prepType'] ?? 'personal'}';
     final steps = stepsForPrepType(prep);
@@ -50,16 +66,36 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   int get _completedCount => _steps.where((s) => isOrganizerStepComplete(s, _data)).length;
 
+  bool get _isLocked =>
+      _status == 'processing' ||
+      _status == 'completed' ||
+      _status == 'filed' ||
+      _status == 'accepted';
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
     setState(() {
       _loading = true;
       _error = null;
+      _autoSaveReady = false;
+      _autoSaving = false;
+      _autoSaveStatus = _AutoSaveStatus.idle;
+      _autoSaveError = null;
+      _dirtySectionKeys.clear();
     });
     try {
       final tax = ref.read(taxYearProvider);
@@ -93,14 +129,17 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           organizer: orgTyped ?? org,
           fallbackYear: year,
         );
+        final filled = await _maybeAutofillProfile(data);
+        if (!mounted) return;
         setState(() {
           _returnId = (orgTyped ?? org)?['id'] ?? workspaceId;
-          _year = (data['filingYear'] as num?)?.toInt() ?? year;
+          _year = (filled['filingYear'] as num?)?.toInt() ?? year;
           _status = ((orgTyped ?? org)?['status'] ?? 'draft').toString();
-          _data = data;
+          _data = filled;
           _loading = false;
           _step = 0;
           _showHub = true;
+          _autoSaveReady = true;
         });
         return;
       }
@@ -112,15 +151,18 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             returnId: explicitId,
           );
       if (!mounted) return;
+      final merged = Map<String, dynamic>.from(result.data)..['filingStatus'] = result.filingStatus;
+      final filled = await _maybeAutofillProfile(merged);
+      if (!mounted) return;
       setState(() {
         _returnId = result.returnId;
         _year = result.year;
         _status = result.status;
-        _data = result.data;
-        _data['filingStatus'] = result.filingStatus;
+        _data = filled;
         _loading = false;
         _step = 0;
         _showHub = true;
+        _autoSaveReady = true;
       });
       // Keep tax-year selector aligned with the opened return.
       if (tax.selectedYear != result.year) {
@@ -131,22 +173,114 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       setState(() {
         _loading = false;
         _error = ApiErrorMapper.map(e);
+        _autoSaveReady = false;
       });
+    }
+  }
+
+  Future<Map<String, dynamic>> _maybeAutofillProfile(
+    Map<String, dynamic> data, {
+    bool overwrite = false,
+  }) async {
+    final enabled = ref.read(organizerAutofillEnabledProvider);
+    if (!enabled) return data;
+    try {
+      final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
+      return ref.read(organizerProfilePrefillRepositoryProvider).applyTo(
+            data,
+            prefill,
+            overwrite: overwrite,
+          );
+    } catch (_) {
+      return data;
+    }
+  }
+
+  Future<void> _onAutofillToggled(bool enabled) async {
+    await ref.read(organizerAutofillEnabledProvider.notifier).setEnabled(enabled);
+    if (!enabled || !mounted) return;
+    final filled = await _maybeAutofillProfile(_data, overwrite: false);
+    if (!mounted) return;
+    setState(() => _data = filled);
+    _dirtySectionKeys.add('personal_info');
+    _dirtySectionKeys.add('filing_info');
+    _scheduleAutoSave();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Auto-filled empty fields from your account profile.')),
+    );
+  }
+
+  void _markCurrentSectionDirty() {
+    if (_steps.isEmpty || _step < 0 || _step >= _steps.length) return;
+    _dirtySectionKeys.add(OrganizerSectionMapper.stepToSectionKey(_steps[_step]));
+    // Multistate edits live alongside CA when on State Tax Returns.
+    if (_steps[_step] == 'State Tax Returns' || _steps[_step] == 'CA 540 State Tax') {
+      _dirtySectionKeys.add('state_multistate');
+      _dirtySectionKeys.add('state_ca_540');
     }
   }
 
   void _setRoot(String key, dynamic value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = value);
+    _markCurrentSectionDirty();
+    _scheduleAutoSave();
   }
 
   void _setNested(String nestKey, Map<String, dynamic> value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[nestKey] = value);
+    _markCurrentSectionDirty();
+    _scheduleAutoSave();
+  }
+
+  void _patchData(Map<String, dynamic> patch) {
+    setState(() {
+      final next = Map<String, dynamic>.from(_data);
+      patch.forEach((key, value) => next[key] = value);
+      _data = next;
+    });
+    _markCurrentSectionDirty();
+    _scheduleAutoSave();
   }
 
   Map<String, dynamic> _map(String key) => Map<String, dynamic>.from((_data[key] as Map?) ?? {});
 
-  Future<void> _save({bool submit = false}) async {
-    setState(() => _saving = true);
+  void _scheduleAutoSave() {
+    if (!_autoSaveReady || _isLocked || !mounted) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
+    if (_autoSaveStatus != _AutoSaveStatus.saving &&
+        _autoSaveStatus != _AutoSaveStatus.pending) {
+      setState(() {
+        _autoSaveStatus = _AutoSaveStatus.pending;
+        _autoSaveError = null;
+      });
+    }
+    _autoSaveTimer = Timer(_autoSaveDebounce, _runAutoSave);
+  }
+
+  Future<void> _runAutoSave() async {
+    if (!_autoSaveReady || !mounted || _isLocked) return;
+    if (_saving || _autoSaving) {
+      // Manual/continue or autosave in flight — retry shortly after it finishes.
+      _autoSaveTimer = Timer(const Duration(milliseconds: 400), _runAutoSave);
+      return;
+    }
+    await _save(silent: true);
+  }
+
+  Future<void> _save({bool submit = false, bool silent = false}) async {
+    _autoSaveTimer?.cancel();
+    if (silent) {
+      // Background autosave must not lock Continue / Save buttons.
+      setState(() {
+        _autoSaving = true;
+        _autoSaveStatus = _AutoSaveStatus.saving;
+        _autoSaveError = null;
+      });
+    } else {
+      setState(() => _saving = true);
+    }
+    final dirtySnapshot = Set<String>.from(_dirtySectionKeys);
     try {
       final status = submit ? 'processing' : 'draft';
       final filingStatus = '${_data['filingStatus'] ?? 'single'}';
@@ -162,6 +296,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                 'clientPlatform': 'flutter',
               },
               submit: submit,
+              // Autosave: dirty sections only. Manual/Continue: full snapshot.
+              onlySectionKeys: silent && !submit ? dirtySnapshot : null,
             );
       } else {
         await ref.read(organizerRepositoryProvider).save(
@@ -177,18 +313,52 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             );
       }
       if (!mounted) return;
+      // Clear only keys we attempted; keep anything marked while save was in flight.
+      _dirtySectionKeys.removeAll(dirtySnapshot);
       setState(() {
         _status = status;
         _saving = false;
+        _autoSaving = false;
+        if (silent) {
+          _autoSaveStatus = _AutoSaveStatus.saved;
+          _autoSaveError = null;
+        } else {
+          _autoSaveStatus = _AutoSaveStatus.idle;
+          _dirtySectionKeys.clear();
+        }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(submit ? 'Submitted for processing.' : 'Draft saved.')),
-      );
+      if (silent) {
+        _autoSaveIdleTimer?.cancel();
+        _autoSaveIdleTimer = Timer(const Duration(milliseconds: 900), () {
+          if (!mounted) return;
+          if (_autoSaveStatus == _AutoSaveStatus.saved) {
+            setState(() => _autoSaveStatus = _AutoSaveStatus.idle);
+          }
+        });
+        // If more edits landed during save, flush them ASAP.
+        if (_dirtySectionKeys.isNotEmpty) {
+          _scheduleAutoSave();
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(submit ? 'Submitted for processing.' : 'Draft saved.')),
+        );
+      }
       if (submit) context.go('/tax-center');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
+      final message = ApiErrorMapper.map(e);
+      setState(() {
+        _saving = false;
+        _autoSaving = false;
+        if (silent) {
+          _autoSaveStatus = _AutoSaveStatus.error;
+          _autoSaveError = message;
+        }
+      });
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
     }
   }
 
@@ -252,7 +422,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final steps = _steps;
     final stepIndex = _step.clamp(0, steps.length - 1);
     final title = steps[stepIndex];
-    final locked = _status == 'processing' || _status == 'completed' || _status == 'filed' || _status == 'accepted';
+    final locked = _isLocked;
 
     if (_showHub) {
       return _buildHub(steps: steps, locked: locked);
@@ -277,9 +447,16 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             TextButton(onPressed: locked || _saving ? null : () => _save(), child: const Text('Save')),
           ],
         ),
-        Text(
-          'Section ${stepIndex + 1} of ${steps.length} · TY $_year',
-          style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Section ${stepIndex + 1} of ${steps.length} · TY $_year',
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+              ),
+            ),
+            if (!locked) _autoSaveIndicator(),
+          ],
         ),
         const SizedBox(height: 12),
         _StepProgress(steps: steps, index: stepIndex),
@@ -325,7 +502,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
       children: [
-        const Text('Tax Organizer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Tax Organizer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            ),
+            if (!locked) _autoSaveIndicator(),
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           'Tap a section to walk through and complete · TY $_year',
@@ -428,7 +612,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final prep = '${_data['prepType'] ?? 'personal'}';
     if (title == 'Filing Info') return _filingInfoStep();
     if (title == 'Personal Info') return _personalInfoStep();
-    if (title == 'Income (1040)') return _incomeStep();
+    if (title == 'Income (1040)') {
+      return OrganizerIncomeFormsStep(
+        data: _data,
+        onRoot: _setRoot,
+        onNested: _setNested,
+        onPatch: _patchData,
+      );
+    }
     if (title == 'Schedule B') return _scheduleBStep();
     if (title == 'Schedule C') return _scheduleCStep();
     if (title == 'Schedule D') return _scheduleDStep();
@@ -439,6 +630,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         data: _data,
         onRoot: _setRoot,
         onNested: _setNested,
+        onPatch: _patchData,
       );
     }
     if (title == 'Form 1040-X') {
@@ -461,6 +653,39 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       return _entityFormStep(prep);
     }
     return const Text('Unknown step');
+  }
+
+  Widget _filingYearDropdown() {
+    final catalogYears = ref.watch(taxYearProvider).years;
+    final currentFiling =
+        ref.watch(taxYearProvider).currentFilingYear ?? DateTime.now().year - 1;
+    final yearItems = catalogYears.isNotEmpty
+        ? <(int, String)>[
+            for (final y in catalogYears)
+              (
+                y.taxYear,
+                y.isCurrentFilingYear
+                    ? '${y.taxYear} — Current Filing Season'
+                    : '${y.taxYear}',
+              ),
+          ]
+        : filingYearOptions(currentYear: currentFiling);
+    final selected = (_data['filingYear'] as num?)?.toInt() ?? _year;
+    final value = yearItems.any((e) => e.$1 == selected) ? selected : yearItems.first.$1;
+    return OrganizerDropdown<int>(
+      label: 'Filing year',
+      value: value,
+      items: yearItems,
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() {
+          _year = v;
+          _data = Map<String, dynamic>.from(_data)..['filingYear'] = v;
+        });
+        // Keep the shared TY selector / workspace aligned with organizer.
+        ref.read(taxYearProvider.notifier).selectYear(v);
+      },
+    );
   }
 
   Widget _filingInfoStep() {
@@ -489,21 +714,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           items: filingStatusOptions,
           onChanged: (v) => _setRoot('filingStatus', v ?? 'single'),
         ),
-        OrganizerTextField(
-          label: 'Filing year',
-          value: '${_data['filingYear'] ?? _year}',
-          keyboardType: TextInputType.number,
-          onChanged: (v) {
-            final y = int.tryParse(v);
-            if (y != null) {
-              _year = y;
-              _setRoot('filingYear', y);
-            }
-          },
-        ),
+        _filingYearDropdown(),
         const MkgCard(
           child: Text(
-            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow — same schemas as the web portal.',
+            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Business entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),
@@ -521,12 +735,89 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   void _setList(String key, List<Map<String, dynamic>> rows) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = rows);
+    _scheduleAutoSave();
+  }
+
+  Widget _autoSaveIndicator() {
+    switch (_autoSaveStatus) {
+      case _AutoSaveStatus.pending:
+        return const Text(
+          'Unsaved changes…',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        );
+      case _AutoSaveStatus.saving:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2, color: MkgColors.textGrey),
+            ),
+            SizedBox(width: 6),
+            Text('Saving…', style: TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+          ],
+        );
+      case _AutoSaveStatus.saved:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, size: 14, color: MkgColors.green),
+            SizedBox(width: 4),
+            Text('Saved', style: TextStyle(color: MkgColors.green, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        );
+      case _AutoSaveStatus.error:
+        return Tooltip(
+          message: _autoSaveError ?? 'Could not auto-save',
+          child: InkWell(
+            onTap: _isLocked ? null : _runAutoSave,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 14, color: Colors.redAccent),
+                SizedBox(width: 4),
+                Text(
+                  'Save failed — tap to retry',
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        );
+      case _AutoSaveStatus.idle:
+        return const Text(
+          'Auto-save on',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        );
+    }
   }
 
   Widget _personalInfoStep() {
     final dependents = _listMaps('dependents');
+    final autofillOn = ref.watch(organizerAutofillEnabledProvider);
     return Column(
       children: [
+        OrganizerSection(
+          title: 'Auto-fill my information',
+          subtitle: 'Use your account profile so you do not retype name, email, phone, or address.',
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: autofillOn,
+            activeThumbColor: MkgColors.primary,
+            title: Text(
+              autofillOn ? 'Auto-fill is on' : 'Auto-fill is off',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              autofillOn
+                  ? 'Empty fields are filled from your signed-in profile. Turn off to enter everything manually.'
+                  : 'Turn on to fill taxpayer fields from your account.',
+              style: const TextStyle(color: MkgColors.textGrey, fontSize: 13),
+            ),
+            onChanged: _onAutofillToggled,
+          ),
+        ),
         OrganizerSection(
           title: 'Taxpayer',
           child: Column(
@@ -549,7 +840,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         ),
         OrganizerSection(
           title: 'Address',
-          subtitle: 'Start typing a street or ZIP — suggestions autofill city, state, and ZIP.',
+          subtitle: 'Search the free map directory, then tap a result to fill city, state, and ZIP.',
           child: AddressAutofillFields(
             data: _data,
             onChanged: (key, value) => _setRoot(key, value),
@@ -568,7 +859,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           ),
         OrganizerSection(
           title: 'Dependents',
-          subtitle: 'Same dependents[] schema as web Organizer (name, SSN, relationship, DOB).',
+          subtitle: 'Add each dependent’s name, SSN, relationship, and date of birth.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -664,162 +955,6 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                 label: const Text('Add dependent'),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _syncWagesFromW2(List<Map<String, dynamic>> w2s) {
-    num wages = 0;
-    num withheld = 0;
-    for (final w in w2s) {
-      wages += (w['box1_wagesTips'] is num)
-          ? w['box1_wagesTips'] as num
-          : num.tryParse('${w['box1_wagesTips']}') ?? 0;
-      withheld += (w['box2_fedTaxWithheld'] is num)
-          ? w['box2_fedTaxWithheld'] as num
-          : num.tryParse('${w['box2_fedTaxWithheld']}') ?? 0;
-    }
-    _setRoot('wages', wages);
-    _setRoot('taxWithheld', withheld);
-  }
-
-  void _patchW2(int index, String key, dynamic value, {bool syncWages = false}) {
-    final w2s = _listMaps('w2Forms');
-    if (index < 0 || index >= w2s.length) return;
-    final next = List<Map<String, dynamic>>.from(w2s);
-    next[index] = Map<String, dynamic>.from(next[index])..[key] = value;
-    _setList('w2Forms', next);
-    if (syncWages) _syncWagesFromW2(next);
-  }
-
-  Widget _incomeStep() {
-    final w2s = _listMaps('w2Forms');
-    final schedule1 = _map('schedule1');
-
-    return Column(
-      children: [
-        OrganizerSection(
-          title: 'W-2 forms',
-          subtitle: 'Form W-2 wages — totals roll into Form 1040 wages / tax withheld.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < w2s.length; i++) ...[
-                MkgCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text('W-2 #${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                          ),
-                          if (w2s.length > 1)
-                            IconButton(
-                              onPressed: () {
-                                final next = List<Map<String, dynamic>>.from(w2s)..removeAt(i);
-                                _setList('w2Forms', next);
-                                _syncWagesFromW2(next);
-                              },
-                              icon: const Icon(Icons.delete_outline, color: MkgColors.red),
-                            ),
-                        ],
-                      ),
-                      OrganizerTextField(label: 'Employer name', value: '${w2s[i]['employerName'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerName', v)),
-                      OrganizerTextField(label: 'Employer EIN', value: '${w2s[i]['employerEIN'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerEIN', v)),
-                      OrganizerTextField(label: 'Employer address', value: '${w2s[i]['employerAddress'] ?? ''}', onChanged: (v) => _patchW2(i, 'employerAddress', v)),
-                      OrganizerMoneyField(label: 'Box 1 — Wages, tips', value: w2s[i]['box1_wagesTips'], onChanged: (v) => _patchW2(i, 'box1_wagesTips', v, syncWages: true)),
-                      OrganizerMoneyField(label: 'Box 2 — Federal tax withheld', value: w2s[i]['box2_fedTaxWithheld'], onChanged: (v) => _patchW2(i, 'box2_fedTaxWithheld', v, syncWages: true)),
-                      OrganizerMoneyField(label: 'Box 3 — Social Security wages', value: w2s[i]['box3_ssWages'], onChanged: (v) => _patchW2(i, 'box3_ssWages', v)),
-                      OrganizerMoneyField(label: 'Box 4 — Social Security tax', value: w2s[i]['box4_ssTaxWithheld'], onChanged: (v) => _patchW2(i, 'box4_ssTaxWithheld', v)),
-                      OrganizerMoneyField(label: 'Box 5 — Medicare wages', value: w2s[i]['box5_medicareWages'], onChanged: (v) => _patchW2(i, 'box5_medicareWages', v)),
-                      OrganizerMoneyField(label: 'Box 6 — Medicare tax', value: w2s[i]['box6_medicareTaxWithheld'], onChanged: (v) => _patchW2(i, 'box6_medicareTaxWithheld', v)),
-                      OrganizerMoneyField(label: 'Box 7 — Social Security tips', value: w2s[i]['box7_ssTips'], onChanged: (v) => _patchW2(i, 'box7_ssTips', v)),
-                      OrganizerMoneyField(label: 'Box 10 — Dependent care benefits', value: w2s[i]['box10_dependentCareBenefits'], onChanged: (v) => _patchW2(i, 'box10_dependentCareBenefits', v)),
-                      OrganizerTextField(label: 'Box 12a code', value: '${w2s[i]['box12a_code'] ?? ''}', onChanged: (v) => _patchW2(i, 'box12a_code', v)),
-                      OrganizerMoneyField(label: 'Box 12a amount', value: w2s[i]['box12a_amount'], onChanged: (v) => _patchW2(i, 'box12a_amount', v)),
-                      OrganizerCheckbox(label: 'Box 13 — Retirement plan', value: w2s[i]['box13_retirementPlan'] == true, onChanged: (v) => _patchW2(i, 'box13_retirementPlan', v)),
-                      OrganizerTextField(label: 'Box 14 — Other', value: '${w2s[i]['box14_other'] ?? ''}', onChanged: (v) => _patchW2(i, 'box14_other', v)),
-                      OrganizerDropdown<String>(
-                        label: 'Box 15 — State',
-                        value: usStateOptions.any((e) => e.$1 == '${w2s[i]['box15_state'] ?? ''}')
-                            ? '${w2s[i]['box15_state']}'
-                            : '',
-                        items: [
-                          ('', 'Select state'),
-                          for (final opt in usStateOptions) (opt.$1, opt.$1),
-                        ],
-                        onChanged: (v) => _patchW2(i, 'box15_state', v ?? ''),
-                      ),
-                      OrganizerMoneyField(label: 'Box 16 — State wages', value: w2s[i]['box16_stateWages'], onChanged: (v) => _patchW2(i, 'box16_stateWages', v)),
-                      OrganizerMoneyField(label: 'Box 17 — State tax', value: w2s[i]['box17_stateTax'], onChanged: (v) => _patchW2(i, 'box17_stateTax', v)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              OutlinedButton.icon(
-                onPressed: () {
-                  final next = [
-                    ...w2s,
-                    emptyW2Form(
-                      employeeSSN: '${_data['ssn'] ?? ''}',
-                      employeeFirstName: '${_data['firstName'] ?? ''}',
-                      employeeLastName: '${_data['lastName'] ?? ''}',
-                      employeeAddress: '${_data['address'] ?? ''}',
-                      employeeCity: '${_data['city'] ?? ''}',
-                      employeeState: '${_data['state'] ?? ''}',
-                      employeeZip: '${_data['zip'] ?? ''}',
-                    ),
-                  ];
-                  _setList('w2Forms', next);
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add W-2'),
-              ),
-            ],
-          ),
-        ),
-        OrganizerSection(
-          title: 'Form 1040 income summary',
-          subtitle: 'Roll-up lines. Detailed interest/dividends, business, capital gains, rentals, and farm live on Schedules B–F.',
-          child: Column(
-            children: [
-              OrganizerMoneyField(label: '1 — Wages (W-2 total)', value: _data['wages'], onChanged: (v) => _setRoot('wages', v)),
-              OrganizerMoneyField(label: 'Federal tax withheld', value: _data['taxWithheld'], onChanged: (v) => _setRoot('taxWithheld', v)),
-              OrganizerMoneyField(label: '2b — Taxable interest (Schedule B)', value: _data['interestIncome'], onChanged: (v) => _setRoot('interestIncome', v)),
-              OrganizerMoneyField(label: '3b — Ordinary dividends (Schedule B)', value: _data['dividendIncome'], onChanged: (v) => _setRoot('dividendIncome', v)),
-              OrganizerMoneyField(label: '7 — Capital gain (Schedule D)', value: _data['capitalGains'], onChanged: (v) => _setRoot('capitalGains', v)),
-              OrganizerMoneyField(label: '8 — Additional income / Schedule 1', value: _data['otherIncome'], onChanged: (v) => _setRoot('otherIncome', v)),
-              OrganizerMoneyField(label: 'Business income (Schedule C)', value: _data['businessIncome'], onChanged: (v) => _setRoot('businessIncome', v)),
-              OrganizerMoneyField(label: 'Rental income (Schedule E)', value: _data['rentalIncome'], onChanged: (v) => _setRoot('rentalIncome', v)),
-              OrganizerMoneyField(label: 'Farm income (Schedule F)', value: _data['farmIncome'], onChanged: (v) => _setRoot('farmIncome', v)),
-              OrganizerMoneyField(label: 'Unemployment compensation', value: _data['unemploymentComp'], onChanged: (v) => _setRoot('unemploymentComp', v)),
-              OrganizerMoneyField(label: 'Social Security benefits', value: _data['socialSecurityBenefits'], onChanged: (v) => _setRoot('socialSecurityBenefits', v)),
-              OrganizerMoneyField(label: 'IRA distributions', value: _data['iraDistributions'], onChanged: (v) => _setRoot('iraDistributions', v)),
-              OrganizerMoneyField(label: 'Pensions and annuities', value: _data['pensionAnnuities'], onChanged: (v) => _setRoot('pensionAnnuities', v)),
-              OrganizerMoneyField(label: 'Alimony received', value: _data['alimonyReceived'], onChanged: (v) => _setRoot('alimonyReceived', v)),
-            ],
-          ),
-        ),
-        OrganizerSection(
-          title: 'Schedule 1 highlights',
-          child: NestedMapEditor(
-            data: schedule1,
-            onlyKeys: const [
-              'unemployment',
-              'alimonyReceived',
-              'otherIncome',
-              'otherIncomeType',
-              'educatorExpenses',
-              'hsaDeduction',
-              'selfEmploymentTax',
-              'studentLoanInterest',
-              'iraDeduction',
-            ],
-            onChanged: (m) => _setNested('schedule1', m),
           ),
         ),
       ],
@@ -1172,7 +1307,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
     return OrganizerSection(
       title: 'Schedule E — Rental / Royalty',
-      subtitle: 'Same rentalProperties[] schema as the web organizer.',
+      subtitle: 'Add each rental property you own.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1287,15 +1422,19 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     const identity = [
       'businessName',
       'businessEIN',
+      'businessType',
+      'accountingMethod',
+    ];
+    final addressKeys = {
       'businessAddress',
       'businessApartment',
       'businessCity',
       'businessState',
       'businessZip',
-      'businessType',
-      'accountingMethod',
-    ];
-    final expenseKeys = scheduleC.keys.where((k) => !identity.contains(k)).toList();
+    };
+    final expenseKeys = scheduleC.keys
+        .where((k) => !identity.contains(k) && !addressKeys.contains(k))
+        .toList();
     return Column(
       children: [
         OrganizerSection(
@@ -1305,6 +1444,24 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             data: scheduleC,
             onlyKeys: identity,
             onChanged: (m) => _setNested('scheduleC', m),
+          ),
+        ),
+        OrganizerSection(
+          title: 'Business address (street map)',
+          subtitle: 'Search the map to fill city, state, and ZIP.',
+          child: AddressAutofillFields(
+            data: scheduleC,
+            onChanged: (key, value) {
+              final next = Map<String, dynamic>.from(scheduleC)..[key] = value;
+              _setNested('scheduleC', next);
+            },
+            streetKey: 'businessAddress',
+            cityKey: 'businessCity',
+            stateKey: 'businessState',
+            zipKey: 'businessZip',
+            apartmentKey: 'businessApartment',
+            streetLabel: 'Business street',
+            helperText: 'Map search fills business city, state, and ZIP',
           ),
         ),
         OrganizerSection(

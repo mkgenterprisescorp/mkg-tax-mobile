@@ -167,6 +167,7 @@ class NestedMapEditor extends StatelessWidget {
     this.moneyKeys = const {},
     this.excludeKeys = const {},
     this.onlyKeys,
+    this.labels = const {},
   });
 
   final Map<String, dynamic> data;
@@ -174,6 +175,10 @@ class NestedMapEditor extends StatelessWidget {
   final Set<String> moneyKeys;
   final Set<String> excludeKeys;
   final List<String>? onlyKeys;
+  /// Optional Form 1040 / schedule line labels keyed by schema field.
+  final Map<String, String> labels;
+
+  String _label(String key) => labels[key] ?? humanizeKey(key);
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +195,7 @@ class NestedMapEditor extends StatelessWidget {
   Widget _fieldFor(String key, dynamic value) {
     if (value is bool) {
       return OrganizerCheckbox(
-        label: humanizeKey(key),
+        label: _label(key),
         value: value,
         onChanged: (v) {
           final next = Map<String, dynamic>.from(data)..[key] = v;
@@ -215,10 +220,11 @@ class NestedMapEditor extends StatelessWidget {
         key.toLowerCase().contains('interest') ||
         key.toLowerCase().contains('dividend') ||
         key.toLowerCase().contains('depreciat') ||
-        key.toLowerCase().contains('comp');
+        key.toLowerCase().contains('comp') ||
+        key.toLowerCase().contains('credit');
     if (treatMoney && value is! String) {
       return OrganizerMoneyField(
-        label: humanizeKey(key),
+        label: _label(key),
         value: value,
         onChanged: (v) {
           final next = Map<String, dynamic>.from(data)..[key] = v;
@@ -227,7 +233,7 @@ class NestedMapEditor extends StatelessWidget {
       );
     }
     return OrganizerTextField(
-      label: humanizeKey(key),
+      label: _label(key),
       value: '${value ?? ''}',
       onChanged: (v) {
         final next = Map<String, dynamic>.from(data)..[key] = v;

@@ -16,4 +16,13 @@ void main() {
     expect(emptyAdditionalStateReturn(stateCode: 'NY')['filingRequired'], isTrue);
     expect(emptyAdditionalStateReturn(stateCode: 'TX')['filingRequired'], isFalse);
   });
+
+  test('CA residency dropdown includes resident and nonresident', () {
+    final values = residencyTypeOptions.map((e) => e.$1).toSet();
+    expect(values, containsAll(['resident', 'nonresident', 'part_year']));
+    expect(
+      residencyTypeOptions.map((e) => e.$2).toList(),
+      containsAll(['Resident', 'Nonresident']),
+    );
+  });
 }

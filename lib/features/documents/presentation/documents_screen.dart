@@ -22,7 +22,9 @@ const _docTypes = <(String, String)>[
   ('1099', '1099'),
   ('id', 'Photo ID'),
   ('prior_return', 'Prior year return'),
-  ('bank', 'Bank / voided check'),
+  ('bank', 'Bank statement'),
+  ('credit_card', 'Credit card statement'),
+  ('receipt', 'Receipt / invoice'),
   ('business', 'Business records'),
   ('other', 'Other'),
 ];

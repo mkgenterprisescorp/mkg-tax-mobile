@@ -8,6 +8,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/bookkeeping/presentation/bookkeeping_screen.dart';
 import '../../features/chat/presentation/advisor_chat_screen.dart';
 import '../../features/clients/presentation/my_clients_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';

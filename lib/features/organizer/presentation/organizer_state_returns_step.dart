@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/us_states.dart';
+import 'organizer_ca540_form.dart';
 import 'organizer_fields.dart';
 
 /// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms.
@@ -303,56 +303,13 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: () => context.go('/ca-540'),
-          icon: const Icon(Icons.calculate_outlined),
-          label: const Text('Open Form 540 tax & refund calculator'),
-        ),
-        const SizedBox(height: 12),
         OrganizerSection(
           title: 'California Form 540',
-          subtitle: 'Deep CA suite — available when CA is home or selected above.',
-          child: NestedMapEditor(
-            data: ca540,
-            onlyKeys: const [
-              'residencyStatus',
-              'stateWages',
-              'federalAGI',
-              'caAGI',
-              'taxableIncome',
-              'caWithholding',
-              'estimatedPayments',
-              'caTax',
-              'calEITC',
-              'youngChildTaxCredit',
-              'fosterYouthTaxCredit',
-              'rentersCredit',
-              'childDependentCareCredit',
-              'useTax',
-            ].where(ca540.containsKey).toList(),
-            onChanged: (m) => onNested('ca540', m),
-          ),
-        ),
-        OrganizerSection(
-          title: 'California Form 540 — additional fields',
-          child: NestedMapEditor(
-            data: ca540,
-            excludeKeys: const {
-              'residencyStatus',
-              'stateWages',
-              'federalAGI',
-              'caAGI',
-              'taxableIncome',
-              'caWithholding',
-              'estimatedPayments',
-              'caTax',
-              'calEITC',
-              'youngChildTaxCredit',
-              'fosterYouthTaxCredit',
-              'rentersCredit',
-              'childDependentCareCredit',
-              'useTax',
-            },
+          subtitle: 'Complete FTB Form 540 lines — residency dropdown, payments, credits, and live refund estimate.',
+          child: OrganizerCa540Form(
+            ca540: ca540,
+            filingStatus: '${data['filingStatus'] ?? 'single'}',
+            homeState: homeState,
             onChanged: (m) => onNested('ca540', m),
           ),
         ),
