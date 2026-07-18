@@ -307,25 +307,19 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     };
   }
 
+  static const _relayApplyFallback = 'https://app.relayfi.com/register?referralcode=mkgtax';
+
   String _providerLabel() {
     final labeled = _status?['provider_label']?.toString();
-    if (labeled != null && labeled.isNotEmpty && labeled != 'unset' && labeled != 'null') {
+    if (labeled != null &&
+        labeled.isNotEmpty &&
+        labeled != 'unset' &&
+        labeled != 'null' &&
+        labeled != 'No banking partner') {
       return labeled;
     }
-    final connection = _status?['connection'];
-    if (connection is Map) {
-      final cl = connection['provider_label']?.toString();
-      if (cl != null && cl.isNotEmpty && cl != 'unset') return cl;
-    }
-    final raw = (_status?['provider'] ?? '').toString();
-    if (raw.isEmpty || raw == 'unset' || raw == 'null' || raw == 'none') {
-      return 'No banking partner';
-    }
-    return raw == 'plaid' ? 'Plaid' : raw;
+    return 'PNC · Relay Financial';
   }
-
-  bool get _kycAvailable =>
-      _status?['kyc_available'] == true || _status?['available'] == true;
 
   List<Map<String, dynamic>> get _accounts {
     final raw = _status?['accounts'];
@@ -333,18 +327,65 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  String? get _webManageUrl {
-    final url = _status?['web_manage_url']?.toString();
+  List<Map<String, dynamic>> get _partners {
+    final raw = _status?['partners'];
+    if (raw is! List) {
+      return const [
+        {'id': 'pnc', 'name': 'PNC', 'account_scope': 'personal', 'role': 'Personal banking accounts'},
+        {
+          'id': 'relay',
+          'name': 'Relay Financial',
+          'account_scope': 'business',
+          'role': 'Business banking accounts',
+          'apply_url': _relayApplyFallback,
+        },
+      ];
+    }
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  Map<String, dynamic>? get _creditCard {
+    final raw = _status?['credit_card'];
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return {
+      'partner_name': 'Relay Financial',
+      'title': 'Deposit & balance–based business credit cards',
+      'summary':
+          'Approvals and limits are driven primarily by business cash flow and deposits — not traditional personal credit scoring.',
+      'minimum_starting_credit_limit_usd': 10000,
+      'minimum_avg_monthly_deposits_usd': 20000,
+      'apply_url': _relayApplyFallback,
+      'apply_label': 'Apply with Relay Financial',
+      'highlights': const [
+        'Minimum starting credit limit: \$10,000 (for approved applicants)',
+        'Average monthly business deposits of \$20,000+ help qualify',
+        'Includes deposits into MKG brokerage/agent accounts',
+        'External bank account balances are considered',
+      ],
+      'disclaimer':
+          'Credit decisions are made by Relay Financial. Approval and limits are not guaranteed. MKG is not a bank.',
+    };
+  }
+
+  String? _safeHttps(String? url) {
     if (url == null || url.isEmpty) return null;
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('https') || uri.isScheme('http'))) return null;
     return url;
   }
 
-  Future<void> _openWebManage() async {
-    final url = _webManageUrl;
-    if (url == null) return;
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  String get _relayApplyUrl =>
+      _safeHttps(_status?['business_apply_url']?.toString()) ??
+      _safeHttps(_creditCard?['apply_url']?.toString()) ??
+      _relayApplyFallback;
+
+  String? get _webManageUrl =>
+      _safeHttps(_status?['web_manage_url']?.toString()) ?? _relayApplyUrl;
+
+  Future<void> _openUrl(String url) async {
+    final safe = _safeHttps(url);
+    if (safe == null) return;
+    await launchUrl(Uri.parse(safe), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _checkAvailability() async {
@@ -356,16 +397,11 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
       final result = await ref.read(bankingConnectionsRepositoryProvider).beginKyc(entityId);
       if (!mounted) return;
       final message = (result?['message'] ??
-              'A regulated banking partner is not configured yet. Tax prep continues without bank linking.')
+              'Continue with Relay Financial for business banking. Approval is not guaranteed.')
           .toString();
-      final manageUrl = result?['web_manage_url']?.toString();
+      final manageUrl = result?['web_manage_url']?.toString() ?? _relayApplyUrl;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-      if (manageUrl != null && manageUrl.isNotEmpty) {
-        final uri = Uri.tryParse(manageUrl);
-        if (uri != null && (uri.isScheme('https') || uri.isScheme('http'))) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      }
+      await _openUrl(manageUrl);
       await _load();
     } finally {
       if (mounted) setState(() => _checking = false);
@@ -387,14 +423,20 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
   @override
   Widget build(BuildContext context) {
     final disclaimer = (_status?['disclaimer'] ??
-            'MKG Tax Consultants / Finance Advisors are not a bank. No money movement is enabled.')
+            'Banking products are provided by PNC (personal) and Relay Financial (business). MKG Tax Consultants is not a bank.')
         .toString();
-    final headline = (_status?['headline'] ?? 'Business banking is not connected yet').toString();
+    final headline = (_status?['headline'] ?? 'Business banking with Relay Financial').toString();
     final message = (_status?['message'] ??
-            'Business bank linking requires an approved regulated partner. MKG is not a bank.')
+            'Business accounts are with Relay Financial; personal accounts are with PNC.')
         .toString();
     final nextStep = _status?['next_step']?.toString();
     final accounts = _accounts;
+    final partners = _partners;
+    final creditCard = _creditCard;
+    final highlights = creditCard?['highlights'];
+    final highlightLines = highlights is List
+        ? highlights.map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
+        : const <String>[];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -425,12 +467,80 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
               leading: const Icon(Icons.account_balance_outlined, color: MkgColors.primary),
               title: Text(headline),
               subtitle: Text(
-                'Partner: ${_providerLabel()} · Status: ${_statusLabel()}\n\n$message'
+                'Partners: ${_providerLabel()} · Status: ${_statusLabel()}\n\n$message'
                 '${nextStep != null && nextStep.isNotEmpty ? '\n\n$nextStep' : ''}',
               ),
               isThreeLine: true,
             ),
           ),
+          const SizedBox(height: 8),
+          const Text('Configured partners', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          ...partners.map((partner) {
+            final scope = (partner['account_scope'] ?? '').toString();
+            final role = (partner['role'] ?? '').toString();
+            final name = (partner['name'] ?? 'Partner').toString();
+            return Card(
+              child: ListTile(
+                leading: Icon(
+                  scope == 'personal' ? Icons.person_outline : Icons.business_outlined,
+                  color: MkgColors.primary,
+                ),
+                title: Text(name),
+                subtitle: Text(
+                  [
+                    if (scope.isNotEmpty) scope[0].toUpperCase() + scope.substring(1),
+                    if (role.isNotEmpty) role,
+                  ].join(' · '),
+                ),
+              ),
+            );
+          }),
+          if (creditCard != null) ...[
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (creditCard['title'] ?? 'Business credit cards').toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      (creditCard['summary'] ??
+                              'Deposit-based business credit cards through Relay Financial.')
+                          .toString(),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Min. starting limit: \$${(creditCard['minimum_starting_credit_limit_usd'] ?? 10000)} · '
+                      'Target deposits: \$${(creditCard['minimum_avg_monthly_deposits_usd'] ?? 20000)}+/mo',
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                    if (highlightLines.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ...highlightLines.take(4).map(
+                            (line) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text('• $line'),
+                            ),
+                          ),
+                    ],
+                    if (creditCard['disclaimer'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        creditCard['disclaimer'].toString(),
+                        style: const TextStyle(color: Colors.black54, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (accounts.isNotEmpty) ...[
             const SizedBox(height: 8),
             const Text('Linked accounts', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -445,32 +555,27 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
               ),
             ),
           ],
-          if (_webManageUrl != null)
-            FilledButton.icon(
-              onPressed: _openWebManage,
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Manage bank accounts on web'),
-            )
-          else if (_kycAvailable)
-            FilledButton(
-              onPressed: _checking ? null : _checkAvailability,
-              child: Text(_checking ? 'Starting…' : 'Begin partner verification'),
-            )
-          else
-            OutlinedButton(
-              onPressed: _checking ? null : _checkAvailability,
-              child: Text(_checking ? 'Checking…' : 'Check partner availability'),
-            ),
-          if (_webManageUrl != null && _kycAvailable) ...[
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: () => _openUrl(_relayApplyUrl),
+            icon: const Icon(Icons.open_in_new),
+            label: Text((creditCard?['apply_label'] ?? 'Apply with Relay Financial').toString()),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _checking ? null : _checkAvailability,
+            child: Text(_checking ? 'Starting…' : 'Start Relay business onboarding'),
+          ),
+          if (_webManageUrl != null && _webManageUrl != _relayApplyUrl) ...[
             const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _checking ? null : _checkAvailability,
-              child: Text(_checking ? 'Starting…' : 'Start verification'),
+            TextButton(
+              onPressed: () => _openUrl(_webManageUrl!),
+              child: const Text('Open banking intake on web'),
             ),
           ],
           const SizedBox(height: 8),
           const Text(
-            'No bank credentials are collected in-app. Live ACH/card movement is not enabled.',
+            'No bank credentials are collected in-app. Live ACH/card money movement is not enabled here. Approval is not guaranteed.',
             style: TextStyle(color: Colors.black54),
           ),
         ],
