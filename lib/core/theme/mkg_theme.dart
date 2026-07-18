@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// MKG Tax brand — green / gold / white (financemkgtax.com favicon + portal).
+/// MKG Tax brand — green / gold / white (mkgtaxconsultants.com favicon + portal).
 abstract final class MkgColors {
   static const Color primary = Color(0xFF1A5632);
   static const Color primaryDark = Color(0xFF0D3B1F);

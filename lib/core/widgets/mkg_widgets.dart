@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/mkg_theme.dart';
 
-/// Green branded header + white rounded card (financemkgtax.com web parity).
+/// Green branded header + white rounded card (mkgtaxconsultants.com web parity).
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
