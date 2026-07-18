@@ -4,14 +4,15 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../states/data/state_workflow_repository.dart';
 import '../data/official_form_links.dart';
+import '../data/rollout_regions.dart';
 import '../data/us_states.dart';
 import 'organizer_ca540_form.dart';
 import 'organizer_ca_business_forms.dart';
 import 'organizer_fields.dart';
 import 'organizer_nationwide_form.dart';
 
-/// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms
-/// + nationwide business/franchise state workflows.
+/// Multi-state intake: CA deep forms always available; nationwide non-CA states
+/// gated by regional rollout (Phase 1 = West + Northwest).
 class OrganizerStateReturnsStep extends StatelessWidget {
   const OrganizerStateReturnsStep({
     super.key,
@@ -65,10 +66,16 @@ class OrganizerStateReturnsStep extends StatelessWidget {
     }
   }
 
-  void _addAllIncomeTaxStates(String homeState) {
+  void _addAllPhaseOneStates(String homeState) {
     final existing = {for (final r in _additional) '${r['stateCode']}'};
     final next = List<Map<String, dynamic>>.from(_additional);
-    for (final code in statesWithIncomeTax) {
+    // CA is always available; Phase 1 nationwide = Regions 1 + 6 income-tax states.
+    final selectable = <String>{
+      'CA',
+      for (final code in phaseOneEnabledStates)
+        if (statesWithIncomeTax.contains(code)) code,
+    };
+    for (final code in selectable) {
       if (existing.contains(code)) continue;
       next.add(
         emptyAdditionalStateReturn(
@@ -88,6 +95,11 @@ class OrganizerStateReturnsStep extends StatelessWidget {
     onList('additionalStateReturns', next);
   }
 
+  bool _canSelectState(String code) {
+    if (code == 'CA') return true;
+    return isNationwideStateEnabled(code);
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _additional;
@@ -103,8 +115,13 @@ class OrganizerStateReturnsStep extends StatelessWidget {
       });
     }
 
+    final phaseOneSelectable = <String>{
+      'CA',
+      for (final code in phaseOneEnabledStates)
+        if (statesWithIncomeTax.contains(code)) code,
+    };
     final incomeTaxSelectedCount =
-        selected.where(statesWithIncomeTax.contains).length;
+        selected.where(phaseOneSelectable.contains).length;
 
     return Column(
       children: [
@@ -122,15 +139,15 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           ),
         ),
         OrganizerSection(
-          title: 'Personal income tax states (${statesWithIncomeTax.length})',
+          title: 'State returns · $phaseOneLabel',
           subtitle:
-              'Select every income-tax jurisdiction where you lived, worked, or had nexus. '
-              'California includes the deep Form 540 suite below; other states open nationwide form workflows (intake-only).',
+              'California Form 540 / business are always available. Nationwide non-CA intake is unlocked '
+              'by region — Phase 1 covers West (1) and Northwest (6). Later regions stay visible but locked.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '$incomeTaxSelectedCount of ${statesWithIncomeTax.length} income-tax states selected',
+                '$incomeTaxSelectedCount of ${phaseOneSelectable.length} Phase 1 + CA jurisdictions selected',
                 style: const TextStyle(color: MkgColors.textGrey, fontSize: 13),
               ),
               const SizedBox(height: 8),
@@ -139,9 +156,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   FilledButton.tonalIcon(
-                    onPressed: () => _addAllIncomeTaxStates(homeState),
+                    onPressed: () => _addAllPhaseOneStates(homeState),
                     icon: const Icon(Icons.select_all),
-                    label: const Text('Add all income-tax states'),
+                    label: const Text('Add Phase 1 + CA states'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onList('additionalStateReturns', const []),
@@ -151,25 +168,95 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              const Text(
+                'California (always on)',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final opt in incomeTaxStateOptions)
-                    FilterChip(
-                      label: Text(opt.$1),
-                      selected: selected.contains(opt.$1),
-                      onSelected: (v) => _toggleIncomeTaxState(opt.$1, v, homeState),
-                      selectedColor: MkgColors.primary.withValues(alpha: 0.18),
-                      checkmarkColor: MkgColors.primary,
-                      labelStyle: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: selected.contains(opt.$1) ? MkgColors.primary : MkgColors.dark,
-                        fontSize: 12,
-                      ),
+                  FilterChip(
+                    label: const Text('CA'),
+                    selected: selected.contains('CA'),
+                    onSelected: (v) => _toggleIncomeTaxState('CA', v, homeState),
+                    selectedColor: MkgColors.primary.withValues(alpha: 0.18),
+                    checkmarkColor: MkgColors.primary,
+                    labelStyle: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected.contains('CA') ? MkgColors.primary : MkgColors.dark,
+                      fontSize: 12,
                     ),
+                  ),
                 ],
               ),
+              for (final region in enabledRolloutRegions) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Region ${region.id} · ${region.name} (active)',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final code in region.states)
+                      if (statesWithIncomeTax.contains(code) ||
+                          const {'AK', 'WA', 'WY', 'NV'}.contains(code))
+                        FilterChip(
+                          label: Text(code),
+                          selected: selected.contains(code),
+                          onSelected: (v) => _toggleIncomeTaxState(code, v, homeState),
+                          selectedColor: MkgColors.primary.withValues(alpha: 0.18),
+                          checkmarkColor: MkgColors.primary,
+                          labelStyle: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: selected.contains(code) ? MkgColors.primary : MkgColors.dark,
+                            fontSize: 12,
+                          ),
+                        ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'Later regional phases (locked)',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'State tax preparation for these jurisdictions is scheduled for a later regional phase.',
+                style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+              ),
+              for (final region in lockedRolloutRegions) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Region ${region.id} · ${region.name} · Phase ${region.phase}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: MkgColors.textGrey),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final code in region.states)
+                      if (statesWithIncomeTax.contains(code) ||
+                          const {'FL', 'TN', 'TX', 'SD', 'NH'}.contains(code))
+                        FilterChip(
+                          label: Text(code),
+                          selected: false,
+                          onSelected: null,
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: MkgColors.textGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -301,58 +388,67 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                       ),
                       if ('${rows[i]['stateCode']}' != 'CA') ...[
                         const SizedBox(height: 8),
-                        ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          title: Text(
-                            'Open ${rows[i]['stateCode']} nationwide form workflow',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                          ),
-                          subtitle: const Text(
-                            'Official primary form fields · intake only',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          children: [
-                            OrganizerNationwideForm(
-                              stateCode: '${rows[i]['stateCode']}',
-                              family: 'individual',
-                              filingType: filingTypeForResidency('${rows[i]['residencyType'] ?? 'nonresident'}'),
-                              answers: Map<String, dynamic>.from(
-                                (rows[i]['workflowAnswers'] as Map?) ??
-                                    {
-                                      'residencyType': rows[i]['residencyType'],
-                                      'stateWages': rows[i]['wages'],
-                                      'stateWithholding': rows[i]['withholding'],
-                                      'estimatedPayments': rows[i]['estimatedPayments'],
-                                      'filingRequired': rows[i]['filingRequired'],
-                                      'professionalReview': rows[i]['professionalReview'],
-                                    },
-                              ),
-                              onChanged: (answers) {
-                                final next = List<Map<String, dynamic>>.from(rows);
-                                final row = Map<String, dynamic>.from(next[i]);
-                                row['workflowAnswers'] = answers;
-                                if (answers['stateWages'] != null) row['wages'] = answers['stateWages'];
-                                if (answers['stateWithholding'] != null) {
-                                  row['withholding'] = answers['stateWithholding'];
-                                }
-                                if (answers['estimatedPayments'] != null) {
-                                  row['estimatedPayments'] = answers['estimatedPayments'];
-                                }
-                                if (answers['residencyType'] != null) {
-                                  row['residencyType'] = answers['residencyType'];
-                                }
-                                if (answers['filingRequired'] != null) {
-                                  row['filingRequired'] = answers['filingRequired'];
-                                }
-                                if (answers['professionalReview'] != null) {
-                                  row['professionalReview'] = answers['professionalReview'];
-                                }
-                                next[i] = row;
-                                onList('additionalStateReturns', next);
-                              },
+                        if (!_canSelectState('${rows[i]['stateCode']}'))
+                          Text(
+                            'State tax preparation for ${rows[i]['stateCode']} is not yet available '
+                            'in the current regional phase (${regionForState('${rows[i]['stateCode']}')?.name ?? 'later'}). '
+                            'Active: Regions 1 (West) + 6 (Northwest).',
+                            style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                          )
+                        else
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: Text(
+                              'Open ${rows[i]['stateCode']} nationwide form workflow',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                             ),
-                          ],
-                        ),
+                            subtitle: Text(
+                              'Region ${regionForState('${rows[i]['stateCode']}')?.id ?? '?'} · '
+                              '${regionForState('${rows[i]['stateCode']}')?.name ?? ''} · intake only',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            children: [
+                              OrganizerNationwideForm(
+                                stateCode: '${rows[i]['stateCode']}',
+                                family: 'individual',
+                                filingType: filingTypeForResidency('${rows[i]['residencyType'] ?? 'nonresident'}'),
+                                answers: Map<String, dynamic>.from(
+                                  (rows[i]['workflowAnswers'] as Map?) ??
+                                      {
+                                        'residencyType': rows[i]['residencyType'],
+                                        'stateWages': rows[i]['wages'],
+                                        'stateWithholding': rows[i]['withholding'],
+                                        'estimatedPayments': rows[i]['estimatedPayments'],
+                                        'filingRequired': rows[i]['filingRequired'],
+                                        'professionalReview': rows[i]['professionalReview'],
+                                      },
+                                ),
+                                onChanged: (answers) {
+                                  final next = List<Map<String, dynamic>>.from(rows);
+                                  final row = Map<String, dynamic>.from(next[i]);
+                                  row['workflowAnswers'] = answers;
+                                  if (answers['stateWages'] != null) row['wages'] = answers['stateWages'];
+                                  if (answers['stateWithholding'] != null) {
+                                    row['withholding'] = answers['stateWithholding'];
+                                  }
+                                  if (answers['estimatedPayments'] != null) {
+                                    row['estimatedPayments'] = answers['estimatedPayments'];
+                                  }
+                                  if (answers['residencyType'] != null) {
+                                    row['residencyType'] = answers['residencyType'];
+                                  }
+                                  if (answers['filingRequired'] != null) {
+                                    row['filingRequired'] = answers['filingRequired'];
+                                  }
+                                  if (answers['professionalReview'] != null) {
+                                    row['professionalReview'] = answers['professionalReview'];
+                                  }
+                                  next[i] = row;
+                                  onList('additionalStateReturns', next);
+                                },
+                              ),
+                            ],
+                          ),
                       ],
                     ],
                   ),
@@ -380,7 +476,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                       onList('stateBusinessReturns', [
                         ..._businessRows,
                         emptyBusinessStateReturn(
-                          stateCode: homeState.isEmpty || homeState == 'CA' ? 'TX' : homeState,
+                          stateCode: homeState.isEmpty || homeState == 'CA'
+                              ? 'OR'
+                              : (isNationwideStateEnabled(homeState) ? homeState : 'OR'),
                           returnFamily: family,
                         ),
                       ]);
@@ -425,17 +523,17 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                         ],
                       ),
                       OrganizerDropdown<String>(
-                        label: 'State',
-                        value: usStateOptions.any((e) => e.$1 == '${_businessRows[i]['stateCode']}')
+                        label: 'State (Phase 1 regions)',
+                        value: phaseOneEnabledStates.contains('${_businessRows[i]['stateCode']}')
                             ? '${_businessRows[i]['stateCode']}'
-                            : 'TX',
+                            : 'OR',
                         items: [
                           for (final opt in usStateOptions)
-                            if (opt.$1 != 'CA') opt,
+                            if (phaseOneEnabledStates.contains(opt.$1)) opt,
                         ],
                         onChanged: (v) {
                           final next = List<Map<String, dynamic>>.from(_businessRows);
-                          next[i] = Map<String, dynamic>.from(next[i])..['stateCode'] = v ?? 'TX';
+                          next[i] = Map<String, dynamic>.from(next[i])..['stateCode'] = v ?? 'OR';
                           onList('stateBusinessReturns', next);
                         },
                       ),

@@ -82,7 +82,7 @@ String displayNameForState(String code) {
 }
 
 Map<String, dynamic> emptyAdditionalStateReturn({
-  String stateCode = 'NY',
+  String stateCode = 'AZ',
   String residencyType = 'nonresident',
 }) =>
     {
@@ -107,7 +107,7 @@ Map<String, dynamic> emptyAdditionalStateReturn({
 
 /// Business / franchise / nonprofit state return row (non-CA).
 Map<String, dynamic> emptyBusinessStateReturn({
-  String stateCode = 'TX',
+  String stateCode = 'OR',
   String returnFamily = 'corporation',
 }) =>
     {

@@ -80,7 +80,14 @@ class StateWorkflowRepository {
         'answers': answers,
       },
     );
-    if (!PlatformApi.ok(res)) return null;
+    // 423 phase_locked — surface rollout message when API wraps it in data/error.
+    if (!PlatformApi.ok(res)) {
+      final map = PlatformApi.unwrapMap(res);
+      if (map != null && (map['error'] == 'phase_locked' || map['rollout_status'] == 'phase_locked')) {
+        return map;
+      }
+      return null;
+    }
     return PlatformApi.unwrapMap(res);
   }
 }
