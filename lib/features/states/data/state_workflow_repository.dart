@@ -45,6 +45,25 @@ class StateWorkflowRepository {
     return map;
   }
 
+
+  /// Classify regimes BEFORE loading forms.
+  Future<Map<String, dynamic>?> taxProfile(
+    String stateCode, {
+    String prepType = 'personal',
+    String residencyType = 'resident',
+  }) async {
+    final code = stateCode.toUpperCase();
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/states/$code/tax-profile',
+      query: {
+        'prep_type': prepType,
+        'residency_type': residencyType,
+      },
+    );
+    if (!PlatformApi.ok(res)) return null;
+    return PlatformApi.unwrapMap(res);
+  }
+
   Future<Map<String, dynamic>?> findReturn({
     required String stateCode,
     required String family,

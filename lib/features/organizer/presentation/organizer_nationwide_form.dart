@@ -6,6 +6,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../../states/data/region1_repository.dart';
 import '../../states/data/state_workflow_repository.dart';
 import '../data/rollout_regions.dart';
+import '../data/state_tax_regimes.dart';
 import 'organizer_fields.dart';
 
 /// Renders a nationwide state workflow form (personal or business) from the API catalog.
@@ -61,6 +62,20 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
       _loading = true;
       _error = null;
     });
+    // Classify before form load (local mirror; server also gates).
+    if (widget.family == 'individual' &&
+        widget.filingType == 'resident' &&
+        !shouldShowResidentPersonalWorkflow(widget.stateCode)) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _ret = null;
+        _error =
+            'No resident personal income tax return for ${widget.stateCode.toUpperCase()}. '
+            'Federal / business / sales / employer workflows still apply.';
+      });
+      return;
+    }
     final repo = ref.read(stateWorkflowRepositoryProvider);
     final ret = await repo.findReturn(
       stateCode: widget.stateCode,
