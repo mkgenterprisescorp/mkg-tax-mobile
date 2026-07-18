@@ -126,6 +126,18 @@ class _RefundEstimateScreenState extends ConsumerState<RefundEstimateScreen> {
           'Federal estimate only. Prefills from your Tax Organizer when available.',
           style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
         ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/ca-540'),
+          icon: const Icon(Icons.map_outlined),
+          label: const Text('CA Form 540 tax & refund calculator'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/organizer'),
+          icon: const Icon(Icons.assignment_outlined),
+          label: const Text('Back to Tax Organizer (CA 540)'),
+        ),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
           // ignore: deprecated_member_use

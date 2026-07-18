@@ -194,7 +194,11 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
       children: [
         Row(
           children: [
-            IconButton(onPressed: () => context.go('/tools'), icon: const Icon(Icons.arrow_back)),
+            IconButton(
+              onPressed: () => context.go('/organizer'),
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Back to Tax Organizer',
+            ),
             const Expanded(
               child: Text('CA Form 540', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             ),
@@ -204,6 +208,12 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           'California Resident Income Tax Return — tax & refund estimate. '
           'Line math follows FTB Form 540 (estimate only, not a filed return).',
           style: TextStyle(color: MkgColors.textGrey),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/refund-advance/estimate'),
+          icon: const Icon(Icons.savings_outlined),
+          label: const Text('Open federal refund estimator'),
         ),
         const SizedBox(height: 12),
         OfficialFormLinksCard(

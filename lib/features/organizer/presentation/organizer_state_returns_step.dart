@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/us_states.dart';
+import 'organizer_ca540_form.dart';
 import 'organizer_fields.dart';
 
 /// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms.
@@ -303,159 +303,13 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: () => context.go('/ca-540'),
-          icon: const Icon(Icons.calculate_outlined),
-          label: const Text('Open Form 540 tax & refund calculator'),
-        ),
-        const SizedBox(height: 12),
         OrganizerSection(
           title: 'California Form 540',
-          subtitle: 'Key CA fields from web organizer (server may recalculate AGI/tax).',
-          child: Column(
-            children: [
-              OrganizerDropdown<String>(
-                label: 'Residency status',
-                value: residencyTypeOptions.any((e) => e.$1 == '${ca540['residencyStatus']}')
-                    ? '${ca540['residencyStatus']}'
-                    : (homeState == 'CA' ? 'resident' : 'nonresident'),
-                items: residencyTypeOptions,
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)
-                    ..['residencyStatus'] = v ?? 'resident';
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CA wages',
-                value: ca540['stateWages'] ?? ca540['caWages'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['stateWages'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CA tax withheld',
-                value: ca540['caWithholding'] ?? ca540['caTaxWithheld'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['caWithholding'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CA estimated payments',
-                value: ca540['estimatedPayments'] ?? ca540['caEstimatedPayments'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['estimatedPayments'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Federal AGI',
-                value: ca540['federalAGI'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['federalAGI'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CA AGI',
-                value: ca540['caAGI'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['caAGI'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Taxable income',
-                value: ca540['taxableIncome'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['taxableIncome'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CA tax',
-                value: ca540['caTax'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['caTax'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'CalEITC',
-                value: ca540['calEITC'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['calEITC'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Young child tax credit',
-                value: ca540['youngChildTaxCredit'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['youngChildTaxCredit'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Foster youth tax credit',
-                value: ca540['fosterYouthTaxCredit'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['fosterYouthTaxCredit'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Renters credit',
-                value: ca540['rentersCredit'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['rentersCredit'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Child & dependent care credit',
-                value: ca540['childDependentCareCredit'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['childDependentCareCredit'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-              OrganizerMoneyField(
-                label: 'Use tax',
-                value: ca540['useTax'],
-                onChanged: (v) {
-                  final next = Map<String, dynamic>.from(ca540)..['useTax'] = v;
-                  onNested('ca540', next);
-                },
-              ),
-            ],
-          ),
-        ),
-        OrganizerSection(
-          title: 'California Form 540 — additional fields',
-          child: NestedMapEditor(
-            data: ca540,
-            excludeKeys: const {
-              'residencyStatus',
-              'stateWages',
-              'caWages',
-              'federalAGI',
-              'caAGI',
-              'taxableIncome',
-              'caWithholding',
-              'caTaxWithheld',
-              'estimatedPayments',
-              'caEstimatedPayments',
-              'caTax',
-              'calEITC',
-              'youngChildTaxCredit',
-              'fosterYouthTaxCredit',
-              'rentersCredit',
-              'childDependentCareCredit',
-              'useTax',
-            },
+          subtitle: 'Complete FTB Form 540 lines — residency dropdown, payments, credits, and live refund estimate.',
+          child: OrganizerCa540Form(
+            ca540: ca540,
+            filingStatus: '${data['filingStatus'] ?? 'single'}',
+            homeState: homeState,
             onChanged: (m) => onNested('ca540', m),
           ),
         ),
