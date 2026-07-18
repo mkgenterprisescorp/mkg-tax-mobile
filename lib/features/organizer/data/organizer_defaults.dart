@@ -58,7 +58,7 @@ String cueForOrganizerStep(String step) {
   }
   if (step == 'Form 1040-X') return 'Amended federal return (IRS Form 1040-X)';
   if (step == 'State Tax Returns' || step == 'CA 540 State Tax') {
-    return 'All states intake + California 540 / 540X suite';
+    return 'Nationwide personal + business state forms + California 540 suite';
   }
   if (step == 'Direct Deposit') return 'Bank routing & account';
   if (step == 'Review & Sign') return 'Consent and submit';
@@ -507,6 +507,7 @@ List<String> stepsForPrepType(String prepType) {
     return [
       'Filing Info',
       businessFormLabels[prepType] ?? 'Entity Form',
+      'State Tax Returns',
       'Direct Deposit',
       'Review & Sign',
     ];

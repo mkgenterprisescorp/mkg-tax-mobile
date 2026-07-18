@@ -216,6 +216,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     // Multistate edits live alongside CA when on State Tax Returns.
     if (_steps[_step] == 'State Tax Returns' || _steps[_step] == 'CA 540 State Tax') {
       _dirtySectionKeys.add('state_multistate');
+      _dirtySectionKeys.add('state_business');
       _dirtySectionKeys.add('state_ca_540');
     }
   }

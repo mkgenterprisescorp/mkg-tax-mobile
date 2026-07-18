@@ -95,4 +95,34 @@ Map<String, dynamic> emptyAdditionalStateReturn({
       'filingRequired': statesWithIncomeTax.contains(stateCode),
       'professionalReview': stateCode != 'CA',
       'hasPersonalIncomeTax': statesWithIncomeTax.contains(stateCode),
+      'workflowAnswers': <String, dynamic>{
+        'residencyType': residencyType,
+        'stateWages': 0,
+        'stateWithholding': 0,
+        'estimatedPayments': 0,
+        'filingRequired': statesWithIncomeTax.contains(stateCode),
+        'professionalReview': stateCode != 'CA',
+      },
+    };
+
+/// Business / franchise / nonprofit state return row (non-CA).
+Map<String, dynamic> emptyBusinessStateReturn({
+  String stateCode = 'TX',
+  String returnFamily = 'corporation',
+}) =>
+    {
+      'stateCode': stateCode,
+      'returnFamily': returnFamily,
+      'filingType': 'standard',
+      'filingRequired': true,
+      'professionalReview': true,
+      'workflowAnswers': <String, dynamic>{
+        'entityType': returnFamily,
+        'formationState': stateCode,
+        'filingRequired': true,
+        'professionalReview': true,
+        'hasPayroll': false,
+        'hasProperty': false,
+        'hasSales': false,
+      },
     };

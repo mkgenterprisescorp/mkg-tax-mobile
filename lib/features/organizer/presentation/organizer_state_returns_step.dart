@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../states/data/state_workflow_repository.dart';
 import '../data/official_form_links.dart';
 import '../data/us_states.dart';
 import 'organizer_ca540_form.dart';
+import 'organizer_ca_business_forms.dart';
 import 'organizer_fields.dart';
+import 'organizer_nationwide_form.dart';
 
-/// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms.
+/// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms
+/// + nationwide business/franchise state workflows.
 class OrganizerStateReturnsStep extends StatelessWidget {
   const OrganizerStateReturnsStep({
     super.key,
@@ -31,6 +35,16 @@ class OrganizerStateReturnsStep extends StatelessWidget {
         if (e is Map) Map<String, dynamic>.from(e),
     ];
   }
+
+  List<Map<String, dynamic>> get _businessRows {
+    final raw = (data['stateBusinessReturns'] as List?) ?? const [];
+    return [
+      for (final e in raw)
+        if (e is Map) Map<String, dynamic>.from(e),
+    ];
+  }
+
+  String get _prepFamily => returnFamilyForPrepType('${data['prepType'] ?? 'personal'}');
 
   void _toggleIncomeTaxState(String code, bool enabled, String homeState) {
     final rows = _additional;
@@ -111,7 +125,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           title: 'Personal income tax states (${statesWithIncomeTax.length})',
           subtitle:
               'Select every income-tax jurisdiction where you lived, worked, or had nexus. '
-              'California includes the deep Form 540 suite below; other states are organizer intake for professional review.',
+              'California includes the deep Form 540 suite below; other states open nationwide form workflows (intake-only).',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -285,6 +299,186 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                           onList('additionalStateReturns', next);
                         },
                       ),
+                      if ('${rows[i]['stateCode']}' != 'CA') ...[
+                        const SizedBox(height: 8),
+                        ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          title: Text(
+                            'Open ${rows[i]['stateCode']} nationwide form workflow',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          subtitle: const Text(
+                            'Official primary form fields · intake only',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          children: [
+                            OrganizerNationwideForm(
+                              stateCode: '${rows[i]['stateCode']}',
+                              family: 'individual',
+                              filingType: filingTypeForResidency('${rows[i]['residencyType'] ?? 'nonresident'}'),
+                              answers: Map<String, dynamic>.from(
+                                (rows[i]['workflowAnswers'] as Map?) ??
+                                    {
+                                      'residencyType': rows[i]['residencyType'],
+                                      'stateWages': rows[i]['wages'],
+                                      'stateWithholding': rows[i]['withholding'],
+                                      'estimatedPayments': rows[i]['estimatedPayments'],
+                                      'filingRequired': rows[i]['filingRequired'],
+                                      'professionalReview': rows[i]['professionalReview'],
+                                    },
+                              ),
+                              onChanged: (answers) {
+                                final next = List<Map<String, dynamic>>.from(rows);
+                                final row = Map<String, dynamic>.from(next[i]);
+                                row['workflowAnswers'] = answers;
+                                if (answers['stateWages'] != null) row['wages'] = answers['stateWages'];
+                                if (answers['stateWithholding'] != null) {
+                                  row['withholding'] = answers['stateWithholding'];
+                                }
+                                if (answers['estimatedPayments'] != null) {
+                                  row['estimatedPayments'] = answers['estimatedPayments'];
+                                }
+                                if (answers['residencyType'] != null) {
+                                  row['residencyType'] = answers['residencyType'];
+                                }
+                                if (answers['filingRequired'] != null) {
+                                  row['filingRequired'] = answers['filingRequired'];
+                                }
+                                if (answers['professionalReview'] != null) {
+                                  row['professionalReview'] = answers['professionalReview'];
+                                }
+                                next[i] = row;
+                                onList('additionalStateReturns', next);
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Business / franchise / nonprofit state forms',
+          subtitle:
+              'Nationwide entity workflows for corporation, S-corp, partnership, fiduciary, and exempt orgs '
+              '(TX franchise, FL corporate, WA B&O, etc.). California entity forms remain in the CA suite below.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      final family = _prepFamily == 'individual' ? 'corporation' : _prepFamily;
+                      onList('stateBusinessReturns', [
+                        ..._businessRows,
+                        emptyBusinessStateReturn(
+                          stateCode: homeState.isEmpty || homeState == 'CA' ? 'TX' : homeState,
+                          returnFamily: family,
+                        ),
+                      ]);
+                    },
+                    icon: const Icon(Icons.add_business_outlined),
+                    label: const Text('Add business state return'),
+                  ),
+                  if (_businessRows.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () => onList('stateBusinessReturns', const []),
+                      icon: const Icon(Icons.clear_all),
+                      label: const Text('Clear business states'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_businessRows.isEmpty)
+                const Text(
+                  'No business state returns yet. Add one for each formation / nexus jurisdiction.',
+                  style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
+                ),
+              for (var i = 0; i < _businessRows.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${_businessRows[i]['stateCode']} · ${_businessRows[i]['returnFamily']}',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(_businessRows)..removeAt(i);
+                              onList('stateBusinessReturns', next);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerDropdown<String>(
+                        label: 'State',
+                        value: usStateOptions.any((e) => e.$1 == '${_businessRows[i]['stateCode']}')
+                            ? '${_businessRows[i]['stateCode']}'
+                            : 'TX',
+                        items: [
+                          for (final opt in usStateOptions)
+                            if (opt.$1 != 'CA') opt,
+                        ],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(_businessRows);
+                          next[i] = Map<String, dynamic>.from(next[i])..['stateCode'] = v ?? 'TX';
+                          onList('stateBusinessReturns', next);
+                        },
+                      ),
+                      OrganizerDropdown<String>(
+                        label: 'Return family',
+                        value: const [
+                          'corporation',
+                          's_corporation',
+                          'partnership',
+                          'fiduciary',
+                          'exempt_organization',
+                          'exempt_organization_ez',
+                        ].contains('${_businessRows[i]['returnFamily']}')
+                            ? '${_businessRows[i]['returnFamily']}'
+                            : 'corporation',
+                        items: const [
+                          ('corporation', 'Corporation'),
+                          ('s_corporation', 'S-Corporation'),
+                          ('partnership', 'Partnership'),
+                          ('fiduciary', 'Fiduciary'),
+                          ('exempt_organization', 'Exempt organization'),
+                          ('exempt_organization_ez', 'Exempt organization (EZ)'),
+                        ],
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(_businessRows);
+                          next[i] = Map<String, dynamic>.from(next[i])..['returnFamily'] = v ?? 'corporation';
+                          onList('stateBusinessReturns', next);
+                        },
+                      ),
+                      if ('${_businessRows[i]['stateCode']}' != 'CA')
+                        OrganizerNationwideForm(
+                          stateCode: '${_businessRows[i]['stateCode']}',
+                          family: '${_businessRows[i]['returnFamily'] ?? 'corporation'}',
+                          filingType: 'standard',
+                          answers: Map<String, dynamic>.from(
+                            (_businessRows[i]['workflowAnswers'] as Map?) ?? const {},
+                          ),
+                          onChanged: (answers) {
+                            final next = List<Map<String, dynamic>>.from(_businessRows);
+                            next[i] = Map<String, dynamic>.from(next[i])..['workflowAnswers'] = answers;
+                            onList('stateBusinessReturns', next);
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -356,26 +550,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
-          title: 'CA business entity forms (if applicable)',
-          child: Column(
-            children: [
-              for (final entry in const [
-                ('caForm100', 'Form 100 — C-Corp'),
-                ('caForm100S', 'Form 100S — S-Corp'),
-                ('caForm565', 'Form 565 — Partnership'),
-                ('caForm541', 'Form 541 — Fiduciary'),
-                ('caForm199', 'Form 199 — Exempt org'),
-                ('caScheduleR', 'CA Schedule R'),
-                ('caScheduleK1', 'CA Schedule K-1'),
-              ]) ...[
-                Text(entry.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                NestedMapEditor(data: _map(entry.$1), onChanged: (m) => onNested(entry.$1, m)),
-                const SizedBox(height: 12),
-              ],
-            ],
-          ),
+        OrganizerCaBusinessForms(
+          data: data,
+          onNested: onNested,
         ),
       ],
     );
