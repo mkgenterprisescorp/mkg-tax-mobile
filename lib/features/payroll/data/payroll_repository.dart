@@ -14,7 +14,6 @@ class PayrollRepository {
     String? stateCode,
     num preTaxDeductions = 0,
   }) async {
-    if (_api.bearerToken == null) return null;
     final res = await _api.post<Map<String, dynamic>>(
       '/api/v1/payroll-calculations',
       data: {
@@ -22,7 +21,7 @@ class PayrollRepository {
         'gross_pay': grossPay,
         'pay_frequency': payFrequency,
         'pre_tax_deductions': preTaxDeductions,
-        'state_code': ?stateCode,
+        if (stateCode != null) 'state_code': stateCode,
       },
     );
     if (!PlatformApi.ok(res)) return null;
@@ -32,19 +31,22 @@ class PayrollRepository {
   Future<Map<String, dynamic>?> w4Estimate({
     required num annualWages,
     required String filingStatus,
+    required String payFrequency,
     num otherIncome = 0,
     num deductions = 0,
     num credits = 0,
+    num? federalTaxOwed,
   }) async {
-    if (_api.bearerToken == null) return null;
     final res = await _api.post<Map<String, dynamic>>(
       '/api/v1/w4-estimates',
       data: {
         'annual_wages': annualWages,
         'filing_status': filingStatus,
+        'pay_frequency': payFrequency,
         'other_income': otherIncome,
         'deductions': deductions,
         'credits': credits,
+        if (federalTaxOwed != null) 'federal_tax_owed': federalTaxOwed,
       },
     );
     if (!PlatformApi.ok(res)) return null;
