@@ -38,7 +38,7 @@ class LaravelOrganizerRepository {
         'section_key': sectionKey,
         'answers': answers,
         'section_complete': sectionComplete,
-        ?'status': status,
+        if (status case final statusValue?) 'status': statusValue,
       },
     );
     if (!PlatformApi.ok(res)) {
