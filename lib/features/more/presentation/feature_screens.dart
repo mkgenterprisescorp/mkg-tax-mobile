@@ -503,22 +503,6 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 }
 
-class BookkeepingScreen extends StatelessWidget {
-  const BookkeepingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        SectionHeader('Bookkeeping'),
-        Card(child: ListTile(title: Text('Monthly close'), subtitle: Text('Complete intake on web for full workflow'), trailing: Icon(Icons.chevron_right))),
-        Card(child: ListTile(title: Text('Transactions to categorize'), subtitle: Text('Synced from portal when available'), trailing: Icon(Icons.chevron_right))),
-      ],
-    );
-  }
-}
-
 /// Financial Tools hub — paycheck/W-4, refund estimate, advances, payments, savings, checklist.
 class ToolsScreen extends StatelessWidget {
   const ToolsScreen({super.key});
