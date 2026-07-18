@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../states/data/region1_repository.dart';
 import '../../states/data/state_workflow_repository.dart';
+import '../data/rollout_regions.dart';
 import 'organizer_fields.dart';
 
 /// Renders a nationwide state workflow form (personal or business) from the API catalog.
@@ -33,8 +35,10 @@ class OrganizerNationwideForm extends ConsumerStatefulWidget {
 class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideForm> {
   Map<String, dynamic>? _ret;
   Map<String, dynamic>? _progress;
+  Map<String, dynamic>? _estimate;
   String? _error;
   bool _loading = true;
+  bool _estimating = false;
 
   @override
   void initState() {
@@ -150,6 +154,41 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
               ),
               const SizedBox(height: 4),
               Text('$pct% required steps complete', style: const TextStyle(fontSize: 12)),
+              if (const {'AZ', 'HI', 'UT'}.contains(widget.stateCode.toUpperCase()) &&
+                  widget.family == 'individual') ...[
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  onPressed: _estimating ? null : _runRegion1Estimate,
+                  icon: _estimating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.calculate_outlined),
+                  label: Text('Run ${widget.stateCode.toUpperCase()} Region 1 estimate'),
+                ),
+                if (_estimate != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Form ${_estimate!['form'] ?? '—'} · tax \$${_estimate!['tax'] ?? 0} · '
+                    'refund/(owed) \$${_estimate!['refund_or_owed'] ?? 0}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  Text(
+                    '${_estimate!['disclaimer'] ?? 'Estimate only · live agency e-file off'}',
+                    style: const TextStyle(color: MkgColors.textGrey, fontSize: 11),
+                  ),
+                ],
+              ],
+              if (regionForState(widget.stateCode) != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Region ${regionForState(widget.stateCode)!.id} · ${regionForState(widget.stateCode)!.name}',
+                    style: const TextStyle(fontSize: 11, color: MkgColors.textGrey),
+                  ),
+                ),
             ],
           ),
         ),
@@ -168,6 +207,26 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
         ],
       ],
     );
+  }
+
+  Future<void> _runRegion1Estimate() async {
+    setState(() => _estimating = true);
+    final repo = ref.read(region1RepositoryProvider);
+    final result = await repo.estimate(
+      stateCode: widget.stateCode,
+      input: {
+        'federal_agi': widget.answers['federalAgi'] ?? widget.answers['stateWages'] ?? 0,
+        'state_withholding': widget.answers['stateWithholding'] ?? 0,
+        'estimated_payments': widget.answers['estimatedPayments'] ?? 0,
+        'filing_status': widget.answers['filingStatus'] ?? 'single',
+        'residency_type': widget.answers['residencyType'] ?? widget.filingType,
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _estimate = result;
+      _estimating = false;
+    });
   }
 
   Widget _field(Map<String, dynamic> field) {
