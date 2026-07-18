@@ -69,17 +69,30 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
       setState(() => _error = 'Enter a valid expected refund / advance amount');
       return;
     }
+    if (_selected is _PercentAdvance && _expectedRefund <= 0) {
+      setState(() => _error = 'Enter your expected refund amount to calculate a percent advance');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
+      _quote = null;
     });
     try {
       final quote = await ref.read(refundAdvanceRepositoryProvider).calculateLoan(amount);
       if (!mounted) return;
+      if (quote.isEmpty || quote['principal'] == null) {
+        setState(() {
+          _error = 'Could not calculate this loan estimate. Please try again.';
+          _busy = false;
+        });
+        return;
+      }
       final apr = (quote['apr'] as num?)?.toDouble() ?? _selected.apr;
       setState(() {
         _quote = quote;
         _busy = false;
+        _error = null;
       });
       ref.read(refundAdvanceProvider.notifier).setQuote(
             RefundAdvanceQuote(
