@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
@@ -320,11 +321,31 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     if (raw.isEmpty || raw == 'unset' || raw == 'null' || raw == 'none') {
       return 'No banking partner';
     }
-    return raw;
+    return raw == 'plaid' ? 'Plaid' : raw;
   }
 
   bool get _kycAvailable =>
       _status?['kyc_available'] == true || _status?['available'] == true;
+
+  List<Map<String, dynamic>> get _accounts {
+    final raw = _status?['accounts'];
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  String? get _webManageUrl {
+    final url = _status?['web_manage_url']?.toString();
+    if (url == null || url.isEmpty) return null;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !(uri.isScheme('https') || uri.isScheme('http'))) return null;
+    return url;
+  }
+
+  Future<void> _openWebManage() async {
+    final url = _webManageUrl;
+    if (url == null) return;
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
 
   Future<void> _checkAvailability() async {
     final entity = await ref.read(entitiesRepositoryProvider).ensurePrimaryEntity();
@@ -337,11 +358,30 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
       final message = (result?['message'] ??
               'A regulated banking partner is not configured yet. Tax prep continues without bank linking.')
           .toString();
+      final manageUrl = result?['web_manage_url']?.toString();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (manageUrl != null && manageUrl.isNotEmpty) {
+        final uri = Uri.tryParse(manageUrl);
+        if (uri != null && (uri.isScheme('https') || uri.isScheme('http'))) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
       await _load();
     } finally {
       if (mounted) setState(() => _checking = false);
     }
+  }
+
+  String _accountSubtitle(Map<String, dynamic> account) {
+    final rawType = (account['account_type'] ?? 'account').toString().trim();
+    final type = rawType.isEmpty
+        ? 'Account'
+        : '${rawType[0].toUpperCase()}${rawType.substring(1)}';
+    final last4 = (account['account_last4'] ?? '••••').toString();
+    final verification = (account['verification_status'] ?? '').toString();
+    final verified = account['is_verified'] == true || verification == 'verified';
+    final status = verified ? 'Verified' : (verification.isEmpty ? 'Pending' : verification.replaceAll('_', ' '));
+    return '$type ·····$last4 · $status';
   }
 
   @override
@@ -354,6 +394,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
             'Business bank linking requires an approved regulated partner. MKG is not a bank.')
         .toString();
     final nextStep = _status?['next_step']?.toString();
+    final accounts = _accounts;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -390,7 +431,27 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
               isThreeLine: true,
             ),
           ),
-          if (_kycAvailable)
+          if (accounts.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text('Linked accounts', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            ...accounts.map(
+              (account) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.account_balance, color: MkgColors.primary),
+                  title: Text((account['institution_name'] ?? 'Bank account').toString()),
+                  subtitle: Text(_accountSubtitle(account)),
+                ),
+              ),
+            ),
+          ],
+          if (_webManageUrl != null)
+            FilledButton.icon(
+              onPressed: _openWebManage,
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Manage bank accounts on web'),
+            )
+          else if (_kycAvailable)
             FilledButton(
               onPressed: _checking ? null : _checkAvailability,
               child: Text(_checking ? 'Starting…' : 'Begin partner verification'),
@@ -400,6 +461,13 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
               onPressed: _checking ? null : _checkAvailability,
               child: Text(_checking ? 'Checking…' : 'Check partner availability'),
             ),
+          if (_webManageUrl != null && _kycAvailable) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _checking ? null : _checkAvailability,
+              child: Text(_checking ? 'Starting…' : 'Start verification'),
+            ),
+          ],
           const SizedBox(height: 8),
           const Text(
             'No bank credentials are collected in-app. Live ACH/card movement is not enabled.',
