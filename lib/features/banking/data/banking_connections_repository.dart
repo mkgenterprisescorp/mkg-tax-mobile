@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/laravel_api_client.dart';
 import '../../../core/platform/platform_api.dart';
 
-/// Phase 6 — banking connection stubs only. No credentials, no money movement.
+/// Banking status from Laravel → portal `bank_accounts` (sanitized).
+/// No credentials and no money movement in-app.
 class BankingConnectionsRepository {
   BankingConnectionsRepository(this._api);
   final LaravelApiClient _api;
