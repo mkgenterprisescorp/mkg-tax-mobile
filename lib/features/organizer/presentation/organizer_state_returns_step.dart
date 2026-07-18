@@ -203,8 +203,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     for (final code in region.states)
-                      if (statesWithIncomeTax.contains(code) ||
-                          const {'AK', 'WA', 'WY', 'NV'}.contains(code))
+                      if (code != 'CA' &&
+                          (statesWithIncomeTax.contains(code) ||
+                              const {'AK', 'WA', 'WY', 'NV'}.contains(code)))
                         FilterChip(
                           label: Text(code),
                           selected: selected.contains(code),
@@ -230,6 +231,13 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                 'State tax preparation for these jurisdictions is scheduled for a later regional phase.',
                 style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
               ),
+              if (unassignedStates.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Unassigned: ${unassignedStates.join(', ')}',
+                  style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                ),
+              ],
               for (final region in lockedRolloutRegions) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -242,8 +250,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     for (final code in region.states)
-                      if (statesWithIncomeTax.contains(code) ||
-                          const {'FL', 'TN', 'TX', 'SD', 'NH'}.contains(code))
+                      if (code != 'CA' &&
+                          (statesWithIncomeTax.contains(code) ||
+                              const {'FL', 'TN', 'TX', 'SD', 'NH', 'DC'}.contains(code)))
                         FilterChip(
                           label: Text(code),
                           selected: false,

@@ -2,7 +2,8 @@
 /// Mirrors Laravel `StateRolloutRegions` / state-engine `rollout-regions-ty2025`.
 ///
 /// Phase 1: Region 1 West + Region 6 Northwest.
-/// California stays on Form 540 / CA business paths.
+/// California is Region 1 geographically but filing stays on Form 540 paths.
+/// New Mexico (NM) is not assigned in the current regional map.
 
 class RolloutRegion {
   const RolloutRegion({
@@ -26,14 +27,7 @@ const rolloutRegions = <RolloutRegion>[
     name: 'West',
     slug: 'west',
     phase: 1,
-    states: ['AZ', 'CO', 'HI', 'NV', 'NM', 'UT'],
-  ),
-  RolloutRegion(
-    id: '6',
-    name: 'Northwest',
-    slug: 'northwest',
-    phase: 1,
-    states: ['AK', 'ID', 'MT', 'OR', 'WA', 'WY'],
+    states: ['AK', 'AZ', 'CA', 'HI', 'NV', 'UT'],
   ),
   RolloutRegion(
     id: '2',
@@ -44,30 +38,39 @@ const rolloutRegions = <RolloutRegion>[
   ),
   RolloutRegion(
     id: '3',
-    name: 'Southern',
-    slug: 'southern',
+    name: 'South',
+    slug: 'south',
     phase: 3,
-    states: ['AL', 'AR', 'FL', 'GA', 'KY', 'LA', 'MS', 'NC', 'OK', 'SC', 'TN', 'TX'],
+    states: ['AL', 'AR', 'FL', 'GA', 'KY', 'LA', 'MS', 'NC', 'OK', 'SC', 'TN', 'TX', 'VA', 'WV'],
   ),
   RolloutRegion(
     id: '4',
     name: 'East',
     slug: 'east',
     phase: 4,
-    states: ['DE', 'DC', 'MD', 'PA', 'VA', 'WV'],
+    states: ['DE', 'DC', 'MD', 'NJ', 'PA'],
   ),
   RolloutRegion(
     id: '5',
     name: 'Northeast',
     slug: 'northeast',
     phase: 5,
-    states: ['CT', 'ME', 'MA', 'NH', 'NJ', 'NY', 'RI', 'VT'],
+    states: ['CT', 'ME', 'MA', 'NH', 'NY', 'RI', 'VT'],
+  ),
+  RolloutRegion(
+    id: '6',
+    name: 'Northwest',
+    slug: 'northwest',
+    phase: 1,
+    states: ['CO', 'ID', 'MT', 'OR', 'WA', 'WY'],
   ),
 ];
 
 const enabledRegionIds = <String>{'1', '6'};
 
 const phaseOneLabel = 'Phase 1 · Regions 1 (West) + 6 (Northwest)';
+
+const unassignedStates = <String>{'NM'};
 
 RolloutRegion? regionForState(String stateCode) {
   final code = stateCode.toUpperCase();
@@ -87,7 +90,9 @@ bool isNationwideStateEnabled(String stateCode) {
 /// Phase-1 enabled nationwide states (excludes CA).
 Set<String> get phaseOneEnabledStates => {
       for (final region in rolloutRegions)
-        if (enabledRegionIds.contains(region.id)) ...region.states,
+        if (enabledRegionIds.contains(region.id))
+          for (final code in region.states)
+            if (code != 'CA') code,
     };
 
 List<RolloutRegion> get enabledRolloutRegions => [
