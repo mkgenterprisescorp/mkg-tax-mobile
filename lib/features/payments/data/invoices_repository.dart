@@ -34,16 +34,24 @@ class InvoicesRepository {
   /// Hosted Stripe Checkout via Laravel → portal. Never collects card data in-app.
   Future<Map<String, dynamic>?> checkout(String invoiceId, {String? idempotencyKey}) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.dio.post<Map<String, dynamic>>(
-      '/api/v1/invoices/$invoiceId/checkout',
-      options: Options(
-        headers: {
-          if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
-        },
-      ),
-    );
-    if (!PlatformApi.ok(res)) return null;
-    return PlatformApi.unwrapMap(res);
+    try {
+      final res = await _api.dio.post<Map<String, dynamic>>(
+        '/api/v1/invoices/$invoiceId/checkout',
+        options: Options(
+          headers: {
+            if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+          },
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      final map = PlatformApi.unwrapMap(res);
+      if (map != null) return map;
+      return _errorMap(res.data);
+    } on DioException catch (e) {
+      final err = _errorMap(e.response?.data);
+      if (err != null) return err;
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>?> feeCheckout({
@@ -52,20 +60,35 @@ class InvoicesRepository {
     String? idempotencyKey,
   }) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.dio.post<Map<String, dynamic>>(
-      '/api/v1/billing/fee-checkout',
-      data: {
-        'services': services,
-        if (taxYear != null) 'tax_year': taxYear,
-      },
-      options: Options(
-        headers: {
-          if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+    try {
+      final res = await _api.dio.post<Map<String, dynamic>>(
+        '/api/v1/billing/fee-checkout',
+        data: {
+          'services': services,
+          if (taxYear != null) 'tax_year': taxYear,
         },
-      ),
-    );
-    if (!PlatformApi.ok(res)) return null;
-    return PlatformApi.unwrapMap(res);
+        options: Options(
+          headers: {
+            if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+          },
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      final map = PlatformApi.unwrapMap(res);
+      if (map != null) return map;
+      return _errorMap(res.data);
+    } on DioException catch (e) {
+      final err = _errorMap(e.response?.data);
+      if (err != null) return err;
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic>? _errorMap(dynamic data) {
+    if (data is! Map) return null;
+    final err = data['error'];
+    if (err is Map) return Map<String, dynamic>.from(err);
+    return null;
   }
 }
 

@@ -457,10 +457,27 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  int get _selectedFeesTotalCents {
+    var total = 0;
+    for (final fee in _feeSchedule) {
+      final id = fee['id']?.toString();
+      if (id == null || !_selectedFees.contains(id)) continue;
+      final price = fee['price'];
+      if (price is num) total += price.round();
+    }
+    return total;
+  }
+
   Future<void> _checkout(Map<String, dynamic> inv) async {
     final id = inv['id']?.toString();
     if (id == null || !AppConfig.usesLaravelAuth) {
       await _openHostedUrl(null);
+      return;
+    }
+    if ('${inv['status'] ?? ''}'.toLowerCase() == 'paid') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This invoice is already paid.')),
+      );
       return;
     }
     setState(() => _checkingOut = true);
@@ -477,12 +494,18 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              (session?['status'] ?? session?['message'] ?? 'Hosted Stripe Checkout required.').toString(),
+              (session?['message'] ?? session?['status'] ?? 'Hosted Stripe Checkout unavailable.').toString(),
             ),
           ),
         );
+        return;
       }
       await _openHostedUrl(url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiErrorMapper.map(e))),
+      );
     } finally {
       if (mounted) setState(() => _checkingOut = false);
     }
@@ -490,6 +513,16 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
   Future<void> _checkoutSelectedFees() async {
     if (!AppConfig.usesLaravelAuth || _selectedFees.isEmpty) return;
+    if (_selectedFeesTotalCents < 15000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Minimum checkout is \$150.00 (selected \$${(_selectedFeesTotalCents / 100).toStringAsFixed(2)}).',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _checkingOut = true);
     try {
       final services = [
@@ -514,6 +547,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         return;
       }
       await _openHostedUrl(url);
+      // Refresh invoices so pending fee invoice (and later paid status) appears.
+      await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -533,7 +568,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         children: [
           const SectionHeader('Fee schedule'),
           const Text(
-            'Pay technology and prep fees through hosted Stripe Checkout. Card details never enter this app.',
+            'Pay technology and prep fees through hosted Stripe Checkout (\$150 minimum). Card details never enter this app.',
             style: TextStyle(color: MkgColors.textGrey),
           ),
           const SizedBox(height: 8),
@@ -586,9 +621,19 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 ),
             if (_selectedFees.isNotEmpty) ...[
               const SizedBox(height: 8),
+              Text(
+                'Selected: \$${(_selectedFeesTotalCents / 100).toStringAsFixed(2)}'
+                '${_selectedFeesTotalCents < 15000 ? ' · add more to reach \$150 minimum' : ''}',
+                style: const TextStyle(color: MkgColors.textGrey),
+              ),
+              const SizedBox(height: 8),
               FilledButton(
                 onPressed: _checkingOut ? null : _checkoutSelectedFees,
-                child: Text(_checkingOut ? 'Opening Stripe…' : 'Pay selected fees (Stripe Checkout)'),
+                child: Text(
+                  _checkingOut
+                      ? 'Opening Stripe…'
+                      : 'Pay selected fees (Stripe Checkout)',
+                ),
               ),
             ],
             const SizedBox(height: 20),
@@ -616,7 +661,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     ),
                     subtitle: Text(
                       'Status: ${(inv['status'] ?? 'unknown')} · '
-                      'Amount: ${inv['amount_cents'] != null ? '\$${((inv['amount_cents'] as num) / 100).toStringAsFixed(2)}' : (inv['amount'] ?? inv['total'] ?? '—')}',
+                      'Amount: ${inv['amount_cents'] != null ? '\$${((inv['amount_cents'] as num) / 100).toStringAsFixed(2)}' : (inv['amount'] ?? inv['total'] ?? '—')}'
+                      '${inv['amount_paid_cents'] != null && (inv['amount_paid_cents'] as num) > 0 ? ' · Paid: \$${((inv['amount_paid_cents'] as num) / 100).toStringAsFixed(2)}' : ''}',
                     ),
                     trailing: StatusChip(
                       label: (inv['status'] ?? 'open').toString(),
