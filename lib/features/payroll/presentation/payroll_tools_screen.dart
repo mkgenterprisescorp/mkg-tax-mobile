@@ -24,7 +24,9 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
   final _otherIncome = TextEditingController(text: '0');
   final _deductions = TextEditingController(text: '0');
   final _credits = TextEditingController(text: '0');
+  final _federalTaxOwed = TextEditingController(text: '');
   String _frequency = 'biweekly';
+  String _w4Frequency = 'biweekly';
   String _stateCode = 'CA';
   String _filingStatus = 'single';
   Map<String, dynamic>? _payroll;
@@ -53,6 +55,7 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
     _otherIncome.dispose();
     _deductions.dispose();
     _credits.dispose();
+    _federalTaxOwed.dispose();
     super.dispose();
   }
 
@@ -84,7 +87,9 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       setState(() {
         _payroll = result;
         _busy = false;
-        if (result == null) _error = 'Paycheck estimate unavailable. Please sign in and try again.';
+        if (result == null) {
+          _error = 'Paycheck estimate unavailable. Check your connection and try again.';
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -101,6 +106,12 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       setState(() => _error = 'Enter valid annual wages');
       return;
     }
+    final owedText = _federalTaxOwed.text.replaceAll(',', '').trim();
+    final owed = owedText.isEmpty ? null : num.tryParse(owedText);
+    if (owedText.isNotEmpty && owed == null) {
+      setState(() => _error = 'Enter a valid federal tax owed amount (or leave blank)');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -109,15 +120,19 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
       final result = await ref.read(payrollRepositoryProvider).w4Estimate(
             annualWages: wages,
             filingStatus: _filingStatus,
+            payFrequency: _w4Frequency,
             otherIncome: num.tryParse(_otherIncome.text.replaceAll(',', '').trim()) ?? 0,
             deductions: num.tryParse(_deductions.text.replaceAll(',', '').trim()) ?? 0,
             credits: num.tryParse(_credits.text.replaceAll(',', '').trim()) ?? 0,
+            federalTaxOwed: owed,
           );
       if (!mounted) return;
       setState(() {
         _w4 = result;
         _busy = false;
-        if (result == null) _error = 'W-4 estimate unavailable. Please sign in and try again.';
+        if (result == null) {
+          _error = 'W-4 estimate unavailable. Check your connection and try again.';
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -212,10 +227,27 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
         ],
         const SizedBox(height: 28),
         const SectionHeader('W-4 worksheet estimate'),
+        const Text(
+          'If the client owes (or will owe) federal tax, enter that annual amount and pay frequency. '
+          'The result is Form W-4 Step 4(c) Extra withholding.',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
         TextField(
           controller: _wages,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Annual wages', prefixText: '\$ '),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _federalTaxOwed,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Federal tax owed (annual)',
+            hintText: 'e.g. 1200 from prior balance due',
+            prefixText: '\$ ',
+            helperText: 'Optional. When set, Step 4(c) = owed ÷ pay periods.',
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -242,6 +274,12 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
           items: _filingStatuses,
           onChanged: (v) => setState(() => _filingStatus = v ?? 'single'),
         ),
+        OrganizerDropdown<String>(
+          label: 'Pay frequency (for Step 4(c))',
+          value: _w4Frequency,
+          items: _frequencies,
+          onChanged: (v) => setState(() => _w4Frequency = v ?? 'biweekly'),
+        ),
         OutlinedButton.icon(
           onPressed: _busy ? null : _runW4,
           icon: const Icon(Icons.description_outlined),
@@ -253,14 +291,25 @@ class _PayrollToolsScreenState extends ConsumerState<PayrollToolsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('W-4 estimate', style: TextStyle(fontWeight: FontWeight.w800)),
+                const Text('W-4 Step 4(c) estimate', style: TextStyle(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 _kv(
-                  'Suggested extra per paycheck',
-                  _money(_w4!['suggested_extra_withholding_per_paycheck']),
+                  'Step 4(c) Extra withholding',
+                  _money(_w4!['step_4c_extra_withholding'] ?? _w4!['suggested_extra_withholding_per_paycheck']),
                   emphasize: true,
                 ),
+                _kv('Pay frequency', '${_w4!['pay_frequency'] ?? _w4Frequency}'),
+                _kv('Periods / year', '${_w4!['periods_per_year'] ?? ''}'),
+                _kv('Annual tax basis', _money(_w4!['annual_federal_tax_basis'])),
                 _kv('Filing status', '${_w4!['filing_status'] ?? _filingStatus}'),
+                if (_w4!['step_4c_by_frequency'] is Map) ...[
+                  const SizedBox(height: 8),
+                  const Text('Other frequencies', style: TextStyle(fontWeight: FontWeight.w700)),
+                  _kv('Monthly', _money((_w4!['step_4c_by_frequency'] as Map)['monthly'])),
+                  _kv('Semi-monthly', _money((_w4!['step_4c_by_frequency'] as Map)['semimonthly'])),
+                  _kv('Biweekly', _money((_w4!['step_4c_by_frequency'] as Map)['biweekly'])),
+                  _kv('Weekly', _money((_w4!['step_4c_by_frequency'] as Map)['weekly'])),
+                ],
                 if (_w4!['notes'] is List) ...[
                   const SizedBox(height: 8),
                   for (final n in (_w4!['notes'] as List))
