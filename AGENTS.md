@@ -18,6 +18,7 @@
 - **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
 - **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro).
 - **Mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (mkg-tax-backend-2).
+- **WordPress (`www`)** is **marketing only** — no tax returns, SSNs, bank data, or uploads in the WP DB. Sensitive work stays in **Laravel + portal + Neon + DigitalOcean Spaces**.
 - Do not configure S2S / portal bridge against `financemkgtax.com`.
 
 ### Brand assets
