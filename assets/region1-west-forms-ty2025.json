@@ -10,6 +10,7 @@
     "CA",
     "HI",
     "NV",
+    "NM",
     "UT"
   ],
   "phase1NationwideStates": [
@@ -19,6 +20,7 @@
     "HI",
     "ID",
     "MT",
+    "NM",
     "NV",
     "OR",
     "UT",
@@ -7485,6 +7487,2279 @@
             },
             {
               "formId": "NV-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            }
+          ]
+        }
+      ]
+    },
+    "NM": {
+      "name": "New Mexico",
+      "individualIncomeTax": true,
+      "agencyUrl": "https://www.tax.newmexico.gov/",
+      "regionId": "1",
+      "regionName": "West",
+      "rolloutEnabled": true,
+      "returns": [
+        {
+          "returnFamily": "individual",
+          "filingType": "resident",
+          "primaryFormId": "PIT-1",
+          "primaryFormTitle": "Personal Income Tax Return",
+          "workflowKind": "personal_income_tax",
+          "federalBase": "1040",
+          "calculationMode": "estimate_supported",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "identity",
+              "title": "Identity",
+              "required": true,
+              "fieldGroupIds": [
+                "identity"
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency",
+              "required": true,
+              "fieldGroupIds": [
+                "residency"
+              ]
+            },
+            {
+              "id": "income",
+              "title": "Income",
+              "required": true,
+              "fieldGroupIds": [
+                "income"
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Adjustments",
+              "required": false,
+              "fieldGroupIds": [
+                "adjustments"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments"
+              ]
+            },
+            {
+              "id": "credits_review",
+              "title": "Credits & review",
+              "required": true,
+              "fieldGroupIds": [
+                "credits_flags"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "identity",
+              "title": "Taxpayer identity",
+              "fields": [
+                {
+                  "key": "primaryName",
+                  "label": "Primary taxpayer name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "fullName"
+                },
+                {
+                  "key": "spouseName",
+                  "label": "Spouse name",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingStatus",
+                  "label": "Filing status",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "single",
+                    "married_filing_jointly",
+                    "married_filing_separately",
+                    "head_of_household",
+                    "qualifying_surviving_spouse"
+                  ],
+                  "mapsToOrganizer": "filingStatus"
+                }
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency & domicile",
+              "fields": [
+                {
+                  "key": "residencyType",
+                  "label": "Residency type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "resident",
+                    "part_year",
+                    "nonresident"
+                  ],
+                  "mapsToOrganizer": "additionalStateReturns.residencyType"
+                },
+                {
+                  "key": "daysInState",
+                  "label": "Days lived/worked in state",
+                  "type": "number",
+                  "required": false
+                },
+                {
+                  "key": "movedDate",
+                  "label": "Move-in / move-out date",
+                  "type": "date",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "income",
+              "title": "PIT-1 income intake",
+              "fields": [
+                {
+                  "key": "federalAgi",
+                  "label": "Federal AGI",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "agi"
+                },
+                {
+                  "key": "stateWages",
+                  "label": "State wages",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.wages"
+                },
+                {
+                  "key": "stateInterestDividends",
+                  "label": "Interest / dividends sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateBusinessIncome",
+                  "label": "Business / Schedule C sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "otherStateIncome",
+                  "label": "Other state-sourced income",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Additions / subtractions",
+              "fields": [
+                {
+                  "key": "stateAdditions",
+                  "label": "State additions to federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateSubtractions",
+                  "label": "State subtractions from federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "standardOrItemized",
+                  "label": "Deduction method",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "standard",
+                    "itemized",
+                    "unknown"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Withholding & payments",
+              "fields": [
+                {
+                  "key": "stateWithholding",
+                  "label": "State tax withheld",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.withholding"
+                },
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated tax payments",
+                  "type": "currency",
+                  "required": false,
+                  "mapsToOrganizer": "additionalStateReturns.estimatedPayments"
+                },
+                {
+                  "key": "priorYearOverpayment",
+                  "label": "Prior-year overpayment applied",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "credits_flags",
+              "title": "Credits & filing flags",
+              "fields": [
+                {
+                  "key": "claimingCredits",
+                  "label": "Claiming state credits",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "creditNotes",
+                  "label": "Credit notes for preparer",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Taxpayer believes a return is required",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.filingRequired"
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.professionalReview"
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "PIT-1-ES",
+              "title": "Estimated Tax Voucher",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT",
+              "title": "Extension Request",
+              "role": "extension"
+            },
+            {
+              "formId": "PIT-1-X",
+              "title": "Amended Return",
+              "role": "amended"
+            }
+          ]
+        },
+        {
+          "returnFamily": "individual",
+          "filingType": "part_year",
+          "primaryFormId": "PIT-1",
+          "primaryFormTitle": "Personal Income Tax Return (Part-Year)",
+          "workflowKind": "personal_income_tax",
+          "federalBase": "1040",
+          "calculationMode": "estimate_supported",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "identity",
+              "title": "Identity",
+              "required": true,
+              "fieldGroupIds": [
+                "identity"
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency",
+              "required": true,
+              "fieldGroupIds": [
+                "residency"
+              ]
+            },
+            {
+              "id": "income",
+              "title": "Income",
+              "required": true,
+              "fieldGroupIds": [
+                "income"
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Adjustments",
+              "required": false,
+              "fieldGroupIds": [
+                "adjustments"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments"
+              ]
+            },
+            {
+              "id": "credits_review",
+              "title": "Credits & review",
+              "required": true,
+              "fieldGroupIds": [
+                "credits_flags"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "identity",
+              "title": "Taxpayer identity",
+              "fields": [
+                {
+                  "key": "primaryName",
+                  "label": "Primary taxpayer name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "fullName"
+                },
+                {
+                  "key": "spouseName",
+                  "label": "Spouse name",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingStatus",
+                  "label": "Filing status",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "single",
+                    "married_filing_jointly",
+                    "married_filing_separately",
+                    "head_of_household",
+                    "qualifying_surviving_spouse"
+                  ],
+                  "mapsToOrganizer": "filingStatus"
+                }
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency & domicile",
+              "fields": [
+                {
+                  "key": "residencyType",
+                  "label": "Residency type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "resident",
+                    "part_year",
+                    "nonresident"
+                  ],
+                  "mapsToOrganizer": "additionalStateReturns.residencyType"
+                },
+                {
+                  "key": "daysInState",
+                  "label": "Days lived/worked in state",
+                  "type": "number",
+                  "required": true
+                },
+                {
+                  "key": "movedDate",
+                  "label": "Move-in / move-out date",
+                  "type": "date",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "income",
+              "title": "PIT-1 income intake",
+              "fields": [
+                {
+                  "key": "federalAgi",
+                  "label": "Federal AGI",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "agi"
+                },
+                {
+                  "key": "stateWages",
+                  "label": "State wages",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.wages"
+                },
+                {
+                  "key": "stateInterestDividends",
+                  "label": "Interest / dividends sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateBusinessIncome",
+                  "label": "Business / Schedule C sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "otherStateIncome",
+                  "label": "Other state-sourced income",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Additions / subtractions",
+              "fields": [
+                {
+                  "key": "stateAdditions",
+                  "label": "State additions to federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateSubtractions",
+                  "label": "State subtractions from federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "standardOrItemized",
+                  "label": "Deduction method",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "standard",
+                    "itemized",
+                    "unknown"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Withholding & payments",
+              "fields": [
+                {
+                  "key": "stateWithholding",
+                  "label": "State tax withheld",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.withholding"
+                },
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated tax payments",
+                  "type": "currency",
+                  "required": false,
+                  "mapsToOrganizer": "additionalStateReturns.estimatedPayments"
+                },
+                {
+                  "key": "priorYearOverpayment",
+                  "label": "Prior-year overpayment applied",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "credits_flags",
+              "title": "Credits & filing flags",
+              "fields": [
+                {
+                  "key": "claimingCredits",
+                  "label": "Claiming state credits",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "creditNotes",
+                  "label": "Credit notes for preparer",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Taxpayer believes a return is required",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.filingRequired"
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.professionalReview"
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "PIT-1-ES",
+              "title": "Estimated Tax Voucher",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT",
+              "title": "Extension Request",
+              "role": "extension"
+            },
+            {
+              "formId": "PIT-1-X",
+              "title": "Amended Return",
+              "role": "amended"
+            },
+            {
+              "formId": "NM-ALLOC",
+              "title": "Income Allocation Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "individual",
+          "filingType": "nonresident",
+          "primaryFormId": "PIT-1",
+          "primaryFormTitle": "Personal Income Tax Return (Nonresident)",
+          "workflowKind": "personal_income_tax",
+          "federalBase": "1040",
+          "calculationMode": "estimate_supported",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "identity",
+              "title": "Identity",
+              "required": true,
+              "fieldGroupIds": [
+                "identity"
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency",
+              "required": true,
+              "fieldGroupIds": [
+                "residency"
+              ]
+            },
+            {
+              "id": "income",
+              "title": "Income",
+              "required": true,
+              "fieldGroupIds": [
+                "income"
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Adjustments",
+              "required": false,
+              "fieldGroupIds": [
+                "adjustments"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments"
+              ]
+            },
+            {
+              "id": "credits_review",
+              "title": "Credits & review",
+              "required": true,
+              "fieldGroupIds": [
+                "credits_flags"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "identity",
+              "title": "Taxpayer identity",
+              "fields": [
+                {
+                  "key": "primaryName",
+                  "label": "Primary taxpayer name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "fullName"
+                },
+                {
+                  "key": "spouseName",
+                  "label": "Spouse name",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingStatus",
+                  "label": "Filing status",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "single",
+                    "married_filing_jointly",
+                    "married_filing_separately",
+                    "head_of_household",
+                    "qualifying_surviving_spouse"
+                  ],
+                  "mapsToOrganizer": "filingStatus"
+                }
+              ]
+            },
+            {
+              "id": "residency",
+              "title": "Residency & domicile",
+              "fields": [
+                {
+                  "key": "residencyType",
+                  "label": "Residency type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "resident",
+                    "part_year",
+                    "nonresident"
+                  ],
+                  "mapsToOrganizer": "additionalStateReturns.residencyType"
+                },
+                {
+                  "key": "daysInState",
+                  "label": "Days lived/worked in state",
+                  "type": "number",
+                  "required": true
+                },
+                {
+                  "key": "movedDate",
+                  "label": "Move-in / move-out date",
+                  "type": "date",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "income",
+              "title": "PIT-1 income intake",
+              "fields": [
+                {
+                  "key": "federalAgi",
+                  "label": "Federal AGI",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "agi"
+                },
+                {
+                  "key": "stateWages",
+                  "label": "State wages",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.wages"
+                },
+                {
+                  "key": "stateInterestDividends",
+                  "label": "Interest / dividends sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateBusinessIncome",
+                  "label": "Business / Schedule C sourced to state",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "otherStateIncome",
+                  "label": "Other state-sourced income",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "adjustments",
+              "title": "Additions / subtractions",
+              "fields": [
+                {
+                  "key": "stateAdditions",
+                  "label": "State additions to federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "stateSubtractions",
+                  "label": "State subtractions from federal income",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "standardOrItemized",
+                  "label": "Deduction method",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "standard",
+                    "itemized",
+                    "unknown"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Withholding & payments",
+              "fields": [
+                {
+                  "key": "stateWithholding",
+                  "label": "State tax withheld",
+                  "type": "currency",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.withholding"
+                },
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated tax payments",
+                  "type": "currency",
+                  "required": false,
+                  "mapsToOrganizer": "additionalStateReturns.estimatedPayments"
+                },
+                {
+                  "key": "priorYearOverpayment",
+                  "label": "Prior-year overpayment applied",
+                  "type": "currency",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "credits_flags",
+              "title": "Credits & filing flags",
+              "fields": [
+                {
+                  "key": "claimingCredits",
+                  "label": "Claiming state credits",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "creditNotes",
+                  "label": "Credit notes for preparer",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Taxpayer believes a return is required",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.filingRequired"
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true,
+                  "mapsToOrganizer": "additionalStateReturns.professionalReview"
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "PIT-1-ES",
+              "title": "Estimated Tax Voucher",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT",
+              "title": "Extension Request",
+              "role": "extension"
+            },
+            {
+              "formId": "PIT-1-X",
+              "title": "Amended Return",
+              "role": "amended"
+            },
+            {
+              "formId": "NM-ALLOC",
+              "title": "Income Allocation Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "corporation",
+          "filingType": "standard",
+          "primaryFormId": "CIT-1",
+          "primaryFormTitle": "Corporate Income and Franchise Tax Return",
+          "workflowKind": "business_entity",
+          "federalBase": "1120",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 1120 bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "CIT-1-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            },
+            {
+              "formId": "NM-APPORT",
+              "title": "Apportionment / Allocation Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "s_corporation",
+          "filingType": "standard",
+          "primaryFormId": "S-Corp",
+          "primaryFormTitle": "S Corporation Income Tax Return",
+          "workflowKind": "business_entity",
+          "federalBase": "1120S",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 1120S bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "S-Corp-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            },
+            {
+              "formId": "NM-APPORT",
+              "title": "Apportionment / Allocation Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "partnership",
+          "filingType": "standard",
+          "primaryFormId": "PTE",
+          "primaryFormTitle": "Pass-Through Entity Return",
+          "workflowKind": "business_entity",
+          "federalBase": "1065",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 1065 bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "PTE-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            },
+            {
+              "formId": "NM-APPORT",
+              "title": "Apportionment / Allocation Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "fiduciary",
+          "filingType": "standard",
+          "primaryFormId": "FID-1",
+          "primaryFormTitle": "Fiduciary Income Tax Return",
+          "workflowKind": "business_entity",
+          "federalBase": "1041",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 1041 bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "FID-1-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "exempt_organization",
+          "filingType": "standard",
+          "primaryFormId": "CIT-1",
+          "primaryFormTitle": "Exempt Organization Corporate Return",
+          "workflowKind": "nonprofit",
+          "federalBase": "990",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 990 bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "CIT-1-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
+              "title": "State K-1 / Owner Schedule",
+              "role": "schedule"
+            }
+          ]
+        },
+        {
+          "returnFamily": "exempt_organization_ez",
+          "filingType": "standard",
+          "primaryFormId": "EO-EZ",
+          "primaryFormTitle": "Exempt Organization Short Return",
+          "workflowKind": "nonprofit",
+          "federalBase": "990EZ",
+          "calculationMode": "intake_only",
+          "liveEfile": false,
+          "regionId": "1",
+          "steps": [
+            {
+              "id": "entity",
+              "title": "Entity",
+              "required": true,
+              "fieldGroupIds": [
+                "entity_identity"
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus",
+              "required": true,
+              "fieldGroupIds": [
+                "nexus"
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal bridge",
+              "required": true,
+              "fieldGroupIds": [
+                "federal_bridge"
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment",
+              "required": true,
+              "fieldGroupIds": [
+                "apportionment"
+              ]
+            },
+            {
+              "id": "payments",
+              "title": "Payments",
+              "required": true,
+              "fieldGroupIds": [
+                "payments_biz"
+              ]
+            }
+          ],
+          "fieldGroups": [
+            {
+              "id": "entity_identity",
+              "title": "Entity identity",
+              "fields": [
+                {
+                  "key": "legalName",
+                  "label": "Legal entity name",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessName"
+                },
+                {
+                  "key": "ein",
+                  "label": "EIN",
+                  "type": "string",
+                  "required": true,
+                  "mapsToOrganizer": "businessEIN"
+                },
+                {
+                  "key": "entityType",
+                  "label": "Entity type",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "corporation",
+                    "s_corporation",
+                    "partnership",
+                    "fiduciary",
+                    "exempt_organization",
+                    "exempt_organization_ez"
+                  ]
+                },
+                {
+                  "key": "formationState",
+                  "label": "Formation state",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "commercialDomicile",
+                  "label": "Commercial domicile state",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "nexus",
+              "title": "Nexus & filing obligation",
+              "fields": [
+                {
+                  "key": "hasPayroll",
+                  "label": "Payroll in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasProperty",
+                  "label": "Property in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "hasSales",
+                  "label": "Sales / receipts in this state",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "economicNexusMet",
+                  "label": "Economic nexus threshold met",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "key": "filingRequired",
+                  "label": "Entity believes a return is required",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "id": "federal_bridge",
+              "title": "Federal 990EZ bridge",
+              "fields": [
+                {
+                  "key": "federalTaxableIncome",
+                  "label": "Federal taxable income / ordinary business income",
+                  "type": "currency",
+                  "required": true
+                },
+                {
+                  "key": "federalReceipts",
+                  "label": "Gross receipts",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "ownerCount",
+                  "label": "Owner / partner / shareholder count",
+                  "type": "number",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "apportionment",
+              "title": "Apportionment factors",
+              "fields": [
+                {
+                  "key": "propertyFactor",
+                  "label": "Property factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "payrollFactor",
+                  "label": "Payroll factor %",
+                  "type": "percent",
+                  "required": false
+                },
+                {
+                  "key": "salesFactor",
+                  "label": "Sales factor %",
+                  "type": "percent",
+                  "required": true
+                },
+                {
+                  "key": "stateTaxBase",
+                  "label": "State tax / franchise base (intake)",
+                  "type": "currency",
+                  "required": false,
+                  "helperText": "Preparers confirm; engine does not compute tax yet."
+                }
+              ]
+            },
+            {
+              "id": "payments_biz",
+              "title": "Payments & estimates",
+              "fields": [
+                {
+                  "key": "estimatedPayments",
+                  "label": "Estimated payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "withholdingPayments",
+                  "label": "Withholding / composite payments",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "balancePaidWithReturn",
+                  "label": "Amount paid with return",
+                  "type": "currency",
+                  "required": false
+                },
+                {
+                  "key": "professionalReview",
+                  "label": "Route to professional review",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "relatedForms": [
+            {
+              "formId": "EO-EZ-ES",
+              "title": "Estimated Tax / Franchise Payment",
+              "role": "estimated"
+            },
+            {
+              "formId": "NM-EXT-BIZ",
+              "title": "Business Extension",
+              "role": "extension"
+            },
+            {
+              "formId": "NM-K1",
               "title": "State K-1 / Owner Schedule",
               "role": "schedule"
             }
@@ -22108,6 +24383,105 @@
       "surface": "nationwide_workflow"
     },
     {
+      "jurisdiction": "NM",
+      "formId": "PIT-1",
+      "title": "Personal Income Tax Return",
+      "returnFamily": "individual",
+      "filingType": "resident",
+      "calculationMode": "estimate_supported",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "PIT-1",
+      "title": "Personal Income Tax Return (Part-Year)",
+      "returnFamily": "individual",
+      "filingType": "part_year",
+      "calculationMode": "estimate_supported",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "PIT-1",
+      "title": "Personal Income Tax Return (Nonresident)",
+      "returnFamily": "individual",
+      "filingType": "nonresident",
+      "calculationMode": "estimate_supported",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "CIT-1",
+      "title": "Corporate Income and Franchise Tax Return",
+      "returnFamily": "corporation",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "S-Corp",
+      "title": "S Corporation Income Tax Return",
+      "returnFamily": "s_corporation",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "PTE",
+      "title": "Pass-Through Entity Return",
+      "returnFamily": "partnership",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "FID-1",
+      "title": "Fiduciary Income Tax Return",
+      "returnFamily": "fiduciary",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "CIT-1",
+      "title": "Exempt Organization Corporate Return",
+      "returnFamily": "exempt_organization",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
+      "jurisdiction": "NM",
+      "formId": "EO-EZ",
+      "title": "Exempt Organization Short Return",
+      "returnFamily": "exempt_organization_ez",
+      "filingType": "standard",
+      "calculationMode": "intake_only",
+      "liveEfile": false,
+      "regionId": "1",
+      "surface": "nationwide_workflow"
+    },
+    {
       "jurisdiction": "UT",
       "formId": "TC-40",
       "title": "Individual Income Tax Return",
@@ -22845,8 +25219,8 @@
       "surface": "laravel_ca_exclusive"
     }
   ],
-  "formCount": 97,
-  "region1FormCount": 49,
+  "formCount": 106,
+  "region1FormCount": 58,
   "batchPlanNext": [
     {
       "regionId": "2",

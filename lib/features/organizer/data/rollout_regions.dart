@@ -3,7 +3,6 @@
 ///
 /// Phase 1: Region 1 West + Region 6 Northwest.
 /// California is Region 1 geographically but filing stays on Form 540 paths.
-/// New Mexico (NM) is not assigned in the current regional map.
 
 class RolloutRegion {
   const RolloutRegion({
@@ -27,7 +26,7 @@ const rolloutRegions = <RolloutRegion>[
     name: 'West',
     slug: 'west',
     phase: 1,
-    states: ['AK', 'AZ', 'CA', 'HI', 'NV', 'UT'],
+    states: ['AK', 'AZ', 'CA', 'HI', 'NV', 'NM', 'UT'],
   ),
   RolloutRegion(
     id: '2',
@@ -70,7 +69,7 @@ const enabledRegionIds = <String>{'1', '6'};
 
 const phaseOneLabel = 'Phase 1 · Regions 1 (West) + 6 (Northwest)';
 
-const unassignedStates = <String>{'NM'};
+const unassignedStates = <String>{};
 
 RolloutRegion? regionForState(String stateCode) {
   final code = stateCode.toUpperCase();

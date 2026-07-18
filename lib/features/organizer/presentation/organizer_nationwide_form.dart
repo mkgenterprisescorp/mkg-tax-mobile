@@ -154,7 +154,7 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
               ),
               const SizedBox(height: 4),
               Text('$pct% required steps complete', style: const TextStyle(fontSize: 12)),
-              if (const {'AZ', 'HI', 'UT'}.contains(widget.stateCode.toUpperCase()) &&
+              if (const {'AZ', 'HI', 'NM', 'UT'}.contains(widget.stateCode.toUpperCase()) &&
                   widget.family == 'individual') ...[
                 const SizedBox(height: 8),
                 FilledButton.tonalIcon(
