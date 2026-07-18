@@ -19,6 +19,7 @@ class OrganizerSectionMapper {
     'form_1040x',
     'state_ca_540',
     'state_multistate',
+    'state_business',
     'direct_deposit',
     'review_sign',
   ];
@@ -28,6 +29,7 @@ class OrganizerSectionMapper {
     'entity_form',
     'state_ca_540',
     'state_multistate',
+    'state_business',
     'direct_deposit',
     'review_sign',
   ];
@@ -317,6 +319,11 @@ class OrganizerSectionMapper {
       base['additionalStateReturns'] = List<dynamic>.from(multi['additionalStateReturns'] as List);
     }
 
+    final biz = sectionAnswers('state_business');
+    if (biz['stateBusinessReturns'] is List) {
+      base['stateBusinessReturns'] = List<dynamic>.from(biz['stateBusinessReturns'] as List);
+    }
+
     final dd = sectionAnswers('direct_deposit');
     mergeRoot(dd, const ['bankName', 'routingNumber', 'accountNumber', 'accountType']);
 
@@ -480,6 +487,10 @@ class OrganizerSectionMapper {
       case 'state_multistate':
         return {
           'additionalStateReturns': data['additionalStateReturns'] ?? const [],
+        };
+      case 'state_business':
+        return {
+          'stateBusinessReturns': data['stateBusinessReturns'] ?? const [],
         };
       case 'direct_deposit':
         return {
