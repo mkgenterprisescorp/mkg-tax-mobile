@@ -52,9 +52,9 @@ class AdvisoryServicesScreen extends StatelessWidget {
           childAspectRatio: 1.15,
           children: [
             for (final item in const [
+              (Icons.calculate_outlined, 'Financial Tools', 'W-4 · refund · payments', '/tools'),
               (Icons.payments_outlined, 'Refund Advance', 'Loan Estimate · TILA', '/refund-advance'),
-              (Icons.request_quote_outlined, 'Loan Estimate', '0% & 36% APR tiers', '/refund-advance/loan-estimate'),
-              (Icons.gavel_outlined, 'TILA', 'Truth in Lending', '/refund-advance/tila'),
+              (Icons.tips_and_updates_outlined, 'Tax savings', 'Credits & deductions', '/tax-savings'),
               (Icons.forum_outlined, 'Advisor Chat', 'Talk to Finance Advisors', '/chat'),
             ])
               Material(
@@ -82,10 +82,12 @@ class AdvisoryServicesScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         for (final item in const [
-          _AdvLink('Financials & loans', 'Advances, lending calculators, applications', Icons.payments_outlined, '/refund-advance'),
-          _AdvLink('Mortgage lending', 'Home financing guidance', Icons.home_work_outlined, '/refund-advance'),
-          _AdvLink('Bookkeeping', 'Business books and health checks', Icons.menu_book_outlined, '/bookkeeping'),
+          _AdvLink('Financial Tools', 'Paycheck, W-4, refund estimator, loans', Icons.calculate_outlined, '/tools'),
+          _AdvLink('Refund advance loans', 'Loan estimate, TILA, Pathward tiers', Icons.payments_outlined, '/refund-advance'),
+          _AdvLink('Tax savings plan', 'Credits and deduction checklist', Icons.tips_and_updates_outlined, '/tax-savings'),
+          _AdvLink('Things to bring', 'Appointment document checklist', Icons.checklist_outlined, '/things-to-bring'),
           _AdvLink('Billing & payments', 'Invoices and payment plans', Icons.receipt_long_outlined, '/billing'),
+          _AdvLink('Bookkeeping', 'Business books and health checks', Icons.menu_book_outlined, '/bookkeeping'),
           _AdvLink('Talk to an advisor', 'Schedule or message your Finance Advisor', Icons.forum_outlined, '/chat'),
         ])
           ListTile(

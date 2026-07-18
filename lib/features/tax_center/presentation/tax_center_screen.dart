@@ -48,6 +48,14 @@ class TaxCenterScreen extends ConsumerWidget {
         done: (ws?.documentsCount ?? 0) > 0,
       ),
       _TaxSection(
+        title: 'Financial Tools',
+        cue: 'W-4 · refund · payments',
+        icon: Icons.calculate_outlined,
+        path: '/tools',
+        accent: MkgColors.primary,
+        progressLabel: 'Open',
+      ),
+      _TaxSection(
         title: 'Refund calculator',
         cue: 'Estimate · organizer prefill',
         icon: Icons.savings_outlined,
@@ -62,6 +70,22 @@ class TaxCenterScreen extends ConsumerWidget {
         path: '/refund-advance',
         accent: MkgColors.accent,
         progressLabel: '0% / 36%',
+      ),
+      _TaxSection(
+        title: 'Things to bring',
+        cue: 'Appointment document checklist',
+        icon: Icons.checklist_outlined,
+        path: '/things-to-bring',
+        accent: MkgColors.accent,
+        progressLabel: 'Prep',
+      ),
+      _TaxSection(
+        title: 'Tax savings',
+        cue: 'Credits & deductions ideas',
+        icon: Icons.tips_and_updates_outlined,
+        path: '/tax-savings',
+        accent: MkgColors.green,
+        progressLabel: 'Plan',
       ),
       _TaxSection(
         title: 'Refund Tracker',

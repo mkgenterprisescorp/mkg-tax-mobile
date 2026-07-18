@@ -63,6 +63,14 @@
 - `/chat` lists portal rooms (`GET /api/chat/rooms`) and supports send (`POST .../messages`).
 - `/tessa` uses Laravel `GET/POST /api/v1/tessa/conversations*` (portal S2S when available; **local keyword fallback** when portal TESSA is down).
 
+### Financial Tools hub (`/tools`, alias `/financial-tools`)
+- Paycheck & W-4: `/payroll-tools` → `POST /api/v1/payroll-calculations`, `POST /api/v1/w4-estimates` (estimate only).
+- Refund estimator: `/refund-advance/estimate`.
+- Refund advance loans: `/refund-advance` (loan estimate → TILA → apply).
+- Payments: `/billing` (hosted Stripe Checkout via Laravel).
+- Tax savings: `/tax-savings` (native checklist; optional web AI at `/tax-savings`).
+- Things to bring: `/things-to-bring` (client checklist; staff email/SMS stays on portal).
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`

@@ -523,59 +523,74 @@ class BookkeepingScreen extends StatelessWidget {
   }
 }
 
+/// Financial Tools hub — paycheck/W-4, refund estimate, advances, payments, savings, checklist.
 class ToolsScreen extends StatelessWidget {
   const ToolsScreen({super.key});
+
+  static const _tiles = <(IconData, String, String, String)>[
+    (Icons.calculate_outlined, 'Paycheck & W-4', 'Withholding estimates', '/payroll-tools'),
+    (Icons.savings_outlined, 'Refund estimator', 'Federal estimate · organizer', '/refund-advance/estimate'),
+    (Icons.payments_outlined, 'Refund advance loans', '0% & 36% APR · TILA', '/refund-advance'),
+    (Icons.receipt_long_outlined, 'Payments', 'Fee schedule · invoices', '/billing'),
+    (Icons.tips_and_updates_outlined, 'Tax savings', 'Credits & deductions checklist', '/tax-savings'),
+    (Icons.checklist_outlined, 'Things to bring', 'Appointment document list', '/things-to-bring'),
+    (Icons.description_outlined, 'Autofill Form 1040', 'From Tax Organizer', '/organizer/form-1040'),
+    (Icons.track_changes_outlined, 'Refund tracker', 'IRS & FTB status links', '/refund-tracker'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        const SectionHeader('Tax tools'),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.calculate_outlined, color: MkgColors.primary),
-            title: const Text('Paycheck & W-4 estimates'),
-            subtitle: const Text('Paycheck and W-4 estimates (estimate only)'),
-            onTap: () => context.go('/payroll-tools'),
-          ),
+        const Text('Financial Tools', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text(
+          'Calculators, advances, payments, and appointment prep — all in one place.',
+          style: TextStyle(color: MkgColors.textGrey),
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.savings_outlined, color: MkgColors.primary),
-            title: const Text('Refund / tax estimate'),
-            subtitle: const Text('Federal calculator · prefill from organizer'),
-            onTap: () => context.go('/refund-advance/estimate'),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _tiles.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.05,
           ),
+          itemBuilder: (context, i) {
+            final t = _tiles[i];
+            return Material(
+              color: MkgColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.go(t.$4),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(t.$1, color: MkgColors.primary),
+                      const Spacer(),
+                      Text(t.$2, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text(t.$3, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
-            title: const Text('Refund advance / loan estimate'),
-            subtitle: const Text('0% & 36% APR tiers · TILA'),
-            onTap: () => context.go('/refund-advance'),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.description_outlined, color: MkgColors.primary),
-            title: const Text('Autofill Form 1040'),
-            subtitle: const Text('Preview from Tax Organizer answers'),
-            onTap: () => context.go('/organizer/form-1040'),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.track_changes_outlined, color: MkgColors.primary),
-            title: const Text('Refund tracker'),
-            onTap: () => context.go('/refund-tracker'),
-          ),
-        ),
+        const SizedBox(height: 16),
         Card(
           child: ListTile(
             leading: const Icon(Icons.open_in_browser, color: MkgColors.primary),
             title: const Text('More calculators on web'),
-            subtitle: const Text('Budget, paycheck, overtime, withholding'),
+            subtitle: const Text('Budget, overtime, full paycheck tools'),
             onTap: () => launchUrl(
               Uri.parse('${AppConfig.webRoot}/dashboard'),
               mode: LaunchMode.externalApplication,

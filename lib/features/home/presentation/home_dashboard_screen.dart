@@ -136,17 +136,17 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _QuickIcon(
-                      icon: Icons.payments_outlined,
-                      label: 'Advance',
-                      onTap: () => context.go('/refund-advance'),
+                      icon: Icons.calculate_outlined,
+                      label: 'Tools',
+                      onTap: () => context.go('/tools'),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _QuickIcon(
-                      icon: Icons.support_agent_outlined,
-                      label: 'Help',
-                      onTap: () => context.go('/chat'),
+                      icon: Icons.payments_outlined,
+                      label: 'Advance',
+                      onTap: () => context.go('/refund-advance'),
                     ),
                   ),
                 ],
@@ -166,6 +166,14 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                     icon: Icons.account_balance_wallet_outlined,
                     color: MkgColors.primary,
                     onTap: () => context.go('/tax-center'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ServicePillar(
+                    title: 'Financial Tools',
+                    subtitle: 'W-4 · refund estimate · loans · payments',
+                    icon: Icons.calculate_outlined,
+                    color: MkgColors.green,
+                    onTap: () => context.go('/tools'),
                   ),
                   const SizedBox(height: 10),
                   _ServicePillar(
