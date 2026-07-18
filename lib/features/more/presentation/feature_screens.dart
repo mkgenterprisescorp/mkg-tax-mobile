@@ -136,6 +136,10 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
   final _messages = <(bool isUser, String text)>[];
   List<Map<String, dynamic>> _nextActions = const [];
   dynamic _conversationId;
+  String? _workspaceId;
+  String _prepType = 'personal';
+  List<String> _jurisdictions = const ['CA'];
+  int _taxYear = 2025;
   bool _ready = false;
   bool _sending = false;
 
@@ -148,6 +152,15 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
   Future<void> _bootstrap() async {
     try {
       final tessa = ref.read(tessaRepositoryProvider);
+      try {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace();
+      } catch (_) {
+        // Workspace optional when unauthenticated.
+      }
+      final tax = ref.read(taxYearProvider);
+      _workspaceId = tax.workspace?.workspaceId;
+      _taxYear = tax.selectedYear ?? tax.currentFilingYear ?? 2025;
+
       final existing = await tessa.listConversations();
       Map<String, dynamic> convo;
       if (existing.isNotEmpty) {
@@ -170,13 +183,26 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       if (_messages.isEmpty) {
         _messages.add((
           false,
-          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about federal 1040, CA 540 / business forms, or nationwide state intake. I propose next steps; you verify before anything becomes filing data.',
+          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about federal 1040, CA 540 / business forms, or nationwide state intake. Tap a chip to run estimate/intake automation; you verify before anything becomes filing data.',
         ));
       }
-      // Prefetch form-automation nextActions for the current season.
+      // Prefetch form-automation nextActions from live workspace when available.
       try {
-        final analysis = await tessa.analyzeForms(prepType: 'personal', jurisdictions: const ['CA']);
+        final analysis = await tessa.analyzeForms(
+          prepType: _prepType,
+          jurisdictions: _jurisdictions,
+          taxYear: _taxYear,
+          workspaceId: _workspaceId,
+        );
         final actions = analysis?['next_actions'];
+        final plan = analysis?['form_plan'];
+        if (plan is Map && plan['jurisdictions'] is List) {
+          _jurisdictions = (plan['jurisdictions'] as List)
+              .map((e) => '$e'.toUpperCase())
+              .where((e) => e.length == 2)
+              .toList();
+          if (_jurisdictions.isEmpty) _jurisdictions = const ['CA'];
+        }
         if (actions is List && mounted) {
           _nextActions = actions
               .whereType<Map>()
@@ -219,23 +245,75 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       _sending = true;
     });
     try {
-      final result = await ref.read(tessaRepositoryProvider).sendMessage(_conversationId, text);
+      final result = await ref.read(tessaRepositoryProvider).sendMessage(
+            _conversationId,
+            text,
+            prepType: _prepType,
+            jurisdictions: _jurisdictions,
+            taxYear: _taxYear,
+            workspaceId: _workspaceId,
+          );
       if (!mounted) return;
       setState(() {
         _messages.add((false, result.reply));
         if (result.nextActions.isNotEmpty) {
           _nextActions = result.nextActions;
         }
+        if (result.formPlan['jurisdictions'] is List) {
+          final j = (result.formPlan['jurisdictions'] as List)
+              .map((e) => '$e'.toUpperCase())
+              .where((e) => e.length == 2)
+              .toList();
+          if (j.isNotEmpty) _jurisdictions = j;
+        }
         if (result.nextActions.isNotEmpty) {
           final labels = result.nextActions
               .map((a) => '${a['type'] ?? 'action'}')
               .take(4)
               .join(' · ');
-          _messages.add((false, 'Suggested automation: $labels'));
+          _messages.add((false, 'Suggested automation: $labels — tap a chip to run it.'));
         }
       });
     } catch (e) {
       if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _runAction(Map<String, dynamic> action) async {
+    if (_sending) return;
+    setState(() {
+      _sending = true;
+      _messages.add((true, 'Run ${_actionLabel(action)}'));
+    });
+    try {
+      final result = await ref.read(tessaRepositoryProvider).executeNextAction(
+            action,
+            workspaceId: _workspaceId,
+            prepType: _prepType,
+            jurisdictions: _jurisdictions,
+            taxYear: _taxYear,
+          );
+      if (!mounted) return;
+      setState(() {
+        _messages.add((
+          false,
+          result.ok
+              ? '✓ ${result.summary}'
+              : '✗ ${result.summary}',
+        ));
+        if (result.payload['next_actions'] is List) {
+          _nextActions = (result.payload['next_actions'] as List)
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _messages.add((false, 'Automation error: ${ApiErrorMapper.map(e)}')));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -290,13 +368,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
                 final action = _nextActions[i];
                 return ActionChip(
                   label: Text(_actionLabel(action), style: const TextStyle(fontSize: 12)),
-                  onPressed: _sending
-                      ? null
-                      : () {
-                          _controller.text =
-                              'Help me with ${_actionLabel(action)}. Route: ${action['route'] ?? ''}';
-                          _send();
-                        },
+                  onPressed: _sending ? null : () => _runAction(action),
                 );
               },
             ),
