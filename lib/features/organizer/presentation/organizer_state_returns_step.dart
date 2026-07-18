@@ -5,6 +5,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/us_states.dart';
 import 'organizer_ca540_form.dart';
+import 'organizer_ca_business_forms.dart';
 import 'organizer_fields.dart';
 
 /// Multi-state intake for every personal-income-tax jurisdiction + CA deep forms.
@@ -356,26 +357,9 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
-          title: 'CA business entity forms (if applicable)',
-          child: Column(
-            children: [
-              for (final entry in const [
-                ('caForm100', 'Form 100 — C-Corp'),
-                ('caForm100S', 'Form 100S — S-Corp'),
-                ('caForm565', 'Form 565 — Partnership'),
-                ('caForm541', 'Form 541 — Fiduciary'),
-                ('caForm199', 'Form 199 — Exempt org'),
-                ('caScheduleR', 'CA Schedule R'),
-                ('caScheduleK1', 'CA Schedule K-1'),
-              ]) ...[
-                Text(entry.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                NestedMapEditor(data: _map(entry.$1), onChanged: (m) => onNested(entry.$1, m)),
-                const SizedBox(height: 12),
-              ],
-            ],
-          ),
+        OrganizerCaBusinessForms(
+          data: data,
+          onNested: onNested,
         ),
       ],
     );

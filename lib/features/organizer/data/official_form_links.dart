@@ -11,6 +11,13 @@ abstract final class OfficialFormLinks {
   static const ca540Booklet = 'https://www.ftb.ca.gov/forms/2025/2025-540-booklet.html';
   static const ca540Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-540.pdf';
   static const ca540xPdf = 'https://www.ftb.ca.gov/forms/2025/2025-540-x.pdf';
+  static const ca100Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-100.pdf';
+  static const ca100sPdf = 'https://www.ftb.ca.gov/forms/2025/2025-100s.pdf';
+  static const ca565Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-565.pdf';
+  static const ca541Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-541.pdf';
+  static const ca199Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-199.pdf';
+  static const caScheduleRPdf = 'https://www.ftb.ca.gov/forms/2025/2025-100-r.pdf';
+  static const ca568Pdf = 'https://www.ftb.ca.gov/forms/2025/2025-568.pdf';
   static const form1040xAbout = 'https://www.irs.gov/forms-pubs/about-form-1040x';
   static const form1040xPdf = 'https://www.irs.gov/pub/irs-pdf/f1040x.pdf';
   static const form1040Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040.pdf';
