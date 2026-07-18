@@ -134,6 +134,7 @@ class TessaScreen extends ConsumerStatefulWidget {
 class _TessaScreenState extends ConsumerState<TessaScreen> {
   final _controller = TextEditingController();
   final _messages = <(bool isUser, String text)>[];
+  List<Map<String, dynamic>> _nextActions = const [];
   dynamic _conversationId;
   bool _ready = false;
   bool _sending = false;
@@ -169,8 +170,21 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       if (_messages.isEmpty) {
         _messages.add((
           false,
-          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about organizers, documents, deductions, or refunds.',
+          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about federal 1040, CA 540 / business forms, or nationwide state intake. I propose next steps; you verify before anything becomes filing data.',
         ));
+      }
+      // Prefetch form-automation nextActions for the current season.
+      try {
+        final analysis = await tessa.analyzeForms(prepType: 'personal', jurisdictions: const ['CA']);
+        final actions = analysis?['next_actions'];
+        if (actions is List && mounted) {
+          _nextActions = actions
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      } catch (_) {
+        // Assist endpoint optional when offline / unauthenticated.
       }
       if (mounted) {
         setState(() {
@@ -205,13 +219,33 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       _sending = true;
     });
     try {
-      final reply = await ref.read(tessaRepositoryProvider).sendMessage(_conversationId, text);
-      if (mounted) setState(() => _messages.add((false, reply)));
+      final result = await ref.read(tessaRepositoryProvider).sendMessage(_conversationId, text);
+      if (!mounted) return;
+      setState(() {
+        _messages.add((false, result.reply));
+        if (result.nextActions.isNotEmpty) {
+          _nextActions = result.nextActions;
+        }
+        if (result.nextActions.isNotEmpty) {
+          final labels = result.nextActions
+              .map((a) => '${a['type'] ?? 'action'}')
+              .take(4)
+              .join(' · ');
+          _messages.add((false, 'Suggested automation: $labels'));
+        }
+      });
     } catch (e) {
       if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  String _actionLabel(Map<String, dynamic> action) {
+    final type = '${action['type'] ?? 'action'}';
+    final form = action['form_id'] ?? action['jurisdiction'] ?? action['primary_form_id'];
+    if (form != null && '$form'.isNotEmpty) return '$type ($form)';
+    return type;
   }
 
   @override
@@ -244,6 +278,29 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
           ),
         ),
         if (_sending) const LinearProgressIndicator(minHeight: 2),
+        if (_nextActions.isNotEmpty)
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              scrollDirection: Axis.horizontal,
+              itemCount: _nextActions.length.clamp(0, 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final action = _nextActions[i];
+                return ActionChip(
+                  label: Text(_actionLabel(action), style: const TextStyle(fontSize: 12)),
+                  onPressed: _sending
+                      ? null
+                      : () {
+                          _controller.text =
+                              'Help me with ${_actionLabel(action)}. Route: ${action['route'] ?? ''}';
+                          _send();
+                        },
+                );
+              },
+            ),
+          ),
         SafeArea(
           top: false,
           child: Padding(
@@ -253,7 +310,9 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(hintText: 'Ask Tessa AI...'),
+                    decoration: const InputDecoration(
+                      hintText: 'Ask Tessa about 1040, CA forms, or state intake...',
+                    ),
                     onSubmitted: (_) => _send(),
                   ),
                 ),
