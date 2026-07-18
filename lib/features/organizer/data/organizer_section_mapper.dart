@@ -16,6 +16,7 @@ class OrganizerSectionMapper {
     'schedule_e',
     'schedule_f',
     'credits_deductions',
+    'form_1040x',
     'state_ca_540',
     'state_multistate',
     'direct_deposit',
@@ -88,6 +89,8 @@ class OrganizerSectionMapper {
         return 'schedule_f';
       case 'Credits & Deductions':
         return 'credits_deductions';
+      case 'Form 1040-X':
+        return 'form_1040x';
       case 'State Tax Returns':
       case 'CA 540 State Tax':
         return 'state_ca_540';
@@ -259,6 +262,19 @@ class OrganizerSectionMapper {
       }
     }
 
+    final form1040x = sectionAnswers('form_1040x');
+    if (form1040x['form1040x'] is Map) {
+      base['form1040x'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['form1040x'] as Map?) ?? {}),
+        Map<String, dynamic>.from(form1040x['form1040x'] as Map),
+      );
+    } else if (form1040x.isNotEmpty) {
+      base['form1040x'] = deepMergeOrganizer(
+        Map<String, dynamic>.from((base['form1040x'] as Map?) ?? {}),
+        form1040x,
+      );
+    }
+
     final ca = sectionAnswers('state_ca_540');
     if (ca.isNotEmpty) {
       for (final key in _caFormKeys) {
@@ -416,6 +432,10 @@ class OrganizerSectionMapper {
           'retirementContributions': data['retirementContributions'],
           'healthInsurancePremiums': data['healthInsurancePremiums'],
           for (final key in _creditFormKeys) key: data[key] ?? {},
+        };
+      case 'form_1040x':
+        return {
+          'form1040x': data['form1040x'] ?? {},
         };
       case 'state_ca_540':
         return {

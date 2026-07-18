@@ -121,9 +121,10 @@ void main() {
       'Schedule E',
       'Schedule F',
       'Credits & Deductions',
+      'Form 1040-X',
       'State Tax Returns',
     ]));
-    expect(personal.length, 12);
+    expect(personal.length, 13);
     expect(personal, isNot(contains('CA 540 State Tax')));
     expect(stepsForPrepType('business').contains('Schedule C'), isTrue);
     expect(stepsForPrepType('form1120'), [

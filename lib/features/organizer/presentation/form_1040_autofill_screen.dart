@@ -7,6 +7,7 @@ import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../refund_advance/data/refund_advance_repository.dart';
+import '../data/official_form_links.dart';
 
 /// Prefills a Form 1040 review from the tax organizer + refund estimate.
 class Form1040AutofillScreen extends ConsumerStatefulWidget {
@@ -141,6 +142,18 @@ class _Form1040AutofillScreenState extends ConsumerState<Form1040AutofillScreen>
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+            OfficialFormLinksCard(
+              title: 'Official federal & California forms',
+              subtitle: 'Open IRS Form 1040-X and FTB Form 540 / 540-X.',
+              links: const [
+                ('IRS Form 1040-X', OfficialFormLinks.form1040xAbout),
+                ('Form 1040-X PDF', OfficialFormLinks.form1040xPdf),
+                ('CA Form 540 booklet (2025)', OfficialFormLinks.ca540Booklet),
+                ('CA Form 540 instructions (2025)', OfficialFormLinks.ca540Instructions),
+                ('CA Form 540-X PDF (2025)', OfficialFormLinks.ca540xPdf),
+              ],
             ),
             const SizedBox(height: 12),
             FilledButton(

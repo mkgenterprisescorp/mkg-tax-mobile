@@ -15,6 +15,7 @@ import '../data/organizer_section_mapper.dart';
 import '../data/us_states.dart';
 import 'organizer_credits_step.dart';
 import 'organizer_fields.dart';
+import 'organizer_form_1040x_step.dart';
 import 'organizer_state_returns_step.dart';
 
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
@@ -437,6 +438,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       return OrganizerCreditsStep(
         data: _data,
         onRoot: _setRoot,
+        onNested: _setNested,
+      );
+    }
+    if (title == 'Form 1040-X') {
+      return OrganizerForm1040xStep(
+        data: _data,
         onNested: _setNested,
       );
     }

@@ -40,8 +40,16 @@
 - Route: `/organizer/form-1040` — `GET /api/v1/tax-year-workspaces/{id}/organizer/form-1040-preview`.
 - SSN / bank numbers are never silent-autofilled.
 
+### Official form links (TY 2025)
+- CA 540 booklet: `https://www.ftb.ca.gov/forms/2025/2025-540-booklet.html`
+- CA 540 instructions: `https://www.ftb.ca.gov/forms/2025/2025-540-instructions.html`
+- CA 540 PDF / 540-X PDF: `…/2025-540.pdf`, `…/2025-540-x.pdf`
+- IRS 1040-X: `https://www.irs.gov/forms-pubs/about-form-1040x` (+ `f1040x.pdf`)
+- Wired in Organizer State Tax Returns, Form 1040-X step, and Form 1040 autofill screen (`official_form_links.dart`).
+
 ### Tax Organizer (web parity)
 - Mobile `/organizer` opens an **icon hub** of sections first; tap a tile to walk through that section, then return to the hub.
+- Personal walkthrough includes **Form 1040-X** (`form1040x` / section `form_1040x`) before State Tax Returns.
 - Writes **canonical** `tax_returns.data` keys shared with `financemkgtaxpro` `Organizer.tsx` (not only `mobileOrganizer`).
 - Defaults live in `assets/organizer/default_form_data.json` (exported from web `defaultFormData`).
 - `prepType` drives steps: `personal` / `business` → personal 1040 flow (Schedule C when `business` or `businessIncome > 0`); entity types `form1041|form1065|form1120S|form1120|form990|form990EZ` → 4-step entity flow.

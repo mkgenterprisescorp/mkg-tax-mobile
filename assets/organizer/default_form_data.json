@@ -1275,6 +1275,17 @@
     "amendedRefund": 0,
     "explanation": ""
   },
+  "form1040x": {
+    "isAmended": false,
+    "taxYearAmended": "",
+    "amendedReason": "",
+    "explanation": "",
+    "originalTax": 0,
+    "correctedTax": 0,
+    "originalRefund": 0,
+    "correctedRefund": 0,
+    "netChange": 0
+  },
   "bankName": "",
   "routingNumber": "",
   "accountNumber": "",

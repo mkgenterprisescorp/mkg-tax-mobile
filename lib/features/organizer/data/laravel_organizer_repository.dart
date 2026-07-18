@@ -69,6 +69,7 @@ class LaravelOrganizerRepository {
         'schedule_e' => 'Schedule E',
         'schedule_f' => 'Schedule F',
         'credits_deductions' => 'Credits & Deductions',
+        'form_1040x' => 'Form 1040-X',
         'state_ca_540' => 'State Tax Returns',
         'state_multistate' => 'State Tax Returns',
         'direct_deposit' => 'Direct Deposit',
