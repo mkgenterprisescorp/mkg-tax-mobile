@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -274,7 +275,10 @@ class BillingScreen extends ConsumerStatefulWidget {
 
 class _BillingScreenState extends ConsumerState<BillingScreen> {
   List<Map<String, dynamic>> _invoices = const [];
+  List<Map<String, dynamic>> _feeSchedule = const [];
+  final Set<String> _selectedFees = {};
   bool _loading = true;
+  bool _checkingOut = false;
   String? _error;
 
   @override
@@ -290,14 +294,18 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     });
     try {
       List<Map<String, dynamic>> invoices;
+      List<Map<String, dynamic>> fees = const [];
       if (AppConfig.usesLaravelAuth) {
-        invoices = await ref.read(invoicesRepositoryProvider).list();
+        final repo = ref.read(invoicesRepositoryProvider);
+        invoices = await repo.list();
+        fees = await repo.feeSchedule();
       } else {
         invoices = await ref.read(portalRepositoryProvider).listInvoices();
       }
       if (!mounted) return;
       setState(() {
         _invoices = invoices;
+        _feeSchedule = fees;
         _loading = false;
       });
     } catch (e) {
@@ -309,38 +317,82 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     }
   }
 
-  Future<void> _checkout(Map<String, dynamic> inv) async {
-    final id = inv['id']?.toString();
-    if (id == null || !AppConfig.usesLaravelAuth) {
-      await launchUrl(
-        Uri.parse('${AppConfig.webRoot}/payments'),
-        mode: LaunchMode.externalApplication,
-      );
-      return;
-    }
-    final session = await ref.read(invoicesRepositoryProvider).checkout(
-          id,
-          idempotencyKey: 'mobile-$id-${DateTime.now().millisecondsSinceEpoch}',
-        );
-    if (!mounted) return;
-    final url = session?['hosted_checkout_url']?.toString() ??
-        session?['checkout_url']?.toString() ??
-        session?['url']?.toString();
+  Future<void> _openHostedUrl(String? url) async {
     if (url != null && url.isNotEmpty) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          (session?['status'] ?? session?['message'] ?? 'Hosted checkout required — open web payments.').toString(),
-        ),
-      ),
-    );
     await launchUrl(
       Uri.parse('${AppConfig.webRoot}/payments'),
       mode: LaunchMode.externalApplication,
     );
+  }
+
+  Future<void> _checkout(Map<String, dynamic> inv) async {
+    final id = inv['id']?.toString();
+    if (id == null || !AppConfig.usesLaravelAuth) {
+      await _openHostedUrl(null);
+      return;
+    }
+    setState(() => _checkingOut = true);
+    try {
+      final session = await ref.read(invoicesRepositoryProvider).checkout(
+            id,
+            idempotencyKey: 'mobile-$id-${DateTime.now().millisecondsSinceEpoch}',
+          );
+      if (!mounted) return;
+      final url = session?['hosted_checkout_url']?.toString() ??
+          session?['checkout_url']?.toString() ??
+          session?['url']?.toString();
+      if (url == null || url.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (session?['status'] ?? session?['message'] ?? 'Hosted Stripe Checkout required.').toString(),
+            ),
+          ),
+        );
+      }
+      await _openHostedUrl(url);
+    } finally {
+      if (mounted) setState(() => _checkingOut = false);
+    }
+  }
+
+  Future<void> _checkoutSelectedFees() async {
+    if (!AppConfig.usesLaravelAuth || _selectedFees.isEmpty) return;
+    setState(() => _checkingOut = true);
+    try {
+      final services = [
+        for (final id in _selectedFees) {'service_id': id, 'form_count': 0},
+      ];
+      final session = await ref.read(invoicesRepositoryProvider).feeCheckout(
+            services: services,
+            taxYear: ref.read(taxYearProvider).selectedYear ??
+                ref.read(taxYearProvider).currentFilingYear,
+            idempotencyKey: 'mobile-fee-${DateTime.now().millisecondsSinceEpoch}',
+          );
+      if (!mounted) return;
+      final url = session?['hosted_checkout_url']?.toString() ?? session?['url']?.toString();
+      if (url == null || url.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (session?['message'] ?? 'Unable to start hosted Stripe Checkout.').toString(),
+            ),
+          ),
+        );
+        return;
+      }
+      await _openHostedUrl(url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiErrorMapper.map(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingOut = false);
+    }
   }
 
   @override
@@ -350,16 +402,12 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SectionHeader('Invoices & payments'),
-          OutlinedButton.icon(
-            onPressed: () => launchUrl(
-              Uri.parse('${AppConfig.webRoot}/payments'),
-              mode: LaunchMode.externalApplication,
-            ),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Open hosted payments on web'),
+          const SectionHeader('Fee schedule'),
+          const Text(
+            'Pay technology and prep fees through hosted Stripe Checkout. Card details never enter this app.',
+            style: TextStyle(color: MkgColors.textGrey),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_error != null)
@@ -369,34 +417,88 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 trailing: TextButton(onPressed: _load, child: const Text('Retry')),
               ),
             )
-          else if (_invoices.isEmpty)
-            const Card(
-              child: ListTile(
-                title: Text('No invoices yet'),
-                subtitle: Text('Technology fees and prep invoices will show here.'),
-              ),
-            )
-          else
-            for (final inv in _invoices)
-              Card(
+          else ...[
+            if (_feeSchedule.isEmpty)
+              const Card(
                 child: ListTile(
+                  title: Text('Fee schedule unavailable'),
+                  subtitle: Text('Pull to refresh, or open hosted payments on web.'),
+                ),
+              )
+            else
+              for (final fee in _feeSchedule)
+                CheckboxListTile(
+                  value: _selectedFees.contains(fee['id']?.toString()),
+                  onChanged: _checkingOut
+                      ? null
+                      : (v) {
+                          final id = fee['id']?.toString();
+                          if (id == null) return;
+                          setState(() {
+                            if (v == true) {
+                              _selectedFees.add(id);
+                            } else {
+                              _selectedFees.remove(id);
+                            }
+                          });
+                        },
                   title: Text(
-                    (inv['description'] ?? inv['title'] ?? 'Invoice #${inv['id'] ?? ''}').toString(),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    (fee['name'] ?? fee['id'] ?? 'Fee').toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    'Status: ${(inv['status'] ?? 'unknown')} · '
-                    'Amount: ${inv['amount_cents'] != null ? '\$${((inv['amount_cents'] as num) / 100).toStringAsFixed(2)}' : (inv['amount'] ?? inv['total'] ?? '—')}',
+                    (fee['priceFormatted'] ??
+                            fee['price_formatted'] ??
+                            (fee['price'] != null
+                                ? '\$${((fee['price'] as num) / 100).toStringAsFixed(2)}'
+                                : ''))
+                        .toString(),
                   ),
-                  trailing: StatusChip(
-                    label: (inv['status'] ?? 'open').toString(),
-                    color: (inv['status']?.toString().toLowerCase() == 'paid')
-                        ? MkgColors.green
-                        : MkgColors.orange,
-                  ),
-                  onTap: () => _checkout(inv),
                 ),
+            if (_selectedFees.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _checkingOut ? null : _checkoutSelectedFees,
+                child: Text(_checkingOut ? 'Opening Stripe…' : 'Pay selected fees (Stripe Checkout)'),
               ),
+            ],
+            const SizedBox(height: 20),
+            const SectionHeader('Invoices & payments'),
+            OutlinedButton.icon(
+              onPressed: () => _openHostedUrl(null),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Open hosted payments on web'),
+            ),
+            const SizedBox(height: 12),
+            if (_invoices.isEmpty)
+              const Card(
+                child: ListTile(
+                  title: Text('No invoices yet'),
+                  subtitle: Text('Technology fees and prep invoices will show here.'),
+                ),
+              )
+            else
+              for (final inv in _invoices)
+                Card(
+                  child: ListTile(
+                    title: Text(
+                      (inv['description'] ?? inv['title'] ?? 'Invoice #${inv['id'] ?? ''}').toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      'Status: ${(inv['status'] ?? 'unknown')} · '
+                      'Amount: ${inv['amount_cents'] != null ? '\$${((inv['amount_cents'] as num) / 100).toStringAsFixed(2)}' : (inv['amount'] ?? inv['total'] ?? '—')}',
+                    ),
+                    trailing: StatusChip(
+                      label: (inv['status'] ?? 'open').toString(),
+                      color: (inv['status']?.toString().toLowerCase() == 'paid')
+                          ? MkgColors.green
+                          : MkgColors.orange,
+                    ),
+                    onTap: _checkingOut ? null : () => _checkout(inv),
+                  ),
+                ),
+          ],
         ],
       ),
     );
