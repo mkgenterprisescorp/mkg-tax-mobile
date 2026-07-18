@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +22,8 @@ import 'organizer_fields.dart';
 import 'organizer_form_1040x_step.dart';
 import 'organizer_state_returns_step.dart';
 
+enum _AutoSaveStatus { idle, pending, saving, saved, error }
+
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
 class OrganizerScreen extends ConsumerStatefulWidget {
@@ -41,6 +45,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   bool _showHub = true;
   Map<String, dynamic> _data = {};
 
+  /// Matches web Organizer: debounce ~3s after edits, skip until load settles.
+  static const _autoSaveDebounce = Duration(seconds: 3);
+  Timer? _autoSaveTimer;
+  Timer? _autoSaveIdleTimer;
+  bool _autoSaveReady = false;
+  _AutoSaveStatus _autoSaveStatus = _AutoSaveStatus.idle;
+  String? _autoSaveError;
+
   List<String> get _steps {
     final prep = '${_data['prepType'] ?? 'personal'}';
     final steps = stepsForPrepType(prep);
@@ -52,16 +64,34 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   int get _completedCount => _steps.where((s) => isOrganizerStepComplete(s, _data)).length;
 
+  bool get _isLocked =>
+      _status == 'processing' ||
+      _status == 'completed' ||
+      _status == 'filed' ||
+      _status == 'accepted';
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
     setState(() {
       _loading = true;
       _error = null;
+      _autoSaveReady = false;
+      _autoSaveStatus = _AutoSaveStatus.idle;
+      _autoSaveError = null;
     });
     try {
       final tax = ref.read(taxYearProvider);
@@ -105,6 +135,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           _loading = false;
           _step = 0;
           _showHub = true;
+          _autoSaveReady = true;
         });
         return;
       }
@@ -127,6 +158,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _loading = false;
         _step = 0;
         _showHub = true;
+        _autoSaveReady = true;
       });
       // Keep tax-year selector aligned with the opened return.
       if (tax.selectedYear != result.year) {
@@ -137,6 +169,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       setState(() {
         _loading = false;
         _error = ApiErrorMapper.map(e);
+        _autoSaveReady = false;
       });
     }
   }
@@ -165,6 +198,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final filled = await _maybeAutofillProfile(_data, overwrite: false);
     if (!mounted) return;
     setState(() => _data = filled);
+    _scheduleAutoSave();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Auto-filled empty fields from your account profile.')),
     );
@@ -172,16 +206,51 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   void _setRoot(String key, dynamic value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = value);
+    _scheduleAutoSave();
   }
 
   void _setNested(String nestKey, Map<String, dynamic> value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[nestKey] = value);
+    _scheduleAutoSave();
   }
 
   Map<String, dynamic> _map(String key) => Map<String, dynamic>.from((_data[key] as Map?) ?? {});
 
-  Future<void> _save({bool submit = false}) async {
-    setState(() => _saving = true);
+  void _scheduleAutoSave() {
+    if (!_autoSaveReady || _isLocked || !mounted) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveIdleTimer?.cancel();
+    if (_autoSaveStatus != _AutoSaveStatus.saving &&
+        _autoSaveStatus != _AutoSaveStatus.pending) {
+      setState(() {
+        _autoSaveStatus = _AutoSaveStatus.pending;
+        _autoSaveError = null;
+      });
+    }
+    _autoSaveTimer = Timer(_autoSaveDebounce, _runAutoSave);
+  }
+
+  Future<void> _runAutoSave() async {
+    if (!_autoSaveReady || !mounted || _isLocked) return;
+    if (_saving) {
+      // Manual/continue save in flight — retry shortly after it finishes.
+      _autoSaveTimer = Timer(const Duration(milliseconds: 800), _runAutoSave);
+      return;
+    }
+    await _save(silent: true);
+  }
+
+  Future<void> _save({bool submit = false, bool silent = false}) async {
+    _autoSaveTimer?.cancel();
+    if (silent) {
+      setState(() {
+        _saving = true;
+        _autoSaveStatus = _AutoSaveStatus.saving;
+        _autoSaveError = null;
+      });
+    } else {
+      setState(() => _saving = true);
+    }
     try {
       final status = submit ? 'processing' : 'draft';
       final filingStatus = '${_data['filingStatus'] ?? 'single'}';
@@ -215,15 +284,40 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       setState(() {
         _status = status;
         _saving = false;
+        if (silent) {
+          _autoSaveStatus = _AutoSaveStatus.saved;
+          _autoSaveError = null;
+        } else {
+          _autoSaveStatus = _AutoSaveStatus.idle;
+        }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(submit ? 'Submitted for processing.' : 'Draft saved.')),
-      );
+      if (silent) {
+        _autoSaveIdleTimer?.cancel();
+        _autoSaveIdleTimer = Timer(const Duration(seconds: 2), () {
+          if (!mounted) return;
+          if (_autoSaveStatus == _AutoSaveStatus.saved) {
+            setState(() => _autoSaveStatus = _AutoSaveStatus.idle);
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(submit ? 'Submitted for processing.' : 'Draft saved.')),
+        );
+      }
       if (submit) context.go('/tax-center');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
+      final message = ApiErrorMapper.map(e);
+      setState(() {
+        _saving = false;
+        if (silent) {
+          _autoSaveStatus = _AutoSaveStatus.error;
+          _autoSaveError = message;
+        }
+      });
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
     }
   }
 
@@ -287,7 +381,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final steps = _steps;
     final stepIndex = _step.clamp(0, steps.length - 1);
     final title = steps[stepIndex];
-    final locked = _status == 'processing' || _status == 'completed' || _status == 'filed' || _status == 'accepted';
+    final locked = _isLocked;
 
     if (_showHub) {
       return _buildHub(steps: steps, locked: locked);
@@ -312,9 +406,16 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             TextButton(onPressed: locked || _saving ? null : () => _save(), child: const Text('Save')),
           ],
         ),
-        Text(
-          'Section ${stepIndex + 1} of ${steps.length} · TY $_year',
-          style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Section ${stepIndex + 1} of ${steps.length} · TY $_year',
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+              ),
+            ),
+            if (!locked) _autoSaveIndicator(),
+          ],
         ),
         const SizedBox(height: 12),
         _StepProgress(steps: steps, index: stepIndex),
@@ -360,7 +461,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
       children: [
-        const Text('Tax Organizer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Tax Organizer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            ),
+            if (!locked) _autoSaveIndicator(),
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           'Tap a section to walk through and complete · TY $_year',
@@ -578,6 +686,62 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   void _setList(String key, List<Map<String, dynamic>> rows) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = rows);
+    _scheduleAutoSave();
+  }
+
+  Widget _autoSaveIndicator() {
+    switch (_autoSaveStatus) {
+      case _AutoSaveStatus.pending:
+        return const Text(
+          'Unsaved changes…',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        );
+      case _AutoSaveStatus.saving:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2, color: MkgColors.textGrey),
+            ),
+            SizedBox(width: 6),
+            Text('Saving…', style: TextStyle(color: MkgColors.textGrey, fontSize: 12)),
+          ],
+        );
+      case _AutoSaveStatus.saved:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, size: 14, color: MkgColors.green),
+            SizedBox(width: 4),
+            Text('Saved', style: TextStyle(color: MkgColors.green, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        );
+      case _AutoSaveStatus.error:
+        return Tooltip(
+          message: _autoSaveError ?? 'Could not auto-save',
+          child: InkWell(
+            onTap: _isLocked ? null : _runAutoSave,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 14, color: Colors.redAccent),
+                SizedBox(width: 4),
+                Text(
+                  'Save failed — tap to retry',
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        );
+      case _AutoSaveStatus.idle:
+        return const Text(
+          'Auto-save on',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+        );
+    }
   }
 
   Widget _personalInfoStep() {
