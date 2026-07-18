@@ -34,7 +34,8 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/tools') ||
         location.startsWith('/payroll-tools') ||
         location.startsWith('/things-to-bring') ||
-        location.startsWith('/tax-savings')) {
+        location.startsWith('/tax-savings') ||
+        location.startsWith('/ca-540')) {
       return 1;
     }
     if (location.startsWith('/financial') ||
@@ -80,6 +81,9 @@ class AppShell extends ConsumerWidget {
     }
     if (location.startsWith('/tax-savings')) return 'TAX SAVINGS';
     if (location.startsWith('/things-to-bring')) return 'THINGS TO BRING';
+    if (location.startsWith('/ca-540') || location.startsWith('/organizer/ca-540')) {
+      return 'CA FORM 540';
+    }
     if (location.startsWith('/financial') || location.startsWith('/refund-advance')) {
       return 'REFUND ADVANCE';
     }

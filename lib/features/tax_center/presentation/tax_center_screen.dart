@@ -56,8 +56,16 @@ class TaxCenterScreen extends ConsumerWidget {
         progressLabel: 'Open',
       ),
       _TaxSection(
+        title: 'CA Form 540',
+        cue: 'State tax & refund calculator',
+        icon: Icons.map_outlined,
+        path: '/ca-540',
+        accent: MkgColors.primary,
+        progressLabel: 'Calculate',
+      ),
+      _TaxSection(
         title: 'Refund calculator',
-        cue: 'Estimate · organizer prefill',
+        cue: 'Federal estimate · organizer',
         icon: Icons.savings_outlined,
         path: '/refund-advance/estimate',
         accent: MkgColors.green,

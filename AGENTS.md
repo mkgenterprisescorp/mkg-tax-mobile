@@ -47,6 +47,11 @@
 - IRS 1040-X: `https://www.irs.gov/forms-pubs/about-form-1040x` (+ `f1040x.pdf`)
 - Wired in Organizer State Tax Returns, Form 1040-X step, and Form 1040 autofill screen (`official_form_links.dart`).
 
+### CA Form 540 calculator
+- Route: `/ca-540` (alias `/organizer/ca-540`).
+- Laravel: `POST /api/v1/ca540/calculate`, `GET .../organizer/ca540-estimate` (`Ca540Calculator` — portal Organizer line math + FTB links).
+- Saves computed `ca540` totals back to organizer section `state_ca_540`. Estimate-only (no CA e-file XML).
+
 ### Tax Organizer (web parity)
 - Mobile `/organizer` opens an **icon hub** of sections first; tap a tile to walk through that section, then return to the hub.
 - Personal walkthrough includes **Form 1040-X** (`form1040x` / section `form_1040x`) before State Tax Returns.

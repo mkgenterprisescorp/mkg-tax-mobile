@@ -70,6 +70,7 @@ class MoreHubScreen extends ConsumerWidget {
           _MoreItem('Refund estimator', Icons.savings_outlined, '/refund-advance/estimate'),
           _MoreItem('Refund Advance / loans', Icons.account_balance_outlined, '/refund-advance'),
           _MoreItem('Billing & payments', Icons.receipt_long_outlined, '/billing'),
+          _MoreItem('CA Form 540 calculator', Icons.map_outlined, '/ca-540', subtitle: 'State tax & refund'),
           _MoreItem('Tax savings', Icons.tips_and_updates_outlined, '/tax-savings'),
           _MoreItem('Things to bring', Icons.checklist_outlined, '/things-to-bring'),
           _MoreItem('Refund tracker', Icons.track_changes_outlined, '/refund-tracker'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -300,6 +301,12 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ('2025 Form 540 instructions', OfficialFormLinks.ca540Instructions),
             ('2025 Form 540 PDF', OfficialFormLinks.ca540Pdf),
           ],
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => context.go('/ca-540'),
+          icon: const Icon(Icons.calculate_outlined),
+          label: const Text('Open Form 540 tax & refund calculator'),
         ),
         const SizedBox(height: 12),
         OrganizerSection(

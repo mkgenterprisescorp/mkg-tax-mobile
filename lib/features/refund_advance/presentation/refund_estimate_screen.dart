@@ -205,6 +205,12 @@ class _RefundEstimateScreenState extends ConsumerState<RefundEstimateScreen> {
             icon: const Icon(Icons.request_quote_outlined),
             label: const Text('Continue to Loan Estimate'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => context.go('/ca-540'),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Calculate California Form 540 refund'),
+          ),
         ],
       ],
     );

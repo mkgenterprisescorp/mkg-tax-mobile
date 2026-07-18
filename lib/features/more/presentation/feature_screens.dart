@@ -536,7 +536,7 @@ class ToolsScreen extends StatelessWidget {
     (Icons.checklist_outlined, 'Things to bring', 'Appointment document list', '/things-to-bring'),
     (Icons.description_outlined, 'Autofill Form 1040', 'From Tax Organizer', '/organizer/form-1040'),
     (Icons.edit_note, 'Form 1040-X', 'Amended federal return', '/organizer'),
-    (Icons.map_outlined, 'CA Form 540 / 540X', 'State returns + FTB links', '/organizer'),
+    (Icons.map_outlined, 'CA Form 540 calculator', 'Tax & refund · FTB lines', '/ca-540'),
     (Icons.track_changes_outlined, 'Refund tracker', 'IRS & FTB status links', '/refund-tracker'),
   ];
 

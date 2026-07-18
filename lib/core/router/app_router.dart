@@ -19,6 +19,7 @@ import '../../features/iero/presentation/iero_extraction_screen.dart';
 import '../../features/more/presentation/feature_screens.dart';
 import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
+import '../../features/organizer/presentation/ca_540_calculator_screen.dart';
 import '../../features/organizer/presentation/form_1040_autofill_screen.dart';
 import '../../features/organizer/presentation/organizer_screen.dart';
 import '../../features/checklist/presentation/things_to_bring_screen.dart';
@@ -109,6 +110,7 @@ GoRouter createRouter({
           if (location.startsWith('/payroll-tools')) return true;
           if (location.startsWith('/tax-savings')) return true;
           if (location.startsWith('/things-to-bring')) return true;
+          if (location.startsWith('/ca-540') || location.contains('/ca-540')) return true;
           if (location.startsWith('/billing') || location.startsWith('/payments')) return true;
           if (location.startsWith('/financial')) return true;
           return false;
@@ -154,6 +156,8 @@ GoRouter createRouter({
           GoRoute(path: '/blogs', builder: (context, state) => const BlogsScreen()),
           GoRoute(path: '/organizer', builder: (context, state) => const OrganizerScreen()),
           GoRoute(path: '/organizer/form-1040', builder: (context, state) => const Form1040AutofillScreen()),
+          GoRoute(path: '/organizer/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
+          GoRoute(path: '/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
           GoRoute(path: '/engagements', builder: (context, state) => const EngagementsScreen()),
           GoRoute(path: '/documents', builder: (context, state) => const DocumentsScreen()),
           GoRoute(path: '/documents/smart-intake', builder: (context, state) => const SmartDocumentIntakeScreen()),
