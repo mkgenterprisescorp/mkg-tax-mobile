@@ -20,7 +20,7 @@ class ApiClient {
 
   static Future<ApiClient> create() async {
     final support = await getApplicationSupportDirectory();
-    final cookiePath = '${support.path}/financemkgtax_cookies';
+    final cookiePath = '${support.path}/mkgtaxconsultants_cookies';
     await Directory(cookiePath).create(recursive: true);
     final jar = PersistCookieJar(storage: FileStorage(cookiePath));
 

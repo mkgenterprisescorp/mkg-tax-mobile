@@ -12,7 +12,7 @@ import '../data/organizer_defaults.dart';
 import '../data/organizer_repository.dart';
 import 'organizer_fields.dart';
 
-/// Tax Organizer — personal + business parity with financemkgtaxpro `/organizer`.
+/// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
 class OrganizerScreen extends ConsumerStatefulWidget {
   const OrganizerScreen({super.key});
@@ -432,7 +432,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       children: [
         OrganizerSection(
           title: 'Filing type',
-          subtitle: 'Matches financemkgtaxpro prepType — personal, Schedule C business, or entity returns.',
+          subtitle: 'Matches mkgtaxconsultants.com prepType — personal, Schedule C business, or entity returns.',
           child: OrganizerDropdown<String>(
             label: 'Preparation type',
             value: '${_data['prepType'] ?? 'personal'}',
@@ -1029,7 +1029,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       children: [
         OrganizerSection(
           title: labels,
-          subtitle: 'Field names match financemkgtaxpro `$prep` in tax_returns.data.',
+          subtitle: 'Field names match mkgtaxconsultants.com `$prep` in tax_returns.data.',
           child: NestedMapEditor(
             data: form,
             onlyKeys: identityKeys.isEmpty ? keys.take(12).toList() : identityKeys,

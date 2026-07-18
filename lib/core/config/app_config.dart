@@ -3,7 +3,7 @@
 /// Authoritative staging/production API root:
 /// `https://app.mkgtaxconsultants.com/api/v1`
 ///
-/// Web client portal (financemkgtaxpro):
+/// Web client portal:
 /// `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that

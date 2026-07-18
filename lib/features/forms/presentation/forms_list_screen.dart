@@ -10,7 +10,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 
-/// Mobile clone of financemkgtaxpro `/dashboard` (consumer + professional editions).
+/// Mobile clone of mkgtaxconsultants.com `/dashboard` (consumer + professional editions).
 class FormsListScreen extends ConsumerStatefulWidget {
   const FormsListScreen({super.key});
 

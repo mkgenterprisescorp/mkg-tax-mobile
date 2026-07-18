@@ -1,4 +1,4 @@
-/// Role model mirroring financemkgtaxpro `use-nav-context.ts`.
+/// Role model mirroring mkgtaxconsultants.com `use-nav-context.ts`.
 ///
 /// The mobile product ships as **two experiences** from one Flutter binary:
 /// - **Consumer** (`client`) — personal tax filing, documents, payments, Tessa AI

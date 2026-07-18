@@ -9,7 +9,7 @@ import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 
-/// Mobile clone of financemkgtaxpro "IRS iERO Data Extraction".
+/// Mobile clone of mkgtaxconsultants.com "IRS iERO Data Extraction".
 class IeroExtractionScreen extends ConsumerStatefulWidget {
   const IeroExtractionScreen({super.key});
 

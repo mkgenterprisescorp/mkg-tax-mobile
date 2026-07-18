@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_client.dart';
 import '../network/api_error_mapper.dart';
 
-/// Live financemkgtaxpro client APIs (cookie session).
+/// Live mkgtaxconsultants.com client APIs (cookie session).
 class PortalRepository {
   PortalRepository(this._api);
   final ApiClient _api;

@@ -9,7 +9,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
 
 /// Web-parity password reset: email → 6-digit code → new password.
-/// Mirrors financemkgtaxpro `Login.tsx` forgot / reset-code / new-password steps.
+/// Mirrors mkgtaxconsultants.com `Login.tsx` forgot / reset-code / new-password steps.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 

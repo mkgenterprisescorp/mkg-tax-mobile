@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Web-parity step labels (financemkgtaxpro Organizer.tsx).
+/// Web-parity step labels (mkgtaxconsultants.com Organizer.tsx).
 const personalOrganizerSteps = <String>[
   'Filing Info',
   'Personal Info',
@@ -166,7 +166,7 @@ Map<String, dynamic> emptyDependent() => {
       'dob': '',
     };
 
-/// Minimal W-2 form matching financemkgtaxpro `defaultW2Data` keys used on mobile.
+/// Minimal W-2 form matching mkgtaxconsultants.com `defaultW2Data` keys used on mobile.
 Map<String, dynamic> emptyW2Form({
   String employeeSSN = '',
   String employeeFirstName = '',

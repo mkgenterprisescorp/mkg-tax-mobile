@@ -267,7 +267,7 @@ class AuthRepository {
   Future<void> requestPasswordReset(String email) async {
     try {
       if (AppConfig.usesLaravelAuth) {
-        // Enumeration-safe façade → financemkgtaxpro via mobile API.
+        // Enumeration-safe façade → mkgtaxconsultants.com portal via mobile API.
         await _api.post<Map<String, dynamic>>(
           '/auth/password-reset/request',
           data: {'email': email.trim()},

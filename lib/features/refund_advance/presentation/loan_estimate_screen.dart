@@ -37,7 +37,7 @@ class _PercentAdvance extends _AdvanceOption {
   num amountFor(num expectedRefund) => (expectedRefund * percent / 100).round();
 }
 
-/// Loan Estimate — web parity with financemkgtaxpro Financials (0% + 36% APR).
+/// Loan Estimate — web parity with mkgtaxconsultants.com Financials (0% + 36% APR).
 class LoanEstimateScreen extends ConsumerStatefulWidget {
   const LoanEstimateScreen({super.key});
 

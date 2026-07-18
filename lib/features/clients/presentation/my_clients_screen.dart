@@ -7,7 +7,7 @@ import '../../../core/network/api_error_mapper.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 
-/// Professional edition — My Clients (financemkgtaxpro `/my-clients`).
+/// Professional edition — My Clients (mkgtaxconsultants.com `/my-clients`).
 class MyClientsScreen extends ConsumerStatefulWidget {
   const MyClientsScreen({super.key});
 

@@ -10,7 +10,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 
-/// Mobile clone of financemkgtaxpro "All Tax Returns" card grid.
+/// Mobile clone of mkgtaxconsultants.com "All Tax Returns" card grid.
 class AllReturnsScreen extends ConsumerStatefulWidget {
   const AllReturnsScreen({super.key});
 
