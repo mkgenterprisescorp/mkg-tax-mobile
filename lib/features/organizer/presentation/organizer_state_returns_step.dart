@@ -142,12 +142,12 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           title: 'State returns · $phaseOneLabel',
           subtitle:
               'California Form 540 / business are always available. Nationwide non-CA intake is unlocked '
-              'by region — Phase 1 covers West (1) and Northwest (6). Later regions stay visible but locked.',
+              'for Regions 1–6 (all regions active). Live agency e-file remains off.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '$incomeTaxSelectedCount of ${phaseOneSelectable.length} Phase 1 + CA jurisdictions selected',
+                '$incomeTaxSelectedCount of ${phaseOneSelectable.length} regional + CA jurisdictions selected',
                 style: const TextStyle(color: MkgColors.textGrey, fontSize: 13),
               ),
               const SizedBox(height: 8),
@@ -158,7 +158,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                   FilledButton.tonalIcon(
                     onPressed: () => _addAllPhaseOneStates(homeState),
                     icon: const Icon(Icons.select_all),
-                    label: const Text('Add Phase 1 + CA states'),
+                    label: const Text('Add all regions + CA'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onList('additionalStateReturns', const []),
@@ -203,9 +203,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     for (final code in region.states)
-                      if (code != 'CA' &&
-                          (statesWithIncomeTax.contains(code) ||
-                              const {'AK', 'WA', 'WY', 'NV'}.contains(code)))
+                      if (code != 'CA')
                         FilterChip(
                           label: Text(code),
                           selected: selected.contains(code),
@@ -221,50 +219,19 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 16),
-              const Text(
-                'Later regional phases (locked)',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'State tax preparation for these jurisdictions is scheduled for a later regional phase.',
-                style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
-              ),
-              if (unassignedStates.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Unassigned: ${unassignedStates.join(', ')}',
-                  style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+              if (lockedRolloutRegions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Later regional phases (locked)',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 ),
-              ],
-              for (final region in lockedRolloutRegions) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Region ${region.id} · ${region.name} · Phase ${region.phase}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: MkgColors.textGrey),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final code in region.states)
-                      if (code != 'CA' &&
-                          (statesWithIncomeTax.contains(code) ||
-                              const {'FL', 'TN', 'TX', 'SD', 'NH', 'DC'}.contains(code)))
-                        FilterChip(
-                          label: Text(code),
-                          selected: false,
-                          onSelected: null,
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: MkgColors.textGrey,
-                            fontSize: 12,
-                          ),
-                        ),
-                  ],
-                ),
+                for (final region in lockedRolloutRegions) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Region ${region.id} · ${region.name} · Phase ${region.phase}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: MkgColors.textGrey),
+                  ),
+                ],
               ],
             ],
           ),

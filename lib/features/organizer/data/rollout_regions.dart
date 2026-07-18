@@ -1,7 +1,7 @@
 /// Geographic rollout for nationwide (non-CA) state organizer workflows.
 /// Mirrors Laravel `StateRolloutRegions` / state-engine `rollout-regions-ty2025`.
 ///
-/// Phase 1: Region 1 West + Region 6 Northwest.
+/// Regions 1–6 are all unlocked for intake.
 /// California is Region 1 geographically but filing stays on Form 540 paths.
 
 class RolloutRegion {
@@ -60,14 +60,14 @@ const rolloutRegions = <RolloutRegion>[
     id: '6',
     name: 'Northwest',
     slug: 'northwest',
-    phase: 1,
+    phase: 6,
     states: ['CO', 'ID', 'MT', 'OR', 'WA', 'WY'],
   ),
 ];
 
-const enabledRegionIds = <String>{'1', '6'};
+const enabledRegionIds = <String>{'1', '2', '3', '4', '5', '6'};
 
-const phaseOneLabel = 'Phase 1 · Regions 1 (West) + 6 (Northwest)';
+const phaseOneLabel = 'Regions 1–6 · nationwide intake (all regions active)';
 
 const unassignedStates = <String>{};
 
@@ -86,7 +86,7 @@ bool isNationwideStateEnabled(String stateCode) {
   return region != null && enabledRegionIds.contains(region.id);
 }
 
-/// Phase-1 enabled nationwide states (excludes CA).
+/// All nationwide-enabled states (excludes CA).
 Set<String> get phaseOneEnabledStates => {
       for (final region in rolloutRegions)
         if (enabledRegionIds.contains(region.id))
@@ -103,3 +103,4 @@ List<RolloutRegion> get lockedRolloutRegions => [
       for (final region in rolloutRegions)
         if (!enabledRegionIds.contains(region.id)) region,
     ];
+}
