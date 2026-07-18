@@ -47,12 +47,15 @@ class LaravelOrganizerRepository {
     return PlatformApi.unwrapMap(res);
   }
 
-  /// Persist every catalog section from canonical organizer [data] in **one** PUT.
-  /// Avoids N-section request storms that stall autosave under `throttle:30,1`.
+  /// Persist organizer sections in **one** PUT.
+  ///
+  /// Pass [onlySectionKeys] for fast autosave (dirty sections only).
+  /// Omit it (or pass null) for a full draft/submit save.
   Future<Map<String, dynamic>?> saveAllSections({
     required String workspaceId,
     required Map<String, dynamic> data,
     bool submit = false,
+    Set<String>? onlySectionKeys,
   }) async {
     if (_api.bearerToken == null) {
       throw StateError('Please sign in again to save your organizer.');
@@ -63,9 +66,19 @@ class LaravelOrganizerRepository {
       for (final k in keys)
         if (k != 'schedule_c' || showScheduleCStep(data)) k,
     ];
+    final targetKeys = onlySectionKeys == null || onlySectionKeys.isEmpty
+        ? effectiveKeys
+        : [
+            for (final k in effectiveKeys)
+              if (onlySectionKeys.contains(k)) k,
+          ];
+    if (targetKeys.isEmpty) {
+      // Nothing dirty — treat as success without a network round-trip.
+      return {'skipped': true};
+    }
 
     final sections = <Map<String, dynamic>>[];
-    for (final key in effectiveKeys) {
+    for (final key in targetKeys) {
       final stepTitle = switch (key) {
         'filing_info' => 'Filing Info',
         'personal_info' => 'Personal Info',

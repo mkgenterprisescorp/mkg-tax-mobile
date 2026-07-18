@@ -45,13 +45,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   bool _showHub = true;
   Map<String, dynamic> _data = {};
 
-  /// Matches web Organizer: debounce ~3s after edits, skip until load settles.
-  static const _autoSaveDebounce = Duration(seconds: 3);
+  /// Fast debounce — dirty-section PUT keeps payloads small.
+  static const _autoSaveDebounce = Duration(milliseconds: 700);
   Timer? _autoSaveTimer;
   Timer? _autoSaveIdleTimer;
   bool _autoSaveReady = false;
+  bool _autoSaving = false;
   _AutoSaveStatus _autoSaveStatus = _AutoSaveStatus.idle;
   String? _autoSaveError;
+  final Set<String> _dirtySectionKeys = {};
 
   List<String> get _steps {
     final prep = '${_data['prepType'] ?? 'personal'}';
@@ -90,8 +92,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       _loading = true;
       _error = null;
       _autoSaveReady = false;
+      _autoSaving = false;
       _autoSaveStatus = _AutoSaveStatus.idle;
       _autoSaveError = null;
+      _dirtySectionKeys.clear();
     });
     try {
       final tax = ref.read(taxYearProvider);
@@ -198,19 +202,33 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final filled = await _maybeAutofillProfile(_data, overwrite: false);
     if (!mounted) return;
     setState(() => _data = filled);
+    _dirtySectionKeys.add('personal_info');
+    _dirtySectionKeys.add('filing_info');
     _scheduleAutoSave();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Auto-filled empty fields from your account profile.')),
     );
   }
 
+  void _markCurrentSectionDirty() {
+    if (_steps.isEmpty || _step < 0 || _step >= _steps.length) return;
+    _dirtySectionKeys.add(OrganizerSectionMapper.stepToSectionKey(_steps[_step]));
+    // Multistate edits live alongside CA when on State Tax Returns.
+    if (_steps[_step] == 'State Tax Returns' || _steps[_step] == 'CA 540 State Tax') {
+      _dirtySectionKeys.add('state_multistate');
+      _dirtySectionKeys.add('state_ca_540');
+    }
+  }
+
   void _setRoot(String key, dynamic value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[key] = value);
+    _markCurrentSectionDirty();
     _scheduleAutoSave();
   }
 
   void _setNested(String nestKey, Map<String, dynamic> value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[nestKey] = value);
+    _markCurrentSectionDirty();
     _scheduleAutoSave();
   }
 
@@ -220,6 +238,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       patch.forEach((key, value) => next[key] = value);
       _data = next;
     });
+    _markCurrentSectionDirty();
     _scheduleAutoSave();
   }
 
@@ -241,9 +260,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   Future<void> _runAutoSave() async {
     if (!_autoSaveReady || !mounted || _isLocked) return;
-    if (_saving) {
-      // Manual/continue save in flight — retry shortly after it finishes.
-      _autoSaveTimer = Timer(const Duration(milliseconds: 800), _runAutoSave);
+    if (_saving || _autoSaving) {
+      // Manual/continue or autosave in flight — retry shortly after it finishes.
+      _autoSaveTimer = Timer(const Duration(milliseconds: 400), _runAutoSave);
       return;
     }
     await _save(silent: true);
@@ -252,14 +271,16 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   Future<void> _save({bool submit = false, bool silent = false}) async {
     _autoSaveTimer?.cancel();
     if (silent) {
+      // Background autosave must not lock Continue / Save buttons.
       setState(() {
-        _saving = true;
+        _autoSaving = true;
         _autoSaveStatus = _AutoSaveStatus.saving;
         _autoSaveError = null;
       });
     } else {
       setState(() => _saving = true);
     }
+    final dirtySnapshot = Set<String>.from(_dirtySectionKeys);
     try {
       final status = submit ? 'processing' : 'draft';
       final filingStatus = '${_data['filingStatus'] ?? 'single'}';
@@ -275,6 +296,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                 'clientPlatform': 'flutter',
               },
               submit: submit,
+              // Autosave: dirty sections only. Manual/Continue: full snapshot.
+              onlySectionKeys: silent && !submit ? dirtySnapshot : null,
             );
       } else {
         await ref.read(organizerRepositoryProvider).save(
@@ -290,24 +313,32 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             );
       }
       if (!mounted) return;
+      // Clear only keys we attempted; keep anything marked while save was in flight.
+      _dirtySectionKeys.removeAll(dirtySnapshot);
       setState(() {
         _status = status;
         _saving = false;
+        _autoSaving = false;
         if (silent) {
           _autoSaveStatus = _AutoSaveStatus.saved;
           _autoSaveError = null;
         } else {
           _autoSaveStatus = _AutoSaveStatus.idle;
+          _dirtySectionKeys.clear();
         }
       });
       if (silent) {
         _autoSaveIdleTimer?.cancel();
-        _autoSaveIdleTimer = Timer(const Duration(seconds: 2), () {
+        _autoSaveIdleTimer = Timer(const Duration(milliseconds: 900), () {
           if (!mounted) return;
           if (_autoSaveStatus == _AutoSaveStatus.saved) {
             setState(() => _autoSaveStatus = _AutoSaveStatus.idle);
           }
         });
+        // If more edits landed during save, flush them ASAP.
+        if (_dirtySectionKeys.isNotEmpty) {
+          _scheduleAutoSave();
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(submit ? 'Submitted for processing.' : 'Draft saved.')),
@@ -319,6 +350,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       final message = ApiErrorMapper.map(e);
       setState(() {
         _saving = false;
+        _autoSaving = false;
         if (silent) {
           _autoSaveStatus = _AutoSaveStatus.error;
           _autoSaveError = message;
