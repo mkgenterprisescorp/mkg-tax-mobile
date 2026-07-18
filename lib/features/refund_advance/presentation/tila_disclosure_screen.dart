@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/portal_repository.dart';
-import '../../../core/network/api_client.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../data/refund_advance_repository.dart';
 import 'refund_advance_hub_screen.dart';
 
 /// Truth in Lending Act disclosure for tax refund advances (max 36% APR).
@@ -45,19 +46,19 @@ class _TilaDisclosureScreenState extends ConsumerState<TilaDisclosureScreen> {
     setState(() => _submitting = true);
     try {
       ref.read(refundAdvanceProvider.notifier).acceptTila();
-      dynamic returnId;
-      try {
-        final current = await ref.read(apiClientProvider).get('/api/tax-returns/current');
-        if (current.statusCode == 200 && current.data is Map) {
-          returnId = (current.data as Map)['id'];
-        }
-      } catch (_) {}
-      await ref.read(portalRepositoryProvider).applyLoan({
-        'amount': adv!.amount,
+      String? returnId;
+      if (AppConfig.usesLaravelAuth) {
+        returnId = ref.read(taxYearProvider).workspace?.workspaceId;
+      }
+      // Refresh server TILA package so disclosure fields stay authoritative.
+      await ref.read(refundAdvanceRepositoryProvider).tila(adv!.amount);
+      await ref.read(refundAdvanceRepositoryProvider).apply({
+        'amount': adv.amount,
         'amountRequested': adv.amount,
-        'taxReturnId': ?returnId,
+        'taxReturnId': returnId,
         'apr': adv.apr,
         'tierLabel': adv.tierLabel,
+        'expectedRefund': adv.expectedRefund,
         'tilaAccepted': true,
         'tilaSignedName': _signature.text.trim(),
         'tilaSignedAt': DateTime.now().toIso8601String(),

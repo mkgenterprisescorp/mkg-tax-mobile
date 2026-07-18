@@ -18,6 +18,13 @@ class RefundAdvanceHubScreen extends StatelessWidget {
       accent: MkgColors.primary,
     ),
     _AdvanceSection(
+      title: 'Refund calculator',
+      cue: 'Federal estimate · organizer prefill',
+      icon: Icons.savings_outlined,
+      path: '/refund-advance/estimate',
+      accent: MkgColors.green,
+    ),
+    _AdvanceSection(
       title: 'Loan Estimate',
       cue: 'Pick tier · see APR & repayment',
       icon: Icons.request_quote_outlined,

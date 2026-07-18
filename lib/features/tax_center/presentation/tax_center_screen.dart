@@ -48,6 +48,14 @@ class TaxCenterScreen extends ConsumerWidget {
         done: (ws?.documentsCount ?? 0) > 0,
       ),
       _TaxSection(
+        title: 'Refund calculator',
+        cue: 'Estimate · organizer prefill',
+        icon: Icons.savings_outlined,
+        path: '/refund-advance/estimate',
+        accent: MkgColors.green,
+        progressLabel: 'Estimate',
+      ),
+      _TaxSection(
         title: 'Refund Advance',
         cue: 'Loan Estimate · TILA · 36% APR',
         icon: Icons.payments_outlined,

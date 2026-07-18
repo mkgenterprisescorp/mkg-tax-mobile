@@ -14,6 +14,8 @@ import '../../home/presentation/main_tabs.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
+import '../../tessa/data/tessa_repository.dart';
+import '../../address/presentation/address_autofill_fields.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -144,17 +146,17 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
 
   Future<void> _bootstrap() async {
     try {
-      final portal = ref.read(portalRepositoryProvider);
-      final existing = await portal.listConversations();
+      final tessa = ref.read(tessaRepositoryProvider);
+      final existing = await tessa.listConversations();
       Map<String, dynamic> convo;
       if (existing.isNotEmpty) {
         convo = existing.first;
       } else {
-        convo = await portal.createConversation(title: 'Mobile TaxPro Assist');
+        convo = await tessa.createConversation(title: 'Mobile TaxPro Assist');
       }
       final id = convo['id'];
       if (id != null) {
-        final full = await portal.getConversation(id);
+        final full = await tessa.getConversation(id);
         final history = (full?['messages'] as List?) ?? const [];
         for (final m in history) {
           if (m is! Map) continue;
@@ -203,7 +205,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       _sending = true;
     });
     try {
-      final reply = await ref.read(portalRepositoryProvider).sendAiMessage(_conversationId, text);
+      final reply = await ref.read(tessaRepositoryProvider).sendMessage(_conversationId, text);
       if (mounted) setState(() => _messages.add((false, reply)));
     } catch (e) {
       if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
@@ -540,10 +542,26 @@ class ToolsScreen extends StatelessWidget {
         ),
         Card(
           child: ListTile(
+            leading: const Icon(Icons.savings_outlined, color: MkgColors.primary),
+            title: const Text('Refund / tax estimate'),
+            subtitle: const Text('Federal calculator · prefill from organizer'),
+            onTap: () => context.go('/refund-advance/estimate'),
+          ),
+        ),
+        Card(
+          child: ListTile(
             leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
-            title: const Text('Refund advance calculator'),
-            subtitle: const Text('Estimate refund advance options'),
-            onTap: () => context.go('/financial'),
+            title: const Text('Refund advance / loan estimate'),
+            subtitle: const Text('0% & 36% APR tiers · TILA'),
+            onTap: () => context.go('/refund-advance'),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.description_outlined, color: MkgColors.primary),
+            title: const Text('Autofill Form 1040'),
+            subtitle: const Text('Preview from Tax Organizer answers'),
+            onTap: () => context.go('/organizer/form-1040'),
           ),
         ),
         Card(
@@ -624,11 +642,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _phone;
-  late final TextEditingController _address;
-  late final TextEditingController _city;
-  late final TextEditingController _state;
-  late final TextEditingController _zip;
   late final TextEditingController _ssn;
+  late Map<String, dynamic> _addressData;
   bool _saving = false;
 
   @override
@@ -636,20 +651,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     final user = ref.read(authProvider).user;
     _phone = TextEditingController(text: user?.phone ?? '');
-    _address = TextEditingController(text: user?.address ?? '');
-    _city = TextEditingController(text: user?.city ?? '');
-    _state = TextEditingController(text: user?.state ?? '');
-    _zip = TextEditingController(text: user?.zipCode ?? '');
     _ssn = TextEditingController();
+    _addressData = {
+      'address': user?.address ?? '',
+      'city': user?.city ?? '',
+      'state': user?.state ?? '',
+      'zip': user?.zipCode ?? '',
+      'apartment': '',
+    };
   }
 
   @override
   void dispose() {
     _phone.dispose();
-    _address.dispose();
-    _city.dispose();
-    _state.dispose();
-    _zip.dispose();
     _ssn.dispose();
     super.dispose();
   }
@@ -661,10 +675,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final updated = await portal.submitKyc({
         'role': 'client',
         'phone': _phone.text.trim(),
-        'address': _address.text.trim(),
-        'city': _city.text.trim(),
-        'state': _state.text.trim().toUpperCase(),
-        'zipCode': _zip.text.trim(),
+        'address': '${_addressData['address'] ?? ''}'.trim(),
+        'city': '${_addressData['city'] ?? ''}'.trim(),
+        'state': '${_addressData['state'] ?? ''}'.trim().toUpperCase(),
+        'zipCode': '${_addressData['zip'] ?? ''}'.trim(),
       });
       final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
       if (digits.length == 9) {
@@ -722,16 +736,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SectionHeader('KYC / profile details'),
         TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone),
         const SizedBox(height: 10),
-        TextField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
-        const SizedBox(height: 10),
-        TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(child: TextField(controller: _state, decoration: const InputDecoration(labelText: 'State'), textCapitalization: TextCapitalization.characters)),
-            const SizedBox(width: 10),
-            Expanded(child: TextField(controller: _zip, decoration: const InputDecoration(labelText: 'ZIP'), keyboardType: TextInputType.number)),
-          ],
+        AddressAutofillFields(
+          data: _addressData,
+          onChanged: (key, value) => setState(() => _addressData[key] = value),
         ),
         const SizedBox(height: 10),
         TextField(

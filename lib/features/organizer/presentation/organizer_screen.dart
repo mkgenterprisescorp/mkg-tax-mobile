@@ -7,10 +7,12 @@ import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../address/presentation/address_autofill_fields.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
+import '../data/us_states.dart';
 import 'organizer_credits_step.dart';
 import 'organizer_fields.dart';
 import 'organizer_state_returns_step.dart';
@@ -401,6 +403,18 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           label: Text(done == 0 ? 'Start walkthrough' : done >= steps.length ? 'Review & submit' : 'Continue walkthrough'),
         ),
         const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/organizer/form-1040'),
+          icon: const Icon(Icons.description_outlined),
+          label: const Text('Autofill Form 1040 preview'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => context.go('/refund-advance/estimate'),
+          icon: const Icon(Icons.savings_outlined),
+          label: const Text('Refund / tax estimate'),
+        ),
+        const SizedBox(height: 8),
         OutlinedButton(
           onPressed: () => context.go('/tax-center'),
           child: const Text('Back to Tax Center'),
@@ -528,14 +542,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         ),
         OrganizerSection(
           title: 'Address',
-          child: Column(
-            children: [
-              OrganizerTextField(label: 'Street', value: '${_data['address'] ?? ''}', onChanged: (v) => _setRoot('address', v)),
-              OrganizerTextField(label: 'Apt / Suite', value: '${_data['apartment'] ?? ''}', onChanged: (v) => _setRoot('apartment', v)),
-              OrganizerTextField(label: 'City', value: '${_data['city'] ?? ''}', onChanged: (v) => _setRoot('city', v)),
-              OrganizerTextField(label: 'State', value: '${_data['state'] ?? ''}', onChanged: (v) => _setRoot('state', v)),
-              OrganizerTextField(label: 'ZIP', value: '${_data['zip'] ?? ''}', onChanged: (v) => _setRoot('zip', v)),
-            ],
+          subtitle: 'Start typing a street or ZIP — suggestions autofill city, state, and ZIP.',
+          child: AddressAutofillFields(
+            data: _data,
+            onChanged: (key, value) => _setRoot(key, value),
           ),
         ),
         if ('${_data['filingStatus']}' == 'married_joint' || '${_data['filingStatus']}' == 'married_separate')
@@ -725,7 +735,17 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                       OrganizerMoneyField(label: 'Box 12a amount', value: w2s[i]['box12a_amount'], onChanged: (v) => _patchW2(i, 'box12a_amount', v)),
                       OrganizerCheckbox(label: 'Box 13 — Retirement plan', value: w2s[i]['box13_retirementPlan'] == true, onChanged: (v) => _patchW2(i, 'box13_retirementPlan', v)),
                       OrganizerTextField(label: 'Box 14 — Other', value: '${w2s[i]['box14_other'] ?? ''}', onChanged: (v) => _patchW2(i, 'box14_other', v)),
-                      OrganizerTextField(label: 'Box 15 — State', value: '${w2s[i]['box15_state'] ?? ''}', onChanged: (v) => _patchW2(i, 'box15_state', v)),
+                      OrganizerDropdown<String>(
+                        label: 'Box 15 — State',
+                        value: usStateOptions.any((e) => e.$1 == '${w2s[i]['box15_state'] ?? ''}')
+                            ? '${w2s[i]['box15_state']}'
+                            : '',
+                        items: [
+                          ('', 'Select state'),
+                          for (final opt in usStateOptions) (opt.$1, opt.$1),
+                        ],
+                        onChanged: (v) => _patchW2(i, 'box15_state', v ?? ''),
+                      ),
                       OrganizerMoneyField(label: 'Box 16 — State wages', value: w2s[i]['box16_stateWages'], onChanged: (v) => _patchW2(i, 'box16_stateWages', v)),
                       OrganizerMoneyField(label: 'Box 17 — State tax', value: w2s[i]['box17_stateTax'], onChanged: (v) => _patchW2(i, 'box17_stateTax', v)),
                     ],
