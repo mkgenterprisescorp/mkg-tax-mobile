@@ -463,6 +463,39 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     return const Text('Unknown step');
   }
 
+  Widget _filingYearDropdown() {
+    final catalogYears = ref.watch(taxYearProvider).years;
+    final currentFiling =
+        ref.watch(taxYearProvider).currentFilingYear ?? DateTime.now().year - 1;
+    final yearItems = catalogYears.isNotEmpty
+        ? <(int, String)>[
+            for (final y in catalogYears)
+              (
+                y.taxYear,
+                y.isCurrentFilingYear
+                    ? '${y.taxYear} — Current Filing Season'
+                    : '${y.taxYear}',
+              ),
+          ]
+        : filingYearOptions(currentYear: currentFiling);
+    final selected = (_data['filingYear'] as num?)?.toInt() ?? _year;
+    final value = yearItems.any((e) => e.$1 == selected) ? selected : yearItems.first.$1;
+    return OrganizerDropdown<int>(
+      label: 'Filing year',
+      value: value,
+      items: yearItems,
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() {
+          _year = v;
+          _data = Map<String, dynamic>.from(_data)..['filingYear'] = v;
+        });
+        // Keep the shared TY selector / workspace aligned with organizer.
+        ref.read(taxYearProvider.notifier).selectYear(v);
+      },
+    );
+  }
+
   Widget _filingInfoStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -489,18 +522,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           items: filingStatusOptions,
           onChanged: (v) => _setRoot('filingStatus', v ?? 'single'),
         ),
-        OrganizerTextField(
-          label: 'Filing year',
-          value: '${_data['filingYear'] ?? _year}',
-          keyboardType: TextInputType.number,
-          onChanged: (v) {
-            final y = int.tryParse(v);
-            if (y != null) {
-              _year = y;
-              _setRoot('filingYear', y);
-            }
-          },
-        ),
+        _filingYearDropdown(),
         const MkgCard(
           child: Text(
             'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow — same schemas as the web portal.',

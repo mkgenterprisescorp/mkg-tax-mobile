@@ -207,6 +207,16 @@ const filingStatusOptions = <(String, String)>[
   ('qualifying_widow', 'Qualifying Surviving Spouse'),
 ];
 
+/// Last [count] filing years ending at [currentYear] (inclusive), newest first.
+/// Defaults to the prior calendar year as the current filing season (e.g. 2025).
+List<(int, String)> filingYearOptions({int? currentYear, int count = 10}) {
+  final current = currentYear ?? DateTime.now().year - 1;
+  return [
+    for (var y = current; y > current - count; y--)
+      (y, y == current ? '$y — Current Filing Season' : '$y'),
+  ];
+}
+
 /// Empty Schedule E rental property matching Organizer inline schema.
 Map<String, dynamic> emptyRentalProperty() => {
       'address': '',
