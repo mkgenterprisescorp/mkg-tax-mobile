@@ -1,7 +1,5 @@
 /// Client-side Form 1040 income rollups from W-2 / 1099 schemas (TY2025).
 /// Intake estimates for professional review — not a certified e-file engine.
-/// Line map follows IRS Free File Fillable Forms line-by-line help:
-/// https://www.irs.gov/e-file-providers/line-by-line-instructions-free-file-fillable-forms
 library;
 
 num incomeNum(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
