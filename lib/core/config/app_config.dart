@@ -3,7 +3,7 @@
 /// Authoritative staging/production API root:
 /// `https://app.mkgtaxconsultants.com/api/v1`
 ///
-/// Mobile app website frontend (companion site / Flutter web):
+/// WordPress marketing site (DO):
 /// `https://finance.mkgtaxconsultants.com`
 ///
 /// Staff/client web portal (financemkgtaxpro) — separate host:
@@ -21,8 +21,8 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Mobile app website origin (Flutter web / companion deep links).
-  /// Distinct from the web portal on [canonicalPortalHost].
+  /// Public marketing site origin (WordPress on [canonicalMarketingHost]).
+  /// Not the authenticated portal SPA and not the Laravel API.
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
     defaultValue: 'https://finance.mkgtaxconsultants.com',
@@ -52,8 +52,9 @@ class AppConfig {
   /// Web portal host (`financemkgtaxpro` on DO) — payments, staff, S2S.
   static const String canonicalPortalHost = 'mkgtaxconsultants.com';
 
-  /// Mobile website host — Flutter web / companion site (not the portal).
-  static const String canonicalMobileWebHost = 'finance.mkgtaxconsultants.com';
+  /// WordPress marketing host on DigitalOcean (site + WP database only).
+  /// Never taxpayer SoT — no tax returns / SSNs / bank / uploads in WP DB.
+  static const String canonicalMarketingHost = 'finance.mkgtaxconsultants.com';
 
   /// Set only for local-development builds against a plain-HTTP dev server
   /// (e.g. an Android emulator hitting `http://10.0.2.2:8000`). Never set
@@ -67,7 +68,7 @@ class AppConfig {
 
   static String get apiRoot => _trim(apiBaseUrl);
 
-  /// Mobile website origin ([canonicalMobileWebHost] by default).
+  /// Marketing WordPress origin ([canonicalMarketingHost] by default).
   static String get webRoot => rewriteLegacyPortalUri(Uri.parse(_trim(webBaseUrl))).toString();
 
   /// Web portal origin for staff/client SPA deep links (dashboard, documents, etc.).
@@ -152,29 +153,24 @@ class AppConfig {
       );
     }
 
-    final path = _trim(uri.path);
+    final path = uri.path.replaceAll(RegExp(r'/+$'), '');
     if (!path.endsWith('/api/v1')) {
       throw AppConfigError(
-        'API_BASE_URL must end with /api/v1 (got path "$path" in "$trimmed").',
+        'API_BASE_URL must end with /api/v1 (got "$trimmed").',
       );
     }
-
-    final occurrences = RegExp(r'/api/v1').allMatches(path).length;
-    if (occurrences > 1) {
-      throw AppConfigError('API_BASE_URL contains a duplicated /api/v1 path segment: "$trimmed".');
+    if (path.contains('/api/v1/api/v1')) {
+      throw AppConfigError(
+        'API_BASE_URL has a duplicated /api/v1 segment: "$trimmed".',
+      );
     }
   }
 
-  static String _trim(String url) =>
-      url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  static String _trim(String value) => value.trim().replaceAll(RegExp(r'/+$'), '');
 }
 
-/// Thrown by [AppConfig.validate] when the build-time API configuration is
-/// missing or malformed. Callers should catch this in `main()` and show a
-/// dedicated configuration-error screen instead of running the normal app.
-class AppConfigError extends Error {
+class AppConfigError implements Exception {
   AppConfigError(this.message);
-
   final String message;
 
   @override

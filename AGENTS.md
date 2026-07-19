@@ -3,10 +3,11 @@
 ## Cursor Cloud specific instructions
 
 ### Auth / API / website hosts
-- **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro — not the mobile website).
-- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL` default). Domain registrar is **GoDaddy**; DNS for `finance` (and `app`) is **DigitalOcean** nameservers — create A/CNAME / App Platform domain records in DO Networking, not as ordinary GoDaddy host records.
-- **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum). Do **not** reuse `app.` for the website.
-- **Payments deep links / Stripe return:** stay on portal `https://mkgtaxconsultants.com/payments` (`PAYMENTS_WEB_URL` / `canonicalPortalHost`).
+- **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro — not WordPress).
+- **WordPress marketing:** `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL` default). Hosts the **WordPress site + WordPress database** on DigitalOcean. Registrar GoDaddy; DNS for `finance`/`app` is DigitalOcean nameservers.
+- **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum). Do **not** reuse `app.` or `finance.` for the wrong product.
+- **Payments deep links / Stripe return:** stay on portal `https://mkgtaxconsultants.com/payments` (`PAYMENTS_WEB_URL` / `portalRoot`).
+- **WordPress is marketing only.** Never store tax returns, SSNs, bank data, uploads, or taxpayer records in the WordPress DB. Taxpayer SoT stays in Laravel + portal + Neon + Spaces.
 - Flutter never talks to Neon, `/internal/*`, or portal S2S credentials.
 - Domain cutover is **not** complete until portal internal routes on `mkgtaxconsultants.com` return controlled 401 for unsigned S2S (see financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`).
 
@@ -17,10 +18,10 @@
 
 ### Product topology
 - **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
-- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (companion / Flutter web — not the portal).
+- **WordPress marketing:** `https://finance.mkgtaxconsultants.com` (DO — site + WP DB only).
 - **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro).
 - **Mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (mkg-tax-backend-2).
-- **WordPress (`www`)** is **marketing only** — no tax returns, SSNs, bank data, or uploads in the WP DB. Sensitive work stays in **Laravel + portal + Neon + DigitalOcean Spaces**.
+- Legacy `www` WP Engine may still redirect/alias until cutover to `finance.` is complete.
 - Do not configure S2S / portal bridge against `financemkgtax.com`.
 
 ### Brand assets

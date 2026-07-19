@@ -83,16 +83,16 @@ void main() {
       expect(AppConfig.paymentsWebUrl, contains('mkgtaxconsultants.com'));
       expect(AppConfig.paymentsWebUrl, contains('/payments'));
       expect(AppConfig.paymentsWebUrl.contains('financemkgtax.com'), isFalse);
-      // Payments stay on the portal; mobile website is a different host.
+      // Payments stay on the portal; WordPress marketing is a different host.
       expect(AppConfig.paymentsWebUrl.contains('finance.mkgtaxconsultants.com'), isFalse);
     });
 
-    test('webBaseUrl defaults to finance.mkgtaxconsultants.com mobile website', () {
-      expect(AppConfig.canonicalMobileWebHost, 'finance.mkgtaxconsultants.com');
+    test('webBaseUrl defaults to finance.mkgtaxconsultants.com WordPress marketing', () {
+      expect(AppConfig.canonicalMarketingHost, 'finance.mkgtaxconsultants.com');
       expect(AppConfig.webRoot, contains('finance.mkgtaxconsultants.com'));
       expect(AppConfig.portalRoot, 'https://mkgtaxconsultants.com');
       expect(AppConfig.canonicalPortalHost, 'mkgtaxconsultants.com');
-      expect(AppConfig.canonicalMobileWebHost, isNot(AppConfig.canonicalPortalHost));
+      expect(AppConfig.canonicalMarketingHost, isNot(AppConfig.canonicalPortalHost));
     });
 
     test('rewriteLegacyPortalUri remaps financemkgtax.com payments deep links', () {
