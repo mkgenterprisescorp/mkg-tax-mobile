@@ -2,6 +2,8 @@
 /// Intake estimates for professional review — not a certified e-file engine.
 library;
 
+import 'computed_field_policy.dart';
+
 num incomeNum(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
 
 List<Map<String, dynamic>> incomeList(Map<String, dynamic> data, String key) {
@@ -212,9 +214,14 @@ Form1040IncomeSummary summarizeForm1040Income(Map<String, dynamic> data) {
 }
 
 /// Apply W-2 / 1099 list totals onto Form 1040 root scalars and Schedule 1.
+/// Skips keys marked in `computedOverrides` (manual override / pro unlock).
 Map<String, dynamic> applyIncomeRollups(Map<String, dynamic> data) {
   final next = Map<String, dynamic>.from(data);
   final schedule1 = Map<String, dynamic>.from((next['schedule1'] as Map?) ?? const {});
+  bool open(String key) => !ComputedFieldPolicy.isOverridden(next, key);
+  void set(String key, dynamic value) {
+    if (open(key)) next[key] = value;
+  }
 
   final w2 = sumW2(incomeList(next, 'w2Forms'));
   final nec = sum1099Nec(incomeList(next, 'form1099NEC'));
@@ -244,57 +251,57 @@ Map<String, dynamic> applyIncomeRollups(Map<String, dynamic> data) {
   final qualFromSchB = dividendPayers.fold<num>(0, (s, p) => s + incomeNum(p['qualifiedDividends']));
 
   if (w2.wages > 0 || incomeList(next, 'w2Forms').isNotEmpty) {
-    next['wages'] = w2.wages;
+    set('wages', w2.wages);
   }
-  next['taxWithheldW2'] = w2.fedWithheld;
+  set('taxWithheldW2', w2.fedWithheld);
 
   if (ints.isNotEmpty) {
-    next['interestIncome'] = interestFrom1099;
+    set('interestIncome', interestFrom1099);
   } else if (interestPayers.isNotEmpty) {
-    next['interestIncome'] = interestFromSchB;
+    set('interestIncome', interestFromSchB);
   }
 
   if (divs.isNotEmpty) {
-    next['dividendIncome'] = div.ordinary;
-    next['qualifiedDividends'] = div.qualified;
+    set('dividendIncome', div.ordinary);
+    set('qualifiedDividends', div.qualified);
   } else if (dividendPayers.isNotEmpty) {
-    next['dividendIncome'] = divFromSchB;
-    next['qualifiedDividends'] = qualFromSchB;
+    set('dividendIncome', divFromSchB);
+    set('qualifiedDividends', qualFromSchB);
   }
 
   if (incomeList(next, 'form1099R').isNotEmpty) {
-    next['iraDistributionsGross'] = r.iraGross;
-    next['iraDistributions'] = r.iraTaxable;
-    next['pensionAnnuitiesGross'] = r.pensionGross;
-    next['pensionAnnuities'] = r.pensionTaxable;
+    set('iraDistributionsGross', r.iraGross);
+    set('iraDistributions', r.iraTaxable);
+    set('pensionAnnuitiesGross', r.pensionGross);
+    set('pensionAnnuities', r.pensionTaxable);
   }
 
   if (incomeList(next, 'formSSA1099').isNotEmpty) {
-    next['socialSecurityGross'] = ssa.gross;
-    next['socialSecurityBenefits'] = ssa.taxable;
+    set('socialSecurityGross', ssa.gross);
+    set('socialSecurityBenefits', ssa.taxable);
   }
 
   if (incomeList(next, 'form1099G').isNotEmpty) {
-    next['unemploymentComp'] = g.unemployment;
-    next['stateTaxRefund'] = g.stateRefund;
+    set('unemploymentComp', g.unemployment);
+    set('stateTaxRefund', g.stateRefund);
     schedule1['unemployment'] = g.unemployment;
     schedule1['stateTaxRefund'] = g.stateRefund;
   }
 
   if (incomeList(next, 'form1099NEC').isNotEmpty || incomeList(next, 'form1099K').isNotEmpty) {
-    next['necCompensation'] = nec;
-    next['form1099KGross'] = kForms;
+    set('necCompensation', nec);
+    set('form1099KGross', kForms);
     // Marketplace + NEC feed Schedule C / business income intake.
-    next['businessIncome'] = nec + kForms;
+    set('businessIncome', nec + kForms);
   }
 
   if (incomeList(next, 'form1099B').isNotEmpty || incomeList(next, 'form1099DA').isNotEmpty) {
-    next['capitalGains'] = brokerGain;
+    set('capitalGains', brokerGain);
   }
 
   final withheld1099 = _sumFedWithholding1099(next);
-  next['taxWithheld1099'] = withheld1099;
-  next['taxWithheld'] = w2.fedWithheld + withheld1099;
+  set('taxWithheld1099', withheld1099);
+  set('taxWithheld', w2.fedWithheld + withheld1099);
 
   // Schedule 1 Part I additional income highlights → Form 1040 Line 8.
   schedule1['totalAdditionalIncome'] = incomeNum(schedule1['unemployment']) +

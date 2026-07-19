@@ -579,6 +579,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
             ca540: ca540,
             filingStatus: '${data['filingStatus'] ?? 'single'}',
             homeState: homeState,
+            organizerData: data,
             onChanged: (m) => onNested('ca540', m),
           ),
         ),

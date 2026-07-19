@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/app_roles.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../address/presentation/address_autofill_fields.dart';
+import '../../auth/data/auth_repository.dart';
+import '../data/computed_field_policy.dart';
+import '../data/federal_agi_math.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_enum_options.dart';
 import '../data/organizer_income_math.dart';
 import '../data/us_states.dart';
+import 'organizer_computed_money_field.dart';
 import 'organizer_fields.dart';
 
 /// Form 1040 Income step: W-2 + 1099 schemas wired to TY2025 line rollups.
-class OrganizerIncomeFormsStep extends StatelessWidget {
+class OrganizerIncomeFormsStep extends ConsumerWidget {
   const OrganizerIncomeFormsStep({
     super.key,
     required this.data,
@@ -29,7 +35,38 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
 
   void _setListAndRollup(String key, List<Map<String, dynamic>> rows) {
     final next = Map<String, dynamic>.from(data)..[key] = rows;
-    onPatch(applyIncomeRollups(next));
+    onPatch(syncFederalAgi(applyIncomeRollups(next)));
+  }
+
+  void _overrideRoot(String key, num value, {required bool byProfessional}) {
+    var next = ComputedFieldPolicy.markOverridden(data, key, byProfessional: byProfessional);
+    next[key] = value;
+    onPatch(next);
+  }
+
+  void _clearOverride(String key) {
+    final next = ComputedFieldPolicy.clearOverride(data, key);
+    onPatch(syncFederalAgi(applyIncomeRollups(next)));
+  }
+
+  Widget _rollupField({
+    required ComputedFieldPolicy policy,
+    required num computed,
+    required bool isProfessional,
+  }) {
+    return OrganizerComputedMoneyField(
+      policy: policy,
+      computedValue: computed,
+      storedValue: data[policy.key],
+      isOverridden: ComputedFieldPolicy.isOverridden(data, policy.key),
+      isProfessional: isProfessional,
+      onApplyComputed: () => onPatch(syncFederalAgi(applyIncomeRollups(Map<String, dynamic>.from(data)))),
+      onManualValue: (v) => _overrideRoot(policy.key, v, byProfessional: isProfessional),
+      onMarkOverridden: () => onPatch(
+            ComputedFieldPolicy.markOverridden(data, policy.key, byProfessional: isProfessional),
+          ),
+      onClearOverride: () => _clearOverride(policy.key),
+    );
   }
 
   void _patchRow(String listKey, int index, String field, dynamic value) {
@@ -41,8 +78,11 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final schedule1 = Map<String, dynamic>.from((data['schedule1'] as Map?) ?? {});
+    final isPro = capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional;
+    final rolled = applyIncomeRollups(Map<String, dynamic>.from(data));
+    final federalAgi = estimateFederalAgi(data);
 
     return Column(
       children: [
@@ -107,26 +147,60 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
         ),
         OrganizerLazySection(
           title: 'Form 1040 income summary',
-          subtitle: 'Auto-filled from forms above. Edit only to override.',
+          subtitle:
+              'Auto-calculated from forms above. Overrides require a warning; Federal AGI is professional-unlock only.',
           builder: (_) => Column(
             children: [
-              OrganizerMoneyField(label: '1a — Wages (W-2 total)', value: data['wages'], onChanged: (v) => onRoot('wages', v)),
-              OrganizerMoneyField(label: '2b — Taxable interest', value: data['interestIncome'], onChanged: (v) => onRoot('interestIncome', v)),
-              OrganizerMoneyField(label: '3a — Qualified dividends', value: data['qualifiedDividends'], onChanged: (v) => onRoot('qualifiedDividends', v)),
-              OrganizerMoneyField(label: '3b — Ordinary dividends', value: data['dividendIncome'], onChanged: (v) => onRoot('dividendIncome', v)),
+              _rollupField(
+                policy: ComputedFieldPolicy.federalAgi,
+                computed: federalAgi,
+                isProfessional: isPro,
+              ),
+              _rollupField(
+                policy: ComputedFieldPolicy.wages,
+                computed: incomeNum(rolled['wages']),
+                isProfessional: isPro,
+              ),
+              _rollupField(
+                policy: ComputedFieldPolicy.interestIncome,
+                computed: incomeNum(rolled['interestIncome']),
+                isProfessional: isPro,
+              ),
+              OrganizerMoneyField(
+                label: '3a — Qualified dividends',
+                value: data['qualifiedDividends'],
+                onChanged: (v) => onRoot('qualifiedDividends', v),
+              ),
+              _rollupField(
+                policy: ComputedFieldPolicy.dividendIncome,
+                computed: incomeNum(rolled['dividendIncome']),
+                isProfessional: isPro,
+              ),
               OrganizerMoneyField(label: '4a — IRA distributions (gross)', value: data['iraDistributionsGross'], onChanged: (v) => onRoot('iraDistributionsGross', v)),
               OrganizerMoneyField(label: '4b — IRA taxable', value: data['iraDistributions'], onChanged: (v) => onRoot('iraDistributions', v)),
               OrganizerMoneyField(label: '5a — Pensions/annuities (gross)', value: data['pensionAnnuitiesGross'], onChanged: (v) => onRoot('pensionAnnuitiesGross', v)),
               OrganizerMoneyField(label: '5b — Pensions taxable', value: data['pensionAnnuities'], onChanged: (v) => onRoot('pensionAnnuities', v)),
               OrganizerMoneyField(label: '6a — Social Security (gross)', value: data['socialSecurityGross'], onChanged: (v) => onRoot('socialSecurityGross', v)),
               OrganizerMoneyField(label: '6b — Social Security taxable', value: data['socialSecurityBenefits'], onChanged: (v) => onRoot('socialSecurityBenefits', v)),
-              OrganizerMoneyField(label: '7 — Capital gain (Sch. D / 1099-B/DA)', value: data['capitalGains'], onChanged: (v) => onRoot('capitalGains', v)),
-              OrganizerMoneyField(label: 'Business income (Sch. C / 1099-NEC/K)', value: data['businessIncome'], onChanged: (v) => onRoot('businessIncome', v)),
+              _rollupField(
+                policy: ComputedFieldPolicy.capitalGains,
+                computed: incomeNum(rolled['capitalGains']),
+                isProfessional: isPro,
+              ),
+              _rollupField(
+                policy: ComputedFieldPolicy.businessIncome,
+                computed: incomeNum(rolled['businessIncome']),
+                isProfessional: isPro,
+              ),
               OrganizerMoneyField(label: 'Unemployment (1099-G / Sch. 1)', value: data['unemploymentComp'], onChanged: (v) => onRoot('unemploymentComp', v)),
               OrganizerMoneyField(label: 'State tax refund (1099-G Box 2)', value: data['stateTaxRefund'], onChanged: (v) => onRoot('stateTaxRefund', v)),
               OrganizerMoneyField(label: '25a — W-2 federal withheld', value: data['taxWithheldW2'], onChanged: (v) => onRoot('taxWithheldW2', v)),
               OrganizerMoneyField(label: '25b — 1099 federal withheld', value: data['taxWithheld1099'], onChanged: (v) => onRoot('taxWithheld1099', v)),
-              OrganizerMoneyField(label: 'Total federal withheld', value: data['taxWithheld'], onChanged: (v) => onRoot('taxWithheld', v)),
+              _rollupField(
+                policy: ComputedFieldPolicy.taxWithheld,
+                computed: incomeNum(rolled['taxWithheld']),
+                isProfessional: isPro,
+              ),
               OrganizerMoneyField(label: 'Alimony received', value: data['alimonyReceived'], onChanged: (v) => onRoot('alimonyReceived', v)),
               OrganizerMoneyField(label: 'Other income', value: data['otherIncome'], onChanged: (v) => onRoot('otherIncome', v)),
             ],

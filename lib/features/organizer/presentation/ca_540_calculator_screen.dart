@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/app_roles.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/ca540_estimate_math.dart';
 import '../data/ca540_repository.dart';
+import '../data/computed_field_policy.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_defaults.dart';
+import 'organizer_computed_money_field.dart';
 import 'organizer_fields.dart';
 
 /// Complete California Form 540 tax & refund calculator (estimate-only).
@@ -42,6 +46,10 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
   bool _claimRenters = true;
   bool _autoCalEitc = true;
   bool _hasYoungChild = false;
+  bool _agiOverridden = false;
+  bool _whOverridden = false;
+  num _computedAgi = 0;
+  num _computedWithholding = 0;
   bool _busy = false;
   bool _saving = false;
   String? _error;
@@ -83,11 +91,17 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
       setState(() {
         _filingStatus = filingStatusOptions.any((e) => e.$1 == status) ? status : 'single';
         if (ca != null) {
-          _federalAgi.text = '${ca['federalAGI'] ?? ''}';
+          final agi = num.tryParse('${ca['federalAGI'] ?? 0}') ?? 0;
+          final wh = num.tryParse('${ca['caWithholding'] ?? 0}') ?? 0;
+          _computedAgi = agi;
+          _computedWithholding = wh;
+          _agiOverridden = ComputedFieldPolicy.isOverridden(Map<String, dynamic>.from(ca), 'federalAGI');
+          _whOverridden = ComputedFieldPolicy.isOverridden(Map<String, dynamic>.from(ca), 'caWithholding');
+          _federalAgi.text = '$agi';
           _subtractions.text = '${ca['caSubtractions'] ?? 0}';
           _additions.text = '${ca['caAdditions'] ?? 0}';
           _itemized.text = '${ca['itemizedDeduction'] ?? 0}';
-          _withholding.text = '${ca['caWithholding'] ?? 0}';
+          _withholding.text = '$wh';
           _estimated.text = '${ca['estimatedPayments'] ?? 0}';
           _calEitc.text = '${ca['calEITC'] ?? 0}';
           _yctc.text = '${ca['youngChildTaxCredit'] ?? 0}';
@@ -348,10 +362,25 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           items: filingStatusOptions,
           onChanged: (v) => setState(() => _filingStatus = v ?? 'single'),
         ),
-        TextField(
-          controller: _federalAgi,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Line 13 — Federal AGI', prefixText: '\$ '),
+        OrganizerComputedMoneyField(
+          policy: ComputedFieldPolicy.federalAgi,
+          computedValue: _computedAgi,
+          storedValue: _n(_federalAgi),
+          isOverridden: _agiOverridden,
+          isProfessional: capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional,
+          onApplyComputed: () => setState(() {
+            _agiOverridden = false;
+            _federalAgi.text = '$_computedAgi';
+          }),
+          onManualValue: (v) => setState(() {
+            _agiOverridden = true;
+            _federalAgi.text = '$v';
+          }),
+          onMarkOverridden: () => setState(() => _agiOverridden = true),
+          onClearOverride: () => setState(() {
+            _agiOverridden = false;
+            _federalAgi.text = '$_computedAgi';
+          }),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -392,10 +421,25 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           decoration: const InputDecoration(labelText: 'Child & dependent care credit (FTB 3506)', prefixText: '\$ '),
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: _withholding,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'CA income tax withheld (W-2 Box 17)', prefixText: '\$ '),
+        OrganizerComputedMoneyField(
+          policy: ComputedFieldPolicy.caWithholding,
+          computedValue: _computedWithholding,
+          storedValue: _n(_withholding),
+          isOverridden: _whOverridden,
+          isProfessional: capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional,
+          onApplyComputed: () => setState(() {
+            _whOverridden = false;
+            _withholding.text = '$_computedWithholding';
+          }),
+          onManualValue: (v) => setState(() {
+            _whOverridden = true;
+            _withholding.text = '$v';
+          }),
+          onMarkOverridden: () => setState(() => _whOverridden = true),
+          onClearOverride: () => setState(() {
+            _whOverridden = false;
+            _withholding.text = '$_computedWithholding';
+          }),
         ),
         const SizedBox(height: 10),
         TextField(
