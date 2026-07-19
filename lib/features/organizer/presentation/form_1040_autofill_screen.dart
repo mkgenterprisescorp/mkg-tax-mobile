@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../refund_advance/data/refund_advance_repository.dart';
+import '../data/laravel_organizer_repository.dart';
 import '../data/official_form_links.dart';
+import '../data/organizer_defaults.dart';
+import '../data/organizer_section_mapper.dart';
 
 /// Prefills a Form 1040 review from the tax organizer + refund estimate.
 class Form1040AutofillScreen extends ConsumerStatefulWidget {
@@ -34,12 +38,33 @@ class _Form1040AutofillScreenState extends ConsumerState<Form1040AutofillScreen>
       _error = null;
     });
     try {
-      await ref.read(taxYearProvider.notifier).refreshWorkspace();
-      final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
-      if (workspaceId == null) {
-        throw StateError('Select a tax year workspace first.');
+      final tax = ref.read(taxYearProvider);
+      if (AppConfig.usesLaravelAuth) {
+        if (tax.selectedYear == null || tax.currentFilingYear == null) {
+          await ref.read(taxYearProvider.notifier).bootstrap();
+        } else {
+          await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
+        }
+      } else {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
       }
-      final preview = await ref.read(refundAdvanceRepositoryProvider).form1040Preview(workspaceId);
+
+      final taxAfter = ref.read(taxYearProvider);
+      final workspaceId = taxAfter.workspace?.workspaceId;
+      if (workspaceId == null || workspaceId.isEmpty) {
+        throw StateError(
+          taxAfter.error ?? 'No tax-year workspace. Select a year and try again.',
+        );
+      }
+
+      Map<String, dynamic>? preview;
+      try {
+        preview = await ref.read(refundAdvanceRepositoryProvider).form1040Preview(workspaceId);
+      } catch (_) {
+        preview = null;
+      }
+      preview ??= await _localPreview(workspaceId);
+
       if (!mounted) return;
       setState(() {
         _preview = preview;
@@ -52,6 +77,116 @@ class _Form1040AutofillScreenState extends ConsumerState<Form1040AutofillScreen>
         _loading = false;
       });
     }
+  }
+
+  /// Client-side Form 1040 review when the preview endpoint is unavailable.
+  Future<Map<String, dynamic>> _localPreview(String workspaceId) async {
+    final year = ref.read(taxYearProvider).workspace?.taxYear ??
+        ref.read(taxYearProvider).selectedYear ??
+        ref.read(taxYearProvider).currentFilingYear ??
+        DateTime.now().year - 1;
+
+    Map<String, dynamic>? org;
+    try {
+      org = await ref.read(laravelOrganizerRepositoryProvider).show(workspaceId);
+    } catch (_) {
+      org = null;
+    }
+
+    final defaults = await OrganizerDefaults.load();
+    final data = OrganizerSectionMapper.hydrateFromServer(
+      defaults: defaults,
+      organizer: org,
+      fallbackYear: year,
+    );
+
+    num n(Object? v) => v is num ? v : num.tryParse('$v') ?? 0;
+
+    final wages = n(data['wages']);
+    final withheld = n(data['taxWithheld']);
+    final interest = n(data['interestIncome']);
+    final dividends = n(data['dividendIncome']);
+    final business = n(data['businessIncome']);
+    final filingStatus = '${data['filingStatus'] ?? 'single'}';
+    final dependents = n(data['numDependents']).toInt();
+
+    Map<String, dynamic> estimate;
+    try {
+      estimate = await ref.read(refundAdvanceRepositoryProvider).estimateTax({
+        'filingStatus': filingStatus,
+        'wages': wages,
+        'taxWithheld': withheld,
+        'interestIncome': interest,
+        'businessIncome': business,
+        'numDependents': dependents,
+        'filingYear': year,
+      });
+    } catch (_) {
+      estimate = {
+        'agi': wages + interest + dividends + business,
+        'totalTax': 0,
+        'refund': withheld,
+        'owing': 0,
+        'estimate_only': true,
+        'tax_year': year,
+        'advice': 'Local preview from Tax Organizer. Confirm with your preparer before filing.',
+      };
+    }
+
+    return {
+      'form': {
+        'form': '1040',
+        'source': 'tax_organizer_local',
+        'tax_year': year,
+        'filing_status': filingStatus,
+        'taxpayer': {
+          'first_name': data['firstName'],
+          'middle_initial': data['middleInitial'],
+          'last_name': data['lastName'],
+          'date_of_birth': data['dateOfBirth'],
+          'phone': data['phone'],
+          'email': data['email'],
+        },
+        'address': {
+          'street': data['address'],
+          'apartment': data['apartment'],
+          'city': data['city'],
+          'state': data['state'],
+          'zip': data['zip'],
+        },
+        'spouse': {
+          'first_name': data['spouseFirstName'],
+          'last_name': data['spouseLastName'],
+        },
+        'dependents': data['dependents'] ?? const [],
+        'income': {
+          'wages_line1': wages,
+          'tax_withheld': withheld,
+          'interest': interest,
+          'dividends': dividends,
+          'business': business,
+          'capital_gains': n(data['capitalGains']),
+          'rental': n(data['rentalIncome']),
+          'farm': n(data['farmIncome']),
+          'other': n(data['otherIncome']),
+        },
+        'notes': const [
+          'SSN/ITIN and full bank account numbers are never auto-filled.',
+          'Confirm every value before e-file or payment.',
+        ],
+      },
+      'refund_estimate': estimate,
+      'prefill_inputs': {
+        'filingStatus': filingStatus,
+        'filingYear': year,
+        'wages': wages,
+        'taxWithheld': withheld,
+        'interestIncome': interest,
+        'dividendIncome': dividends,
+        'businessIncome': business,
+        'numDependents': dependents,
+      },
+    };
   }
 
   @override

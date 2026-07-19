@@ -203,31 +203,45 @@ class TaxYearRepository {
 
   /// Activate (or fetch) a tax-year workspace for an entity.
   ///
-  /// The activate payload already embeds `organizer` + `tasks` — callers should
-  /// reuse those instead of issuing immediate follow-up GETs (each ~3–5s on
-  /// staging).
-  Future<TaxYearWorkspace?> activateWorkspace({
+  /// Throws [StateError] with a safe, user-facing message on auth / API failure
+  /// so Sanctum builds never silently fall through to a cookie-portal workspace
+  /// (portal rows have no Laravel `workspaceId`, which breaks Tax Organizer).
+  ///
+  /// Prefer [activateWorkspacePacked] when the caller can reuse embedded
+  /// organizer/tasks (avoids follow-up GETs on staging).
+  Future<TaxYearWorkspace> activateWorkspace({
     required String entityId,
     required int taxYear,
   }) async {
     final packed = await activateWorkspacePacked(entityId: entityId, taxYear: taxYear);
-    return packed?.workspace;
+    return packed.workspace;
   }
 
   /// Activate and return the embedded organizer/tasks snapshot in one round-trip.
-  Future<WorkspaceActivation?> activateWorkspacePacked({
+  Future<WorkspaceActivation> activateWorkspacePacked({
     required String entityId,
     required int taxYear,
   }) async {
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to open your tax organizer.');
+    }
     final res = await _api.post<Map<String, dynamic>>(
       '/api/v1/entities/$entityId/tax-years/activate',
       data: {'tax_year': taxYear},
     );
-    if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
+    final code = res.statusCode ?? 500;
+    if (code >= 400 || res.data == null) {
+      throw StateError(_activateFailureMessage(code));
+    }
     final data = res.data!['data'];
-    if (data is! Map) return null;
+    if (data is! Map) {
+      throw StateError('We’re unable to open your tax organizer right now. Please try again.');
+    }
     final map = Map<String, dynamic>.from(data);
+    final workspace = TaxYearWorkspace.fromJson(map);
+    if ((workspace.workspaceId ?? '').isEmpty) {
+      throw StateError('No tax-year workspace. Select a year and try again.');
+    }
     final organizer = map['organizer'] is Map
         ? Map<String, dynamic>.from(map['organizer'] as Map)
         : null;
@@ -237,11 +251,28 @@ class TaxYearRepository {
             .toList() ??
         const <Map<String, dynamic>>[];
     return WorkspaceActivation(
-      workspace: TaxYearWorkspace.fromJson(map),
+      workspace: workspace,
       tasks: tasks,
       organizer: organizer,
       tasksEmbedded: map.containsKey('tasks'),
     );
+  }
+
+  static String _activateFailureMessage(int statusCode) {
+    switch (statusCode) {
+      case 401:
+        return 'Please sign in again to open your tax organizer.';
+      case 403:
+        return 'This action is not authorized.';
+      case 404:
+        return 'No tax-year workspace. Select a year and try again.';
+      case 422:
+        return 'Some information could not be validated. Please check your entries and try again.';
+      case 429:
+        return 'Too many requests — wait a moment and try again.';
+      default:
+        return 'We’re unable to open your tax organizer right now. Please try again.';
+    }
   }
 
   Future<TaxYearWorkspace?> getWorkspaceById(String workspaceId) async {
@@ -290,20 +321,47 @@ class TaxYearRepository {
         const [];
   }
 
-  Future<Map<String, dynamic>?> addState(
+  Future<Map<String, dynamic>> addState(
     String workspaceId,
     String stateCode, {
     String residencyType = 'resident',
   }) async {
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to save your state return.');
+    }
     final res = await _api.put<Map<String, dynamic>>(
       '/api/v1/tax-year-workspaces/$workspaceId/states',
-      data: {'state_code': stateCode, 'residency_type': residencyType},
+      data: {
+        'state_code': stateCode.trim().toUpperCase(),
+        'residency_type': residencyType,
+      },
     );
-    if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
+    final code = res.statusCode ?? 500;
+    if (code >= 400 || res.data == null) {
+      throw StateError(_stateSaveFailureMessage(code));
+    }
     final data = res.data!['data'];
-    if (data is! Map) return null;
+    if (data is! Map) {
+      throw StateError('We’re unable to save your state return right now. Please try again.');
+    }
     return Map<String, dynamic>.from(data);
+  }
+
+  static String _stateSaveFailureMessage(int statusCode) {
+    switch (statusCode) {
+      case 401:
+        return 'Please sign in again to save your state return.';
+      case 403:
+        return 'This action is not authorized.';
+      case 404:
+        return 'No tax-year workspace. Select a year and try again.';
+      case 422:
+        return 'Some information could not be validated. Please check your entries and try again.';
+      case 429:
+        return 'Too many requests — wait a moment and try again.';
+      default:
+        return 'We’re unable to save your state return right now. Please try again.';
+    }
   }
 
   int _localCurrentFilingYear() => DateTime.now().year - 1;
@@ -431,8 +489,13 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   }
 
   Future<void> refreshWorkspace({bool force = false}) async {
-    final year = state.selectedYear;
+    // Organizer / Documents may open before the year selector is touched —
+    // fall back to the catalog current year instead of no-op'ing.
+    final year = state.selectedYear ?? state.currentFilingYear;
     if (year == null) return;
+    if (state.selectedYear == null) {
+      state = state.copyWith(selectedYear: year);
+    }
 
     // Prefer Laravel `/api/v1` workspace when Sanctum is configured + token present.
     if (AppConfig.usesLaravelAuth) {
@@ -449,29 +512,36 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         final entities = ref.read(entitiesRepositoryProvider);
         final entity = await entities.ensurePrimaryEntity();
         final entityId = entity?['id']?.toString();
-        if (entityId != null) {
-          final packed = await _repo.activateWorkspacePacked(
-            entityId: entityId,
-            taxYear: year,
-          );
-          if (packed != null) {
-            // Activate already embeds tasks — avoid a second ~4s GET.
-            final tasks = packed.tasksEmbedded
-                ? packed.tasks
-                : (packed.workspace.workspaceId == null
-                    ? const <Map<String, dynamic>>[]
-                    : await _repo.listTasks(packed.workspace.workspaceId!));
-            state = state.copyWith(
-              workspace: packed.workspace,
-              tasks: tasks,
-              organizerSnapshot: packed.organizer,
-              source: 'laravel',
-            );
-            return;
-          }
+        if (entityId == null || entityId.isEmpty) {
+          throw StateError('We’re unable to open your tax organizer right now. Please try again.');
         }
+        final packed = await _repo.activateWorkspacePacked(
+          entityId: entityId,
+          taxYear: year,
+        );
+        // Activate already embeds tasks — avoid a second ~4s GET when present.
+        final tasks = packed.tasksEmbedded
+            ? packed.tasks
+            : (packed.workspace.workspaceId == null
+                ? const <Map<String, dynamic>>[]
+                : await _repo.listTasks(packed.workspace.workspaceId!));
+        state = state.copyWith(
+          workspace: packed.workspace,
+          tasks: tasks,
+          organizerSnapshot: packed.organizer,
+          source: 'laravel',
+          error: null,
+        );
+        return;
       } catch (e) {
-        state = state.copyWith(error: ApiErrorMapper.map(e));
+        // Never fall through to cookie-portal on Sanctum builds — portal rows
+        // lack a Laravel workspace UUID and Tax Organizer will hard-fail.
+        state = state.copyWith(
+          clearWorkspace: true,
+          tasks: const [],
+          error: ApiErrorMapper.map(e),
+        );
+        return;
       }
     }
 
@@ -493,6 +563,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         workspace: TaxYearWorkspace.fromPortalReturn(row, documentsCount: docsCount),
         tasks: const [],
         source: state.source == 'laravel' ? state.source : 'portal-returns',
+        error: null,
       );
     } catch (e) {
       state = state.copyWith(error: ApiErrorMapper.map(e));

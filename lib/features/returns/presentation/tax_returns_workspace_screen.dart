@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
@@ -19,21 +21,25 @@ class TaxReturnsWorkspaceScreen extends ConsumerStatefulWidget {
 
 class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceScreen> {
   String _selectedState = 'CA';
+  String _residencyType = 'resident';
   List<Map<String, dynamic>> _stateDetails = const [];
   bool _busy = false;
+  String? _localError;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tax = ref.read(taxYearProvider);
-      if (tax.years.isEmpty) {
-        ref.read(taxYearProvider.notifier).bootstrap();
-      } else {
-        ref.read(taxYearProvider.notifier).refreshWorkspace();
-      }
-      _loadStates();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    final tax = ref.read(taxYearProvider);
+    if (tax.years.isEmpty || tax.selectedYear == null || tax.currentFilingYear == null) {
+      await ref.read(taxYearProvider.notifier).bootstrap();
+    } else {
+      await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
+    }
+    await _loadStates();
   }
 
   Future<void> _loadStates() async {
@@ -42,9 +48,12 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     final details = await ref.read(statesRepositoryProvider).catalogDetails(taxYear: year);
     if (!mounted) return;
     setState(() {
-      _stateDetails = details;
-      if (details.isNotEmpty && details.every((e) => e['code']?.toString() != _selectedState)) {
-        _selectedState = details.first['code']?.toString() ?? 'CA';
+      _stateDetails = details
+          .where((e) => (e['code']?.toString() ?? '').trim().isNotEmpty)
+          .toList(growable: false);
+      final codes = _sortedStateDetails.map((e) => e['code']!.toString()).toSet();
+      if (!codes.contains(_selectedState) && codes.isNotEmpty) {
+        _selectedState = codes.contains('CA') ? 'CA' : codes.first;
       }
     });
   }
@@ -89,45 +98,81 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     return details;
   }
 
+  List<String> get _stateCodes => [
+        for (final s in _sortedStateDetails)
+          if ((s['code']?.toString() ?? '').isNotEmpty) s['code']!.toString(),
+      ];
+
+  Future<String?> _ensureWorkspaceId() async {
+    var tax = ref.read(taxYearProvider);
+    var workspaceId = tax.workspace?.workspaceId;
+    if (workspaceId != null && workspaceId.isNotEmpty && tax.source == 'laravel') {
+      return workspaceId;
+    }
+    if (AppConfig.usesLaravelAuth) {
+      if (tax.selectedYear == null && tax.currentFilingYear != null) {
+        await ref.read(taxYearProvider.notifier).selectYear(tax.currentFilingYear!);
+      } else {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
+      }
+      tax = ref.read(taxYearProvider);
+      workspaceId = tax.workspace?.workspaceId;
+      if (workspaceId != null && workspaceId.isNotEmpty) return workspaceId;
+      return null;
+    }
+    return workspaceId;
+  }
+
   Future<void> _addState() async {
-    final tax = ref.read(taxYearProvider);
-    final workspaceId = tax.workspace?.workspaceId;
-    if (workspaceId == null) {
+    setState(() {
+      _busy = true;
+      _localError = null;
+    });
+    try {
+      final workspaceId = await _ensureWorkspaceId();
+      if (!mounted) return;
+      if (workspaceId == null || workspaceId.isEmpty) {
+        final msg = ref.read(taxYearProvider).error ??
+            'No tax-year workspace. Select a year and try again.';
+        setState(() => _localError = msg);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        return;
+      }
+      final code = _selectedState.trim().toUpperCase();
+      await ref.read(taxYearRepositoryProvider).addState(
+            workspaceId,
+            code,
+            residencyType: _residencyType,
+          );
+      // Must force — warm cache would skip reloading state_workspaces.
+      await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
+      if (!mounted) return;
+      final msg = _stateSupportMessage;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Activate a tax-year workspace first, then try again.'),
+        SnackBar(
+          content: Text(
+            msg ??
+                '$code state return added. Tap it below to continue in the Organizer.',
+          ),
         ),
       );
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      final code = _selectedState.trim().toUpperCase();
-      final created = await ref.read(taxYearRepositoryProvider).addState(workspaceId, code);
+    } catch (e) {
       if (!mounted) return;
-      if (created == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save state return. Please sign in and try again.')),
-        );
-      } else {
-        await ref.read(taxYearProvider.notifier).refreshWorkspace();
-        if (!mounted) return;
-        final msg = _stateSupportMessage;
-        if (msg != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        }
-      }
+      final msg = ApiErrorMapper.map(e);
+      setState(() => _localError = msg);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _priorYear() async {
-    final year = ref.read(taxYearProvider).selectedYear;
+    final year = ref.read(taxYearProvider).selectedYear ??
+        ref.read(taxYearProvider).currentFilingYear;
     if (year == null) return;
     setState(() => _busy = true);
     try {
-      await ref.read(taxYearProvider.notifier).refreshWorkspace();
+      await ref.read(taxYearProvider.notifier).selectYear(year);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Tax year $year workspace ready. Complete the organizer next.')),
@@ -138,12 +183,99 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
     }
   }
 
+  void _openStateReturn(Map<String, dynamic> state) {
+    final code = (state['state_code'] ?? state['stateCode'] ?? '').toString().toUpperCase();
+    if (code.isEmpty) return;
+    if (code == 'CA') {
+      context.go('/ca-540');
+      return;
+    }
+    // Nationwide intake lives in Organizer → State Tax Returns.
+    context.go('/organizer');
+  }
+
+  String _statusLabel(Map<String, dynamic> state) {
+    final raw = (state['status'] ?? state['filing_status'] ?? 'not_started').toString();
+    if (raw.isEmpty) return 'Not Started';
+    return raw
+        .split('_')
+        .where((p) => p.isNotEmpty)
+        .map((p) => '${p[0].toUpperCase()}${p.substring(1)}')
+        .join(' ');
+  }
+
+  Future<void> _pickState() async {
+    final codes = _stateCodes;
+    if (codes.isEmpty) return;
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        final height = MediaQuery.sizeOf(ctx).height * 0.7;
+        return SizedBox(
+          height: height,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text(
+                  'Select a state return',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: codes.length,
+                  itemBuilder: (context, index) {
+                    final code = codes[index];
+                    final detail = _sortedStateDetails.firstWhere(
+                      (e) => e['code']?.toString() == code,
+                      orElse: () => {'code': code, 'display_name': displayNameForState(code)},
+                    );
+                    final name = detail['display_name']?.toString() ?? displayNameForState(code);
+                    final income = detail['has_personal_income_tax'] == true ||
+                        statesWithIncomeTax.contains(code);
+                    final selected = code == _selectedState;
+                    return ListTile(
+                      selected: selected,
+                      leading: CircleAvatar(
+                        backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                        child: Text(
+                          code,
+                          style: const TextStyle(
+                            color: MkgColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      title: Text('$code · $name'),
+                      subtitle: Text(income ? 'Personal income tax' : 'No personal income tax'),
+                      trailing: selected ? const Icon(Icons.check, color: MkgColors.primary) : null,
+                      onTap: () => Navigator.pop(ctx, code),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (chosen == null || !mounted) return;
+    setState(() => _selectedState = chosen);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tax = ref.watch(taxYearProvider);
     final year = tax.selectedYear ?? tax.currentFilingYear;
     final ws = tax.workspace;
     final yearInfo = tax.years.where((y) => y.taxYear == year).toList();
+    final stateReturns = ws?.stateReturns ?? const <Map<String, dynamic>>[];
+    final selectedName = displayNameForState(_selectedState);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 96),
@@ -155,9 +287,15 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Federal return · TY ${year ?? '—'}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(
+                  'Federal return · TY ${year ?? '—'}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
                 const SizedBox(height: 8),
-                Text(ws?.federalReturnStatus ?? 'Not Started', style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w700)),
+                Text(
+                  ws?.federalReturnStatus ?? 'Not Started',
+                  style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Organizer: ${ws?.organizerStatus ?? 'Not Started'} · ${ws?.organizerCompletionPercentage ?? 0}%',
@@ -173,6 +311,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     FilledButton(
                       onPressed: () => context.go('/organizer'),
@@ -211,40 +350,54 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
                 'Income-tax states are listed first (42 jurisdictions). California has deep Form 540 support; other income-tax states use organizer intake for professional review.',
                 style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      // ignore: deprecated_member_use
-                      value: _sortedStateDetails.any((e) => e['code']?.toString() == _selectedState)
-                          ? _selectedState
-                          : (_sortedStateDetails.isNotEmpty ? _sortedStateDetails.first['code']?.toString() : 'CA'),
-                      decoration: const InputDecoration(labelText: 'State'),
-                      items: [
-                        for (final s in _sortedStateDetails)
-                          DropdownMenuItem(
-                            value: s['code']?.toString(),
-                            child: Text(
-                              '${s['code']} · ${s['display_name'] ?? s['code']}'
-                              '${(s['has_personal_income_tax'] == true || statesWithIncomeTax.contains('${s['code']}')) ? ' · income tax' : ''}',
-                            ),
-                          ),
-                      ],
-                      onChanged: _busy
-                          ? null
-                          : (v) {
-                              if (v == null) return;
-                              setState(() => _selectedState = v);
-                            },
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _busy ? null : _pickState,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$_selectedState · $selectedName',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.tonal(
-                    onPressed: _busy ? null : _addState,
-                    child: const Text('Add State'),
-                  ),
+                    const Icon(Icons.expand_more),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                // ignore: deprecated_member_use
+                value: residencyTypeOptions.any((e) => e.$1 == _residencyType)
+                    ? _residencyType
+                    : 'resident',
+                decoration: const InputDecoration(labelText: 'Residency'),
+                items: [
+                  for (final opt in residencyTypeOptions)
+                    DropdownMenuItem(value: opt.$1, child: Text(opt.$2)),
                 ],
+                onChanged: _busy
+                    ? null
+                    : (v) {
+                        if (v == null) return;
+                        setState(() => _residencyType = v);
+                      },
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _busy ? null : _addState,
+                icon: _busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.add),
+                label: Text(_busy ? 'Adding…' : 'Add state return'),
               ),
               if (_stateSupportMessage != null) ...[
                 const SizedBox(height: 8),
@@ -253,32 +406,45 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
                   style: const TextStyle(color: MkgColors.orange, fontSize: 12),
                 ),
               ],
+              if (_localError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _localError!,
+                  style: const TextStyle(color: MkgColors.orange, fontSize: 12),
+                ),
+              ],
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: (ws?.stateReturns ?? const []).isEmpty
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: stateReturns.isEmpty
               ? const Text(
-                  'No state returns yet. Add residency / work / rental states for review.',
+                  'No state returns yet. Choose a state above, then tap Add state return.',
                   style: TextStyle(color: MkgColors.textGrey),
                 )
               : Column(
                   children: [
-                    for (final s in ws!.stateReturns)
+                    for (final s in stateReturns)
                       Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          onTap: () => _openStateReturn(s),
                           leading: CircleAvatar(
                             backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
                             child: Text(
                               (s['state_code'] ?? '?').toString(),
-                              style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w800),
+                              style: const TextStyle(
+                                color: MkgColors.primary,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
-                          title: Text('${s['state_code']} · ${s['residency_type'] ?? 'resident'}'),
-                          subtitle: Text('Status: ${s['filing_status'] ?? 'Not Started'}'),
-                          trailing: Text((s['return_type'] ?? 'original').toString()),
+                          title: Text(
+                            '${s['state_code']} · ${s['residency_type'] ?? 'resident'}',
+                          ),
+                          subtitle: Text('Status: ${_statusLabel(s)} · Tap to open'),
+                          trailing: const Icon(Icons.chevron_right),
                         ),
                       ),
                   ],
