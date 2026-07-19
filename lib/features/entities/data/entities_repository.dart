@@ -39,7 +39,7 @@ class EntitiesRepository {
       data: {
         'entity_type': entityType,
         'legal_name': legalName,
-        if (formationState case final state?) 'formation_state': state,
+        'formation_state': ?formationState,
       },
     );
     if (!PlatformApi.ok(res)) return null;
