@@ -24,6 +24,12 @@ import 'organizer_state_returns_step.dart';
 
 enum _AutoSaveStatus { idle, pending, saving, saved, error }
 
+int? _asInt(Object? value) {
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value.trim());
+  return null;
+}
+
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
 class OrganizerScreen extends ConsumerStatefulWidget {
@@ -102,17 +108,26 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       final preferred = tax.selectedYear ?? tax.currentFilingYear;
 
       if (AppConfig.usesLaravelAuth) {
-        // Skip redundant activate/tasks when home already warmed this year.
-        final warm = tax.workspace;
         final yearHint = preferred ?? tax.currentFilingYear ?? DateTime.now().year - 1;
-        if (warm?.workspaceId == null || warm?.taxYear != yearHint) {
-          await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        // Ensure catalog + selected year exist (deep-link / cold open).
+        if (tax.selectedYear == null || tax.currentFilingYear == null) {
+          await ref.read(taxYearProvider.notifier).bootstrap();
         }
-        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
-        if (workspaceId == null) {
-          throw Exception('No tax-year workspace. Select a year and try again.');
+        final warm = ref.read(taxYearProvider).workspace;
+        final needsRefresh = warm?.workspaceId == null ||
+            warm?.taxYear != yearHint ||
+            ref.read(taxYearProvider).source != 'laravel';
+        if (needsRefresh) {
+          await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
         }
-        final year = ref.read(taxYearProvider).workspace?.taxYear ?? yearHint;
+        final taxAfter = ref.read(taxYearProvider);
+        final workspaceId = taxAfter.workspace?.workspaceId;
+        if (workspaceId == null || workspaceId.isEmpty) {
+          throw StateError(
+            taxAfter.error ?? 'No tax-year workspace. Select a year and try again.',
+          );
+        }
+        final year = taxAfter.workspace?.taxYear ?? yearHint;
         // Parallel: defaults JSON + first organizer fetch.
         final defaultsFuture = OrganizerDefaults.load();
         final orgFuture = ref.read(laravelOrganizerRepositoryProvider).show(
@@ -120,28 +135,54 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               prepType: 'personal',
             );
         final defaults = await defaultsFuture;
-        final org = await orgFuture;
+        Map<String, dynamic>? org;
+        try {
+          org = await orgFuture;
+        } catch (_) {
+          // Workspace is valid — open a defaults draft rather than a dead-end.
+          org = null;
+        }
         if (!mounted) return;
-        final hydrated = OrganizerSectionMapper.hydrateFromServer(
-          defaults: defaults,
-          organizer: org,
-          fallbackYear: year,
-        );
+        Map<String, dynamic> hydrated;
+        try {
+          hydrated = OrganizerSectionMapper.hydrateFromServer(
+            defaults: defaults,
+            organizer: org,
+            fallbackYear: year,
+          );
+        } catch (_) {
+          hydrated = Map<String, dynamic>.from(defaults)
+            ..['filingYear'] = year
+            ..['prepType'] = defaults['prepType'] ?? 'personal';
+        }
         // Re-fetch with the hydrated prep type so entity catalogs match.
         final prep = '${hydrated['prepType'] ?? 'personal'}';
-        final orgTyped = prep == '${org?['prep_type'] ?? 'personal'}'
-            ? org
-            : await ref.read(laravelOrganizerRepositoryProvider).show(workspaceId, prepType: prep);
-        final data = OrganizerSectionMapper.hydrateFromServer(
-          defaults: defaults,
-          organizer: orgTyped ?? org,
-          fallbackYear: year,
-        );
+        Map<String, dynamic>? orgTyped = org;
+        if (prep != '${org?['prep_type'] ?? 'personal'}') {
+          try {
+            orgTyped = await ref
+                .read(laravelOrganizerRepositoryProvider)
+                .show(workspaceId, prepType: prep);
+          } catch (_) {
+            orgTyped = org;
+          }
+        }
+        Map<String, dynamic> data;
+        try {
+          data = OrganizerSectionMapper.hydrateFromServer(
+            defaults: defaults,
+            organizer: orgTyped ?? org,
+            fallbackYear: year,
+          );
+        } catch (_) {
+          data = hydrated;
+        }
         final filled = await _maybeAutofillProfile(data);
         if (!mounted) return;
+        final filingYear = _asInt(filled['filingYear']) ?? year;
         setState(() {
           _returnId = (orgTyped ?? org)?['id'] ?? workspaceId;
-          _year = (filled['filingYear'] as num?)?.toInt() ?? year;
+          _year = filingYear;
           _status = ((orgTyped ?? org)?['status'] ?? 'draft').toString();
           _data = filled;
           _loading = false;
@@ -682,7 +723,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
               ),
           ]
         : filingYearOptions(currentYear: currentFiling);
-    final selected = (_data['filingYear'] as num?)?.toInt() ?? _year;
+    final selected = _asInt(_data['filingYear']) ?? _year;
     final value = yearItems.any((e) => e.$1 == selected) ? selected : yearItems.first.$1;
     return OrganizerDropdown<int>(
       label: 'Filing year',

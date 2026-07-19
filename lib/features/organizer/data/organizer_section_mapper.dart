@@ -126,13 +126,19 @@ class OrganizerSectionMapper {
 
     Map<String, dynamic> sectionAnswers(String key) {
       final block = answersRoot[key];
+      Map<String, dynamic> raw;
       if (block is Map && block['answers'] is Map) {
-        return Map<String, dynamic>.from(block['answers'] as Map);
+        raw = Map<String, dynamic>.from(block['answers'] as Map);
+      } else if (block is Map) {
+        raw = Map<String, dynamic>.from(block);
+      } else {
+        return {};
       }
-      if (block is Map) {
-        return Map<String, dynamic>.from(block);
+      // Server placeholder stubs (`{"noop": 1}`) are not real answers — treat empty.
+      if (raw.length == 1 && raw.containsKey('noop')) {
+        return {};
       }
-      return {};
+      return raw;
     }
 
     void mergeRoot(Map<String, dynamic> src, Iterable<String> keys) {

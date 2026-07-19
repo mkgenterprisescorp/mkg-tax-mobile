@@ -248,4 +248,32 @@ void main() {
     });
     expect(multiSlice['additionalStateReturns'], isNotEmpty);
   });
+
+  test('hydrate ignores noop placeholder section stubs', () async {
+    final defaults = await OrganizerDefaults.load();
+    final org = {
+      'prep_type': 'personal',
+      'sections': {
+        'answers': {
+          'schedule_b': {
+            'answers': {'noop': 1},
+            'complete': false,
+          },
+          'income_1040': {
+            'answers': {'wages': 41000},
+            'complete': false,
+          },
+        },
+      },
+    };
+    final hydrated = OrganizerSectionMapper.hydrateFromServer(
+      defaults: defaults,
+      organizer: org,
+      fallbackYear: 2025,
+    );
+    expect(hydrated['wages'], 41000);
+    // Defaults scheduleB should remain intact (not polluted with noop).
+    expect(hydrated['scheduleB'], isA<Map>());
+    expect(hydrated['scheduleB'].containsKey('noop'), isFalse);
+  });
 }

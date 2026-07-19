@@ -195,19 +195,51 @@ class TaxYearRepository {
   }
 
   /// Activate (or fetch) a tax-year workspace for an entity.
-  Future<TaxYearWorkspace?> activateWorkspace({
+  ///
+  /// Throws [StateError] with a safe, user-facing message on auth / API failure
+  /// so Sanctum builds never silently fall through to a cookie-portal workspace
+  /// (portal rows have no Laravel `workspaceId`, which breaks Tax Organizer).
+  Future<TaxYearWorkspace> activateWorkspace({
     required String entityId,
     required int taxYear,
   }) async {
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to open your tax organizer.');
+    }
     final res = await _api.post<Map<String, dynamic>>(
       '/api/v1/entities/$entityId/tax-years/activate',
       data: {'tax_year': taxYear},
     );
-    if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
+    final code = res.statusCode ?? 500;
+    if (code >= 400 || res.data == null) {
+      throw StateError(_activateFailureMessage(code));
+    }
     final data = res.data!['data'];
-    if (data is! Map) return null;
-    return TaxYearWorkspace.fromJson(Map<String, dynamic>.from(data));
+    if (data is! Map) {
+      throw StateError('We’re unable to open your tax organizer right now. Please try again.');
+    }
+    final workspace = TaxYearWorkspace.fromJson(Map<String, dynamic>.from(data));
+    if ((workspace.workspaceId ?? '').isEmpty) {
+      throw StateError('No tax-year workspace. Select a year and try again.');
+    }
+    return workspace;
+  }
+
+  static String _activateFailureMessage(int statusCode) {
+    switch (statusCode) {
+      case 401:
+        return 'Please sign in again to open your tax organizer.';
+      case 403:
+        return 'This action is not authorized.';
+      case 404:
+        return 'No tax-year workspace. Select a year and try again.';
+      case 422:
+        return 'Some information could not be validated. Please check your entries and try again.';
+      case 429:
+        return 'Too many requests — wait a moment and try again.';
+      default:
+        return 'We’re unable to open your tax organizer right now. Please try again.';
+    }
   }
 
   Future<TaxYearWorkspace?> getWorkspaceById(String workspaceId) async {
@@ -367,8 +399,13 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   }
 
   Future<void> refreshWorkspace({bool force = false}) async {
-    final year = state.selectedYear;
+    // Organizer / Documents may open before the year selector is touched —
+    // fall back to the catalog current year instead of no-op'ing.
+    final year = state.selectedYear ?? state.currentFilingYear;
     if (year == null) return;
+    if (state.selectedYear == null) {
+      state = state.copyWith(selectedYear: year);
+    }
 
     // Prefer Laravel `/api/v1` workspace when Sanctum is configured + token present.
     if (AppConfig.usesLaravelAuth) {
@@ -385,21 +422,28 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         final entities = ref.read(entitiesRepositoryProvider);
         final entity = await entities.ensurePrimaryEntity();
         final entityId = entity?['id']?.toString();
-        if (entityId != null) {
-          final workspace = await _repo.activateWorkspace(entityId: entityId, taxYear: year);
-          if (workspace != null) {
-            final wid = workspace.workspaceId;
-            final tasks = wid == null ? const <Map<String, dynamic>>[] : await _repo.listTasks(wid);
-            state = state.copyWith(
-              workspace: workspace,
-              tasks: tasks,
-              source: 'laravel',
-            );
-            return;
-          }
+        if (entityId == null || entityId.isEmpty) {
+          throw StateError('We’re unable to open your tax organizer right now. Please try again.');
         }
+        final workspace = await _repo.activateWorkspace(entityId: entityId, taxYear: year);
+        final wid = workspace.workspaceId;
+        final tasks = wid == null ? const <Map<String, dynamic>>[] : await _repo.listTasks(wid);
+        state = state.copyWith(
+          workspace: workspace,
+          tasks: tasks,
+          source: 'laravel',
+          error: null,
+        );
+        return;
       } catch (e) {
-        state = state.copyWith(error: ApiErrorMapper.map(e));
+        // Never fall through to cookie-portal on Sanctum builds — portal rows
+        // lack a Laravel workspace UUID and Tax Organizer will hard-fail.
+        state = state.copyWith(
+          clearWorkspace: true,
+          tasks: const [],
+          error: ApiErrorMapper.map(e),
+        );
+        return;
       }
     }
 
@@ -417,6 +461,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         workspace: TaxYearWorkspace.fromPortalReturn(row, documentsCount: docsCount),
         tasks: const [],
         source: state.source == 'laravel' ? state.source : 'portal-returns',
+        error: null,
       );
     } catch (e) {
       state = state.copyWith(error: ApiErrorMapper.map(e));

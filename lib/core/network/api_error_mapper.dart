@@ -27,12 +27,20 @@ class ApiErrorMapper {
       if (msg == loginSessionExpiredMessage ||
           msg == loginNoInternetMessage ||
           msg == loginServerUnavailableMessage ||
+          msg == genericMessage ||
           msg.startsWith('This action') ||
           msg.startsWith('Some information') ||
           msg.startsWith('The requested') ||
           msg.startsWith('Too many') ||
           msg.startsWith('Please check') ||
           msg.startsWith('Please sign in') ||
+          msg.startsWith('Please Select') ||
+          msg.startsWith('Select a tax year') ||
+          msg.startsWith('Sign in required') ||
+          msg.startsWith('No tax-year workspace') ||
+          msg.startsWith('Could not open') ||
+          msg.startsWith('CA Form 540') ||
+          msg.startsWith('Calculate Form') ||
           msg.startsWith('We’re unable') ||
           msg.startsWith("We're unable")) {
         return msg;

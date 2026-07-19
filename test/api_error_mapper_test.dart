@@ -60,6 +60,23 @@ void main() {
       expect(ApiErrorMapper.map(StateError('boom-should-never-appear')), ApiErrorMapper.genericMessage);
     });
 
+    test('allowlisted organizer workspace StateErrors surface their message', () {
+      expect(
+        ApiErrorMapper.map(StateError('No tax-year workspace. Select a year and try again.')),
+        'No tax-year workspace. Select a year and try again.',
+      );
+      expect(
+        ApiErrorMapper.map(StateError('Please sign in again to open your tax organizer.')),
+        'Please sign in again to open your tax organizer.',
+      );
+      expect(
+        ApiErrorMapper.map(
+          StateError('We’re unable to open your tax organizer right now. Please try again.'),
+        ),
+        'We’re unable to open your tax organizer right now. Please try again.',
+      );
+    });
+
     test('login mapper uses the approved client-facing copy', () {
       expect(ApiErrorMapper.mapLogin(_badResponse(401)), ApiErrorMapper.loginInvalidCredentialsMessage);
       expect(ApiErrorMapper.mapLogin(_badResponse(429)), ApiErrorMapper.loginTooManyAttemptsMessage);
