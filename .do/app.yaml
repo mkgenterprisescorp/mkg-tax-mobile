@@ -1,0 +1,21 @@
+# DigitalOcean App Platform spec for mkg-tax-mobile Flutter web (staging).
+# NEW app — do not attach to financemkgtax-app (React portal) or the Laravel API app.
+# Secret-free: dart-defines are public staging endpoints baked into the Docker image.
+name: mkg-tax-mobile-web
+region: sfo
+services:
+  - name: flutter-web
+    github:
+      repo: mkgenterprisescorp/mkg-tax-mobile
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 15
+      period_seconds: 10
+      timeout_seconds: 5
+      failure_threshold: 6

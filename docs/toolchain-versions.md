@@ -35,6 +35,22 @@ The custom domain `app.mkgtaxconsultants.com` is attached only to
 fallback `*.ondigitalocean.app` URL is retained only as a backup reference;
 prefer the custom domain for all staging builds and documentation.
 
+## Staging Flutter web (DigitalOcean)
+
+| Purpose | Value |
+|---|---|
+| DO app name (spec) | `mkg-tax-mobile-web` |
+| Spec file | `.do/app.yaml` |
+| Container | `Dockerfile` (Flutter 3.44.6 → nginx on `:8080`) |
+| Health | `GET /health` |
+| API dart-defines | Same staging URLs as APK (`app.mkgtaxconsultants.com`) |
+| CI artifact | `.github/workflows/staging-web.yml` (manual) |
+
+This is a **new** App Platform app for the Flutter client. Do **not** deploy
+Flutter web onto `financemkgtax-app` (React portal) or the Laravel API app.
+After the first deploy, allowlist the generated `*.ondigitalocean.app` origin
+in Laravel `CORS_ALLOWED_ORIGINS` (see backend `.do/app.yaml` / DO console).
+
 ## Secrets Policy
 
 No secrets, API keys, database URLs, or credentials are configured at

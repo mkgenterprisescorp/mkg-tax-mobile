@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,17 +172,12 @@ class PortalRepository {
   }
 
   Future<Map<String, dynamic>> uploadDocument({
-    required File file,
+    required MultipartFile file,
     required dynamic taxReturnId,
     String type = 'other',
   }) async {
     final form = FormData.fromMap({
-      'file': await MultipartFile.fromFile(
-        file.path,
-        filename: file.uri.pathSegments.isNotEmpty
-            ? file.uri.pathSegments.last
-            : 'upload.bin',
-      ),
+      'file': file,
       'taxReturnId': '$taxReturnId',
       'type': type,
     });

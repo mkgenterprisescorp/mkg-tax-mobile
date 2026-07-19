@@ -1,12 +1,10 @@
-import 'dart:io';
-
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../config/app_config.dart';
+import 'cookie_jar_factory.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   throw UnimplementedError('ApiClient must be overridden in main() after init');
@@ -19,10 +17,7 @@ class ApiClient {
   final CookieJar cookieJar;
 
   static Future<ApiClient> create() async {
-    final support = await getApplicationSupportDirectory();
-    final cookiePath = '${support.path}/mkgtaxconsultants_cookies';
-    await Directory(cookiePath).create(recursive: true);
-    final jar = PersistCookieJar(storage: FileStorage(cookiePath));
+    final jar = await createAppCookieJar();
 
     final dio = Dio(
       BaseOptions(
