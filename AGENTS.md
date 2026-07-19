@@ -103,9 +103,10 @@
 - Platform folder: `web/` (enabled). Cookie jar uses in-memory storage on web (`cookie_jar_factory_web.dart`); Sanctum bearer tokens still use secure storage.
 - Document upload uses `MultipartFile.fromBytes` (file_picker `withData: true`). Portal cookie download on web opens the portal vault instead of writing a temp file.
 - **DO app:** new App Platform app `mkg-tax-mobile-web` from `.do/app.yaml` + `Dockerfile` — **not** `financemkgtax-app` and not the Laravel API app.
-- Build: `flutter build web --release` with the same staging dart-defines as APK (see README / `docs/toolchain-versions.md`).
-- After first DO ingress exists, set Laravel `CORS_ALLOWED_ORIGINS` to that origin (comma-separated if multiple).
-- Manual CI artifact: `.github/workflows/staging-web.yml`. Deploy via `doctl apps create-deployment <app-id> --force-rebuild` (`deploy_on_push: false`).
+- Build: `flutter build web --release` with the same staging dart-defines as APK (see README / `docs/toolchain-versions.md`). Local static smoke: `python3 -m http.server 8088 -d build/web` then open `/` and `/banking`.
+- After first DO ingress exists, set Laravel `CORS_ALLOWED_ORIGINS` to that origin (comma-separated if multiple). Staging currently also allowlists `http://127.0.0.1:8088` for agent browser smoke.
+- `doctl apps create` for a **new** Flutter web app may 403 with a scoped token that can still `apps list` / `create-deployment` existing apps — owner must create `mkg-tax-mobile-web` in the DO console (or a token with app-create) from `.do/app.yaml`.
+- Manual CI: copy `docs/staging-web.workflow.yml.example` → `.github/workflows/staging-web.yml` (PAT needs `workflow` scope to push workflows). Deploy via `doctl apps create-deployment <app-id> --force-rebuild` (`deploy_on_push: false`).
 
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
