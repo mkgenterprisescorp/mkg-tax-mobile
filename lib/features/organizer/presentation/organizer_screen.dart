@@ -273,8 +273,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (mounted) setState(() {});
     }
     final step = (_steps.isNotEmpty && _step >= 0 && _step < _steps.length) ? _steps[_step] : '';
-    final delay = (step == 'State Tax Returns' || step == 'CA 540 State Tax' || step == 'Income (1040)')
-        ? const Duration(milliseconds: 1100)
+    // Heavier sections: longer debounce so Neon PUTs (~5–8s) are not stacked.
+    final delay = (step == 'State Tax Returns' ||
+            step == 'CA 540 State Tax' ||
+            step == 'Income (1040)' ||
+            step == 'Credits & Deductions')
+        ? const Duration(milliseconds: 1400)
         : _autoSaveDebounce;
     _autoSaveTimer = Timer(delay, _runAutoSave);
   }
@@ -337,7 +341,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
       // Drop activate-embedded snapshot so the next Organizer open re-fetches.
-      ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
+      // Never let snapshot bookkeeping fail a successful save.
+      try {
+        ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
+      } catch (_) {}
       setState(() {
         _status = status;
         _saving = false;

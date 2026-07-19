@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/laravel_api_client.dart';
@@ -9,6 +10,12 @@ import 'organizer_section_mapper.dart';
 class LaravelOrganizerRepository {
   LaravelOrganizerRepository(this._api);
   final LaravelApiClient _api;
+
+  /// Neon-backed organizer writes often take 4–8s; allow headroom on mobile.
+  static final _organizerWriteOptions = Options(
+    sendTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
+  );
 
   Future<Map<String, dynamic>?> show(String workspaceId, {String prepType = 'personal'}) async {
     if (_api.bearerToken == null) return null;
@@ -36,10 +43,11 @@ class LaravelOrganizerRepository {
       data: {
         'prep_type': prepType,
         'section_key': sectionKey,
-        'answers': answers,
+        'answers': jsonSafeAnswers(answers),
         'section_complete': sectionComplete,
-        if (status case final statusValue?) 'status': statusValue,
+        'status': ?status,
       },
+      options: _organizerWriteOptions,
     );
     if (!PlatformApi.ok(res)) {
       throw StateError(_saveFailureMessage(res.statusCode));
@@ -99,23 +107,59 @@ class LaravelOrganizerRepository {
       };
       sections.add({
         'section_key': key,
-        'answers': OrganizerSectionMapper.answersForSection(key, data),
+        'answers': jsonSafeAnswers(OrganizerSectionMapper.answersForSection(key, data)),
         'section_complete': isOrganizerStepComplete(stepTitle, data),
       });
     }
 
-    final res = await _api.put<Map<String, dynamic>>(
-      '/api/v1/tax-year-workspaces/$workspaceId/organizer',
-      data: {
-        'prep_type': prep,
-        'sections': sections,
-        if (submit) 'status': 'processing' else 'status': 'draft',
-      },
+    return _putSections(
+      workspaceId: workspaceId,
+      prep: prep,
+      sections: sections,
+      submit: submit,
+      attempt: 0,
     );
-    if (!PlatformApi.ok(res)) {
-      throw StateError(_saveFailureMessage(res.statusCode));
+  }
+
+  Future<Map<String, dynamic>?> _putSections({
+    required String workspaceId,
+    required String prep,
+    required List<Map<String, dynamic>> sections,
+    required bool submit,
+    required int attempt,
+  }) async {
+    try {
+      final res = await _api.put<Map<String, dynamic>>(
+        '/api/v1/tax-year-workspaces/$workspaceId/organizer',
+        data: {
+          'prep_type': prep,
+          'sections': sections,
+          if (submit) 'status': 'processing' else 'status': 'draft',
+        },
+        options: _organizerWriteOptions,
+      );
+      if (!PlatformApi.ok(res)) {
+        throw StateError(_saveFailureMessage(res.statusCode));
+      }
+      return PlatformApi.unwrapMap(res);
+    } on DioException catch (e) {
+      // One retry for transient mobile / Neon latency blips.
+      final retryable = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError;
+      if (retryable && attempt < 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        return _putSections(
+          workspaceId: workspaceId,
+          prep: prep,
+          sections: sections,
+          submit: submit,
+          attempt: attempt + 1,
+        );
+      }
+      rethrow;
     }
-    return PlatformApi.unwrapMap(res);
   }
 
   String _saveFailureMessage(int? statusCode) {
@@ -145,6 +189,31 @@ class LaravelOrganizerRepository {
     if (!PlatformApi.ok(res)) return null;
     return PlatformApi.unwrapMap(res);
   }
+}
+
+/// Drop nulls and non-finite numbers so Dio/jsonEncode never throws mid-save.
+Map<String, dynamic> jsonSafeAnswers(Map<String, dynamic> input) {
+  dynamic scrub(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.isFinite ? value : 0;
+    if (value is Map) {
+      final out = <String, dynamic>{};
+      value.forEach((k, v) {
+        final cleaned = scrub(v);
+        if (cleaned != null) out['$k'] = cleaned;
+      });
+      return out;
+    }
+    if (value is List) {
+      return [for (final item in value) ?scrub(item)];
+    }
+    return value;
+  }
+
+  final cleaned = scrub(input);
+  if (cleaned is Map<String, dynamic>) return cleaned;
+  if (cleaned is Map) return Map<String, dynamic>.from(cleaned);
+  return const {};
 }
 
 final laravelOrganizerRepositoryProvider = Provider<LaravelOrganizerRepository>((ref) {
