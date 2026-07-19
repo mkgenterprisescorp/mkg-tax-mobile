@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -127,7 +125,7 @@ class _SmartDocumentIntakeScreenState extends ConsumerState<SmartDocumentIntakeS
     );
     if (picked == null || picked.files.isEmpty) return;
     final file = picked.files.first;
-    final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
+    final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

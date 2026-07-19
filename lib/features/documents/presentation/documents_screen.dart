@@ -1,11 +1,11 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
@@ -18,6 +18,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/documents_repository.dart';
+import 'document_local_save.dart';
 
 const _titanFileUrl = 'https://upload-mkgtax.titanfile.com/';
 
@@ -131,11 +132,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'heic'],
-      withData: false,
+      withData: true,
     );
     if (result == null || result.files.isEmpty) return;
-    final path = result.files.single.path;
-    if (path == null) return;
+    final picked = result.files.single;
+    final bytes = picked.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read the selected file.')),
+        );
+      }
+      return;
+    }
+    final multipart = MultipartFile.fromBytes(bytes, filename: picked.name);
     setState(() => _uploading = true);
     try {
       if (AppConfig.usesLaravelAuth) {
@@ -143,11 +153,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         await ref.read(documentsRepositoryProvider).upload(
               workspaceId: _returnId.toString(),
               category: category,
-              file: await MultipartFile.fromFile(path, filename: path.split('/').last),
+              file: multipart,
             );
       } else {
         await ref.read(portalRepositoryProvider).uploadDocument(
-              file: File(path),
+              file: multipart,
               taxReturnId: _returnId,
               type: _docType,
             );
@@ -178,17 +188,22 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
         return;
       }
+      if (kIsWeb) {
+        final uri = Uri.parse('${AppConfig.portalRoot}/documents');
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
       final bytes = await ref.read(portalRepositoryProvider).downloadDocumentBytes(id);
-      final dir = await getTemporaryDirectory();
       final name = (d['originalName'] ?? d['original_filename'] ?? d['filename'] ?? 'document-$id')
           .toString();
-      final file = File('${dir.path}/$name');
-      await file.writeAsBytes(bytes);
+      final savedPath = await saveDocumentBytesLocally(
+        bytes: Uint8List.fromList(bytes),
+        filename: name,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved to ${file.path}')),
+        SnackBar(content: Text('Saved to $savedPath')),
       );
-      await launchUrl(Uri.file(file.path), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!mounted) return;
       final uri = Uri.parse('${AppConfig.portalRoot}/documents');

@@ -38,9 +38,19 @@ flutter run --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 
 flutter build apk --release --build-name=1.0.0 --build-number=15 \
   --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
   --dart-define=WEB_BASE_URL=https://mkgtaxconsultants.com
+
+# Staging Flutter web (same dart-defines; also built by Dockerfile for DO)
+flutter build web --release \
+  --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+  --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com \
+  --dart-define=WEB_BASE_URL=https://finance.mkgtaxconsultants.com
 ```
 
 `AppConfig.validate()` fails loudly if `API_BASE_URL` is omitted.
+
+DigitalOcean App Platform staging web: `.do/app.yaml` + `Dockerfile` (nginx `:8080`).
+Create/update with `doctl apps create --spec .do/app.yaml` (or upsert). Leave
+`deploy_on_push: false` until the first build is green.
 
 ## Branch
 

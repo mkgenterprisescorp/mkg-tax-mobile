@@ -99,12 +99,21 @@
 - Tax savings: `/tax-savings` (native checklist; optional web AI at `/tax-savings`).
 - Things to bring: `/things-to-bring` (client checklist; staff email/SMS stays on portal).
 
+### Flutter web (staging DO)
+- Platform folder: `web/` (enabled). Cookie jar uses in-memory storage on web (`cookie_jar_factory_web.dart`); Sanctum bearer tokens still use secure storage.
+- Document upload uses `MultipartFile.fromBytes` (file_picker `withData: true`). Portal cookie download on web opens the portal vault instead of writing a temp file.
+- **DO app:** new App Platform app `mkg-tax-mobile-web` from `.do/app.yaml` + `Dockerfile` — **not** `financemkgtax-app` and not the Laravel API app.
+- Build: `flutter build web --release` with the same staging dart-defines as APK (see README / `docs/toolchain-versions.md`).
+- After first DO ingress exists, set Laravel `CORS_ALLOWED_ORIGINS` to that origin (comma-separated if multiple).
+- Manual CI artifact: `.github/workflows/staging-web.yml`. Deploy via `doctl apps create-deployment <app-id> --force-rebuild` (`deploy_on_push: false`).
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
 - Schema tests: `flutter test test/organizer_schema_test.dart`
 - Hot Reload dev: `flutter run` then `r` (reload) / `R` (restart)
 - Debug APK: `flutter build apk --debug`
+- Staging web: `flutter build web --release` (+ dart-defines in README)
 - Dev run needs Android SDK + JDK 21 for Flutter Gradle.
 
 ### Cookie-auth progress
