@@ -78,6 +78,43 @@ class PortalUser {
       tutorialWatched: json['tutorialWatched'] as bool? ?? json['tutorial_watched'] as bool?,
     );
   }
+
+  /// Map Laravel `/api/v1/profile` payload onto [PortalUser] for local session.
+  factory PortalUser.fromLaravelProfile(
+    Map<String, dynamic> profile, {
+    PortalUser? fallback,
+  }) {
+    final mailing = profile['mailing_address'] is Map
+        ? Map<String, dynamic>.from(profile['mailing_address'] as Map)
+        : const <String, dynamic>{};
+    final approval = profile['approval_status']?.toString() ?? fallback?.approvalStatus;
+    final verification = profile['verification'] is Map
+        ? Map<String, dynamic>.from(profile['verification'] as Map)
+        : const <String, dynamic>{};
+    final phoneVerified = verification['phone'] == true;
+    final emailVerified = verification['email'] == true;
+    // Soft-gate uses kycStatus; profile bridge has no dedicated KYC field.
+    final kyc = approval == 'approved'
+        ? 'approved'
+        : (phoneVerified || emailVerified || '${mailing['line1'] ?? ''}'.trim().isNotEmpty)
+            ? 'submitted'
+            : (fallback?.kycStatus ?? 'incomplete');
+    return PortalUser.fromJson({
+      ...profile,
+      'id': profile['external_user_id'] ?? fallback?.id,
+      'firstName': fallback?.firstName,
+      'lastName': fallback?.lastName,
+      'name': profile['name'] ?? profile['preferred_name'] ?? fallback?.displayName,
+      'approval_status': approval,
+      'kyc_status': kyc,
+      'address': mailing['line1'] ?? fallback?.address,
+      'city': mailing['city'] ?? fallback?.city,
+      'state': mailing['state'] ?? fallback?.state,
+      'zip_code': mailing['postal_code'] ?? mailing['zip'] ?? fallback?.zipCode,
+      'phone': profile['phone'] ?? fallback?.phone,
+      'email': profile['email'] ?? fallback?.email,
+    });
+  }
 }
 
 class AuthException implements Exception {
@@ -344,6 +381,126 @@ class AuthRepository {
     final res = await _api.put<Map<String, dynamic>>('/api/user/profile', data: body);
     if (res.statusCode == 200) return Map<String, dynamic>.from(res.data ?? {});
     throw AuthException(_authErrorMessage(res.statusCode, 'Profile update failed. Please try again.'));
+  }
+
+  /// Sanctum: GET + PATCH `/api/v1/profile` (versioned sync with portal bridge).
+  /// Cookie portal: POST `/api/user/kyc-submit` (legacy).
+  Future<PortalUser> submitProfileForReview({
+    required String phone,
+    required String address,
+    String apartment = '',
+    required String city,
+    required String state,
+    required String zipCode,
+  }) async {
+    if (AppConfig.usesLaravelAuth) {
+      return _submitLaravelProfile(
+        phone: phone,
+        address: address,
+        apartment: apartment,
+        city: city,
+        state: state,
+        zipCode: zipCode,
+      );
+    }
+    final res = await _api.post<dynamic>(
+      '/api/user/kyc-submit',
+      data: {
+        'role': 'client',
+        'phone': phone,
+        'address': address,
+        'city': city,
+        'state': state,
+        'zipCode': zipCode,
+      },
+    );
+    if ((res.statusCode ?? 500) >= 400 || res.data is! Map) {
+      throw AuthException(
+        _authErrorMessage(res.statusCode, 'Unable to submit your profile. Please try again.'),
+      );
+    }
+    return PortalUser.fromJson(Map<String, dynamic>.from(res.data as Map));
+  }
+
+  Future<PortalUser> _submitLaravelProfile({
+    required String phone,
+    required String address,
+    required String apartment,
+    required String city,
+    required String state,
+    required String zipCode,
+  }) async {
+    final laravel = _laravel;
+    if (laravel == null || laravel.bearerToken == null) {
+      throw AuthException(ApiErrorMapper.loginSessionExpiredMessage);
+    }
+
+    Future<Map<String, dynamic>> loadProfile() async {
+      final res = await laravel.get<Map<String, dynamic>>('/api/v1/profile');
+      if ((res.statusCode ?? 500) >= 400) {
+        throw AuthException(
+          _authErrorMessage(res.statusCode, 'Unable to load your profile. Please try again.'),
+        );
+      }
+      final data = res.data?['data'];
+      if (data is Map) return Map<String, dynamic>.from(data);
+      if (res.data is Map) return Map<String, dynamic>.from(res.data!);
+      throw AuthException('Unable to load your profile. Please try again.');
+    }
+
+    var current = await loadProfile();
+    var version = (current['version'] as num?)?.toInt();
+    if (version == null || version < 1) {
+      throw AuthException('Unable to update your profile right now. Please try again.');
+    }
+
+    final payload = <String, dynamic>{
+      'version': version,
+      'phone': phone.trim().isEmpty ? null : phone.trim(),
+      'mailing_address': {
+        'line1': address.trim(),
+        'line2': apartment.trim().isEmpty ? null : apartment.trim(),
+        'city': city.trim(),
+        'state': state.trim().toUpperCase(),
+        'postal_code': zipCode.trim(),
+        'country': 'US',
+      },
+    };
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      payload['version'] = version;
+      final res = await laravel.patch<Map<String, dynamic>>(
+        '/api/v1/profile',
+        data: payload,
+      );
+      if (res.statusCode == 200) {
+        final data = res.data?['data'];
+        final map = data is Map
+            ? Map<String, dynamic>.from(data)
+            : Map<String, dynamic>.from(res.data ?? {});
+        return PortalUser.fromLaravelProfile(map, fallback: await currentUser());
+      }
+      if (res.statusCode == 409) {
+        // Optimistic concurrency — reload version and retry once.
+        final raw = res.data;
+        final conflictVersion = raw == null
+            ? null
+            : (raw['currentVersion'] as num?)?.toInt();
+        if (conflictVersion != null && conflictVersion > 0) {
+          version = conflictVersion;
+        } else {
+          current = await loadProfile();
+          version = (current['version'] as num?)?.toInt() ?? version;
+        }
+        continue;
+      }
+      throw AuthException(
+        _authErrorMessage(res.statusCode, 'Unable to submit your profile. Please try again.'),
+      );
+    }
+    throw AuthException(
+      'This information changed on another device or in the client portal. Please review and try again.',
+    );
   }
 
   Future<PortalUser> refreshUser() async {

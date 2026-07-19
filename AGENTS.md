@@ -2,6 +2,10 @@
 
 ## Cursor Cloud specific instructions
 
+### Profile / KYC submit (Sanctum)
+- Profile screen **must not** call portal `/api/user/kyc-submit` on Sanctum builds (404 → “The requested item is unavailable.”).
+- Use `AuthRepository.submitProfileForReview` → `GET` then versioned `PATCH /api/v1/profile` (retry once on 409). SSN is not accepted on this bridge — collect via Organizer/Documents.
+
 ### Auth / API / website hosts
 - **DO web app (client login):** `https://mkgtaxconsultants.com` (`financemkgtaxpro` + DO Postgres) — clients manage taxes/forms; also owns IRS XML / MeF. Notifications/chats/staff UI live here, **not** in WordPress.
 - **WordPress:** marketing only (`WEB_BASE_URL` may be `https://finance.mkgtaxconsultants.com` or legacy `www`). No WP portal for app users / notifications / chats. See `mkg-tax-marketing-wp` `docs/MOBILE_MOAT_INSTALL.md`.

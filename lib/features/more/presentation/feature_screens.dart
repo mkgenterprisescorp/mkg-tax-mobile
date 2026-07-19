@@ -16,6 +16,7 @@ import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
 import '../../tessa/data/tessa_repository.dart';
 import '../../address/presentation/address_autofill_fields.dart';
+import '../../organizer/data/organizer_profile_prefill.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -780,6 +781,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       'zip': user?.zipCode ?? '',
       'apartment': '',
     };
+    WidgetsBinding.instance.addPostFrameCallback((_) => _hydrateFromLaravelProfile());
+  }
+
+  Future<void> _hydrateFromLaravelProfile() async {
+    if (!AppConfig.usesLaravelAuth) return;
+    try {
+      final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
+      if (!mounted) return;
+      if (_phone.text.trim().isEmpty && prefill.phone.isNotEmpty) {
+        _phone.text = prefill.phone;
+      }
+      setState(() {
+        if ('${_addressData['address'] ?? ''}'.trim().isEmpty && prefill.address.isNotEmpty) {
+          _addressData['address'] = prefill.address;
+        }
+        if ('${_addressData['apartment'] ?? ''}'.trim().isEmpty && prefill.apartment.isNotEmpty) {
+          _addressData['apartment'] = prefill.apartment;
+        }
+        if ('${_addressData['city'] ?? ''}'.trim().isEmpty && prefill.city.isNotEmpty) {
+          _addressData['city'] = prefill.city;
+        }
+        if ('${_addressData['state'] ?? ''}'.trim().isEmpty && prefill.state.isNotEmpty) {
+          _addressData['state'] = prefill.state;
+        }
+        if ('${_addressData['zip'] ?? ''}'.trim().isEmpty && prefill.zip.isNotEmpty) {
+          _addressData['zip'] = prefill.zip;
+        }
+      });
+    } catch (_) {}
   }
 
   @override
@@ -790,26 +820,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _submitKyc() async {
+    final address = '${_addressData['address'] ?? ''}'.trim();
+    final city = '${_addressData['city'] ?? ''}'.trim();
+    final state = '${_addressData['state'] ?? ''}'.trim().toUpperCase();
+    final zip = '${_addressData['zip'] ?? ''}'.trim();
+    if (address.isEmpty || city.isEmpty || state.isEmpty || zip.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete street, city, state, and ZIP before submitting.')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      final portal = ref.read(portalRepositoryProvider);
-      final updated = await portal.submitKyc({
-        'role': 'client',
-        'phone': _phone.text.trim(),
-        'address': '${_addressData['address'] ?? ''}'.trim(),
-        'city': '${_addressData['city'] ?? ''}'.trim(),
-        'state': '${_addressData['state'] ?? ''}'.trim().toUpperCase(),
-        'zipCode': '${_addressData['zip'] ?? ''}'.trim(),
-      });
+      final user = await ref.read(authRepositoryProvider).submitProfileForReview(
+            phone: _phone.text.trim(),
+            address: address,
+            apartment: '${_addressData['apartment'] ?? ''}'.trim(),
+            city: city,
+            state: state,
+            zipCode: zip,
+          );
+      // Portal cookie path can still accept SSN; Sanctum profile bridge strips it.
       final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
-      if (digits.length == 9) {
-        await portal.saveSsn(digits);
+      if (!AppConfig.usesLaravelAuth && digits.length == 9) {
+        await ref.read(portalRepositoryProvider).saveSsn(digits);
       }
-      final user = PortalUser.fromJson(updated);
       await ref.read(authProvider.notifier).setUser(user);
       if (mounted) {
+        final ssnNote = AppConfig.usesLaravelAuth && digits.length == 9
+            ? ' Enter SSN in Tax Organizer / Documents when requested — it is not stored from this screen.'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile submitted for review.')),
+          SnackBar(content: Text('Profile submitted for review.$ssnNote')),
         );
       }
     } catch (e) {
