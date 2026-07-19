@@ -42,6 +42,7 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/financial') ||
         location.startsWith('/refund-advance') ||
         location.startsWith('/bookkeeping') ||
+        location.startsWith('/banking') ||
         location.startsWith('/billing') ||
         location.startsWith('/payments')) {
       return 2;
@@ -74,6 +75,7 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/my-clients')) return 'MY CLIENTS';
     if (location.startsWith('/iero')) return 'IRS iERO';
     if (location.startsWith('/billing') || location.startsWith('/payments')) return 'PAYMENTS';
+    if (location.startsWith('/banking')) return 'BANKING';
     if (location.startsWith('/bookkeeping')) return 'BOOKKEEPING';
     if (location.startsWith('/profile')) return 'PROFILE';
     if (location.startsWith('/support')) return 'SUPPORT';
