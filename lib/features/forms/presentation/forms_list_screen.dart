@@ -6,6 +6,7 @@ import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
@@ -37,6 +38,10 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
       _error = null;
     });
     try {
+      if (AppConfig.usesLaravelAuth) {
+        await _loadLaravelFastPath();
+        return;
+      }
       final portal = ref.read(portalRepositoryProvider);
       final results = await Future.wait([
         portal.listTaxReturns(),
@@ -57,9 +62,67 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
     }
   }
 
+  /// Sanctum builds: portal `/api/tax-returns` is not on the Laravel host.
+  /// Paint from the warm tax-year workspace first; soft-fetch portal data only
+  /// when it succeeds (cookie bridge), without blocking the hub.
+  Future<void> _loadLaravelFastPath() async {
+    final tax = ref.read(taxYearProvider);
+    final yearHint = tax.selectedYear ?? tax.currentFilingYear ?? DateTime.now().year - 1;
+    if (tax.workspace?.workspaceId == null || tax.workspace?.taxYear != yearHint) {
+      await ref.read(taxYearProvider.notifier).refreshWorkspace();
+    }
+    if (!mounted) return;
+    final ws = ref.read(taxYearProvider).workspace;
+    final synthetic = <Map<String, dynamic>>[
+      if (ws != null)
+        {
+          'id': ws.taxReturnId ?? ws.workspaceId,
+          'year': ws.taxYear,
+          'taxYear': ws.taxYear,
+          'status': ws.federalReturnStatus,
+          'organizerStatus': ws.organizerStatus,
+          'organizerCompletionPercentage': ws.organizerCompletionPercentage,
+          'source': 'laravel-workspace',
+        },
+    ];
+    // Show the hub immediately from workspace — don't wait on portal 404s.
+    setState(() {
+      _returns = synthetic;
+      _verification = null;
+      _loading = false;
+      _error = null;
+    });
+
+    // Soft portal enrichment (no-op when routes 404 on app host).
+    try {
+      final portal = ref.read(portalRepositoryProvider);
+      List<Map<String, dynamic>> rows = const [];
+      Map<String, dynamic>? verification;
+      try {
+        rows = await portal.listTaxReturns();
+      } catch (_) {}
+      try {
+        verification = await portal.verificationStatus();
+      } catch (_) {}
+      if (!mounted) return;
+      if (rows.isEmpty && verification == null) return;
+      setState(() {
+        if (rows.isNotEmpty) _returns = rows;
+        if (verification != null) _verification = verification;
+      });
+    } catch (_) {
+      // Keep workspace-backed UI.
+    }
+  }
+
   Future<void> _createReturn() async {
     setState(() => _creating = true);
     try {
+      if (AppConfig.usesLaravelAuth) {
+        await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
+        if (mounted) context.go('/organizer');
+        return;
+      }
       await ref.read(portalRepositoryProvider).createTaxReturn();
       await _load();
       if (mounted) context.go('/organizer');
@@ -151,7 +214,11 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                     StatusChip(label: caps.role, color: Colors.white),
                     StatusChip(label: Uri.parse(AppConfig.portalRoot).host, color: Colors.white),
                     StatusChip(
-                      label: verified ? 'Identity verified' : 'Verify identity',
+                      label: verified
+                          ? 'Identity verified'
+                          : (_verification == null && AppConfig.usesLaravelAuth)
+                              ? 'Identity on file'
+                              : 'Verify identity',
                       color: verified ? MkgColors.accent : Colors.white70,
                     ),
                     if (user?.kycStatus != null)

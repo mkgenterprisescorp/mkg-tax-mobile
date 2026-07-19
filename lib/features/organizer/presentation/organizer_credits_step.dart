@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_credits_math.dart';
+import '../data/organizer_enum_options.dart';
+import 'organizer_credits_tessa_sheet.dart';
 import 'organizer_fields.dart';
 
 /// Full federal credits & deductions intake aligned to Form 1040 (TY2025)
@@ -35,6 +38,16 @@ class OrganizerCreditsStep extends StatelessWidget {
     onPatch(applyCreditsRollups(next));
   }
 
+  bool get _guidanceAcknowledged => data['creditsGuidanceAcknowledged'] == true;
+
+  Future<void> _openTessaGuidance(BuildContext context) async {
+    await showCreditsTessaGuidanceSheet(
+      context,
+      alreadyAcknowledged: _guidanceAcknowledged,
+      onAcknowledged: (v) => onRoot('creditsGuidanceAcknowledged', v),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheduleA = _map('scheduleA');
@@ -52,9 +65,77 @@ class OrganizerCreditsStep extends StatelessWidget {
     final form8995 = _map('form8995');
     final form8839 = _map('form8839');
     final form2441 = _map('form2441');
+    final creditType = normalizeEducationCreditType(form8863['creditType']);
 
     return Column(
       children: [
+        MkgCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: MkgColors.lightPrimary,
+                    child: Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Tessa · credit & deduction guidance',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Tap for eligibility, disallowance reasons, fines/penalties for false claims, '
+                'and documentation requirements before you enter amounts.',
+                style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _openTessaGuidance(context),
+                    icon: const Icon(Icons.tips_and_updates_outlined),
+                    label: Text(_guidanceAcknowledged ? 'Review Tessa guidance' : 'Ask Tessa'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/tessa'),
+                    icon: const Icon(Icons.chat_outlined),
+                    label: const Text('Tessa chat'),
+                  ),
+                ],
+              ),
+              if (!_guidanceAcknowledged) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Acknowledgement recommended before claiming refundable credits.',
+                  style: TextStyle(color: MkgColors.orange, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ] else ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Guidance acknowledged for this return.',
+                  style: TextStyle(color: MkgColors.green, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const MkgCard(
+          child: Text(
+            'Guardrail: Supporting documentation (1098-T, receipts, provider TINs, etc.) may be '
+            'required by your tax preparer before any credit or deduction is claimed.',
+            style: TextStyle(color: MkgColors.textGrey, fontSize: 12.5, height: 1.4),
+          ),
+        ),
+        const SizedBox(height: 14),
         OfficialFormLinksCard(
           title: 'Official Form 1040 references',
           subtitle: 'Credits & deductions map to these IRS schedules and forms.',
@@ -106,38 +187,62 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8889 — Health Savings Account',
           subtitle: 'HSA deduction flows to Schedule 1, then Form 1040 Line 10. Do not use “health insurance premiums” for HSA.',
-          child: NestedMapEditor(
-            data: form8889,
-            onlyKeys: const [
-              'hsaCoverage',
-              'hsaContributions',
-              'employerContributions',
-              'hsaDeduction',
-              'qualifiedDistributions',
-              'totalDistributions',
-              'excessContributions',
-              'highDeductiblePlan',
-            ],
-            labels: const {
-              'hsaCoverage': 'HSA coverage (self / family)',
-              'hsaContributions': 'HSA contributions (Form 8889)',
-              'employerContributions': 'Employer HSA contributions',
-              'hsaDeduction': 'HSA deduction → Sch. 1 / Form 1040 Line 10',
-              'qualifiedDistributions': 'Qualified medical distributions',
-              'totalDistributions': 'Total HSA distributions',
-              'excessContributions': 'Excess contributions',
-              'highDeductiblePlan': 'Covered by HDHP',
-            },
-            onChanged: (m) => _setNestedAndRollup('form8889', m),
-          ),
+          builder: (_) {
+            final coverage = normalizeEnumValue(
+              form8889['hsaCoverage'],
+              hsaCoverageOptions,
+              fallback: 'self',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'HSA coverage',
+                  value: coverage,
+                  items: hsaCoverageOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(form8889)
+                      ..['hsaCoverage'] = v ?? 'self';
+                    _setNestedAndRollup('form8889', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: form8889,
+                  excludeKeys: const {'hsaCoverage'},
+                  onlyKeys: const [
+                    'hsaContributions',
+                    'employerContributions',
+                    'hsaDeduction',
+                    'qualifiedDistributions',
+                    'totalDistributions',
+                    'excessContributions',
+                    'highDeductiblePlan',
+                  ],
+                  labels: const {
+                    'hsaContributions': 'HSA contributions (Form 8889)',
+                    'employerContributions': 'Employer HSA contributions',
+                    'hsaDeduction': 'HSA deduction → Sch. 1 / Form 1040 Line 10',
+                    'qualifiedDistributions': 'Qualified medical distributions',
+                    'totalDistributions': 'Total HSA distributions',
+                    'excessContributions': 'Excess contributions',
+                    'highDeductiblePlan': 'Covered by HDHP',
+                  },
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)..['hsaCoverage'] = coverage;
+                    _setNestedAndRollup('form8889', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule SE — Self-employment tax',
           subtitle: 'SE tax → Form 1040 Line 23 (via Schedule 2). Deductible half → Schedule 1 / Line 10.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: scheduleSE,
             onlyKeys: const [
               'netProfitScheduleC',
@@ -162,10 +267,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('scheduleSE', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 1-A — Additional deductions',
           subtitle: 'Form 1040 Line 13b ← Schedule 1-A, line 38.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule1A,
             labels: const {
               'tipIncome': 'Tip income deduction (Sch. 1-A → Line 13b)',
@@ -177,10 +282,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule1A', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8995 — Qualified business income (QBI)',
           subtitle: 'Form 1040 Line 13a ← Form 8995 / 8995-A.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form8995,
             onlyKeys: const [
               'qualifiedBusinessIncome',
@@ -197,10 +302,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form8995', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule A — Itemized deductions',
           subtitle: 'Form 1040 Line 12e when itemizing (instead of standard deduction).',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerCheckbox(
                 label: 'Itemize deductions (Schedule A → Form 1040 Line 12e)',
@@ -245,10 +350,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 8812 — Child tax credit & other dependents',
           subtitle: 'Form 1040 Line 19 (CTC/ODC) and Line 28 (ACTC).',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule8812,
             onlyKeys: const [
               'qualifyingChildren',
@@ -269,10 +374,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule8812', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 1040 Line 27a — Earned Income Credit',
           subtitle: 'Attach Schedule EIC when claiming with qualifying children.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerCheckbox(
                 label: 'Claim Earned Income Credit (EIC) — Form 1040 Line 27a',
@@ -288,10 +393,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 2441 — Child & dependent care',
           subtitle: 'Nonrefundable credit → Schedule 3 → Form 1040 Line 20.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               NestedMapEditor(
                 data: {
@@ -329,33 +434,72 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8863 — Education credits',
           subtitle: 'Nonrefundable portion → Sch. 3 / Line 20. Refundable AOTC → Form 1040 Line 29.',
-          child: Column(
+          builder: (_) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              OrganizerDropdown<String>(
+                label: 'Education credit type',
+                value: creditType,
+                items: educationCreditTypeOptions,
+                onChanged: (v) {
+                  final next = Map<String, dynamic>.from(form8863)
+                    ..['creditType'] = v ?? 'american_opportunity';
+                  _setNestedAndRollup('form8863', next);
+                },
+              ),
+              Text(
+                creditType == 'lifetime_learning'
+                    ? 'Lifetime Learning: 20% of qualified expenses up to \$10,000 (max \$2,000). Nonrefundable only.'
+                    : 'American Opportunity: up to \$2,500 per eligible student; up to \$1,000 may be refundable.',
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 12.5, height: 1.35),
+              ),
+              const SizedBox(height: 8),
               NestedMapEditor(
                 data: form8863,
+                excludeKeys: const {'creditType'},
+                onlyKeys: [
+                  'studentName',
+                  'institution',
+                  'tuitionPaid',
+                  'scholarships',
+                  if (creditType == 'american_opportunity') ...[
+                    'americanOpportunityCredit',
+                    'refundableAotc',
+                  ] else
+                    'lifetimeLearningCredit',
+                  'nonrefundableCredit',
+                ],
                 labels: const {
                   'studentName': 'Student name',
                   'institution': 'Institution (Form 1098-T)',
                   'tuitionPaid': 'Qualified tuition & fees paid',
                   'scholarships': 'Scholarships / grants',
-                  'creditType': 'Credit type (american_opportunity / lifetime_learning)',
                   'americanOpportunityCredit': 'American Opportunity credit (total)',
                   'lifetimeLearningCredit': 'Lifetime Learning credit',
                   'refundableAotc': 'Refundable AOTC → Form 1040 Line 29',
                   'nonrefundableCredit': 'Nonrefundable education credit → Sch. 3 / Line 20',
                 },
-                onChanged: (m) => _setNestedAndRollup('form8863', m),
+                onChanged: (m) {
+                  final next = Map<String, dynamic>.from(m)..['creditType'] = creditType;
+                  _setNestedAndRollup('form8863', next);
+                },
+              ),
+              const SizedBox(height: 6),
+              TextButton.icon(
+                onPressed: () => _openTessaGuidance(context),
+                icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                label: const Text('Tessa: AOTC vs LLC eligibility & penalties'),
               ),
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 5695 — Residential energy credits',
           subtitle: '→ Schedule 3 → Form 1040 Line 20.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form5695,
             labels: const {
               'solarElectric': 'Solar electric',
@@ -373,10 +517,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form5695', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8839 — Adoption credit',
           subtitle: 'Refundable adoption credit → Form 1040 Line 30.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form8839,
             labels: const {
               'childName': 'Adopted child name',
@@ -388,18 +532,18 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form8839', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8962 — Premium Tax Credit',
           subtitle: 'Marketplace coverage (1095-A). Net PTC / repayment ties to Schedule 2 / Schedule 3 / Line 31.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: _map('form8962'),
             onChanged: (m) => _setNestedAndRollup('form8962', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 3 — Nonrefundable credits & other payments',
           subtitle: 'Line 8 → Form 1040 Line 20. Line 15 → Form 1040 Line 31.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule3,
             labels: const {
               'foreignTaxCredit': 'Foreign tax credit (Form 1116) → Sch. 3 / Line 20',
@@ -418,10 +562,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule3', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 2 — Additional taxes',
           subtitle: 'Sch. 2 line 3 → Form 1040 Line 17. Sch. 2 line 21 (incl. SE tax) → Line 23.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule2,
             labels: const {
               'altMinimumTax': 'Alternative minimum tax (Form 6251) → Line 17',
@@ -439,35 +583,65 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule2', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8829 — Home office (Schedule C)',
           subtitle: 'Business use of home deduction supporting Schedule C (not a Form 1040 credit line).',
-          child: NestedMapEditor(data: _map('form8829'), onChanged: (m) => onNested('form8829', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8829'), onChanged: (m) => onNested('form8829', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 6251 — Alternative Minimum Tax',
           subtitle: 'AMT → Schedule 2 → Form 1040 Line 17.',
-          child: NestedMapEditor(data: _map('form6251'), onChanged: (m) => _setNestedAndRollup('form6251', m)),
+          builder: (_) => NestedMapEditor(data: _map('form6251'), onChanged: (m) => _setNestedAndRollup('form6251', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8959 — Additional Medicare Tax',
           subtitle: '→ Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: _map('form8959'), onChanged: (m) => _setNestedAndRollup('form8959', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8959'), onChanged: (m) => _setNestedAndRollup('form8959', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8960 — Net Investment Income Tax',
           subtitle: '→ Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: _map('form8960'), onChanged: (m) => _setNestedAndRollup('form8960', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8960'), onChanged: (m) => _setNestedAndRollup('form8960', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule H — Household employment',
           subtitle: 'Household employment tax → Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: scheduleH, onChanged: (m) => _setNestedAndRollup('scheduleH', m)),
+          builder: (_) => NestedMapEditor(data: scheduleH, onChanged: (m) => _setNestedAndRollup('scheduleH', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule R — Credit for the elderly or disabled',
           subtitle: 'Nonrefundable credit → Schedule 3 → Form 1040 Line 20.',
-          child: NestedMapEditor(data: scheduleR, onChanged: (m) => _setNestedAndRollup('scheduleR', m)),
+          builder: (_) {
+            final filing = normalizeEnumValue(
+              scheduleR['filingStatusForCredit'],
+              scheduleRFilingStatusOptions,
+              fallback: 'single_under65',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'Filing status for credit',
+                  value: filing,
+                  items: scheduleRFilingStatusOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(scheduleR)
+                      ..['filingStatusForCredit'] = v ?? 'single_under65';
+                    _setNestedAndRollup('scheduleR', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: scheduleR,
+                  excludeKeys: const {'filingStatusForCredit'},
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)
+                      ..['filingStatusForCredit'] = filing;
+                    _setNestedAndRollup('scheduleR', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
         const MkgCard(
           child: Text(

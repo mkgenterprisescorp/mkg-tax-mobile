@@ -14,8 +14,10 @@ import '../../home/presentation/main_tabs.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
+import '../../states/data/state_tax_resources.dart';
 import '../../tessa/data/tessa_repository.dart';
 import '../../address/presentation/address_autofill_fields.dart';
+import '../../organizer/data/organizer_profile_prefill.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -780,6 +782,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       'zip': user?.zipCode ?? '',
       'apartment': '',
     };
+    WidgetsBinding.instance.addPostFrameCallback((_) => _hydrateFromLaravelProfile());
+  }
+
+  Future<void> _hydrateFromLaravelProfile() async {
+    if (!AppConfig.usesLaravelAuth) return;
+    try {
+      final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
+      if (!mounted) return;
+      if (_phone.text.trim().isEmpty && prefill.phone.isNotEmpty) {
+        _phone.text = prefill.phone;
+      }
+      setState(() {
+        if ('${_addressData['address'] ?? ''}'.trim().isEmpty && prefill.address.isNotEmpty) {
+          _addressData['address'] = prefill.address;
+        }
+        if ('${_addressData['apartment'] ?? ''}'.trim().isEmpty && prefill.apartment.isNotEmpty) {
+          _addressData['apartment'] = prefill.apartment;
+        }
+        if ('${_addressData['city'] ?? ''}'.trim().isEmpty && prefill.city.isNotEmpty) {
+          _addressData['city'] = prefill.city;
+        }
+        if ('${_addressData['state'] ?? ''}'.trim().isEmpty && prefill.state.isNotEmpty) {
+          _addressData['state'] = prefill.state;
+        }
+        if ('${_addressData['zip'] ?? ''}'.trim().isEmpty && prefill.zip.isNotEmpty) {
+          _addressData['zip'] = prefill.zip;
+        }
+      });
+    } catch (_) {}
   }
 
   @override
@@ -790,26 +821,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _submitKyc() async {
+    final address = '${_addressData['address'] ?? ''}'.trim();
+    final city = '${_addressData['city'] ?? ''}'.trim();
+    final state = '${_addressData['state'] ?? ''}'.trim().toUpperCase();
+    final zip = '${_addressData['zip'] ?? ''}'.trim();
+    if (address.isEmpty || city.isEmpty || state.isEmpty || zip.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete street, city, state, and ZIP before submitting.')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      final portal = ref.read(portalRepositoryProvider);
-      final updated = await portal.submitKyc({
-        'role': 'client',
-        'phone': _phone.text.trim(),
-        'address': '${_addressData['address'] ?? ''}'.trim(),
-        'city': '${_addressData['city'] ?? ''}'.trim(),
-        'state': '${_addressData['state'] ?? ''}'.trim().toUpperCase(),
-        'zipCode': '${_addressData['zip'] ?? ''}'.trim(),
-      });
+      final user = await ref.read(authRepositoryProvider).submitProfileForReview(
+            phone: _phone.text.trim(),
+            address: address,
+            apartment: '${_addressData['apartment'] ?? ''}'.trim(),
+            city: city,
+            state: state,
+            zipCode: zip,
+          );
+      // Portal cookie path can still accept SSN; Sanctum profile bridge strips it.
       final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
-      if (digits.length == 9) {
-        await portal.saveSsn(digits);
+      if (!AppConfig.usesLaravelAuth && digits.length == 9) {
+        await ref.read(portalRepositoryProvider).saveSsn(digits);
       }
-      final user = PortalUser.fromJson(updated);
       await ref.read(authProvider.notifier).setUser(user);
       if (mounted) {
+        final ssnNote = AppConfig.usesLaravelAuth && digits.length == 9
+            ? ' Enter SSN in Tax Organizer / Documents when requested — it is not stored from this screen.'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile submitted for review.')),
+          SnackBar(content: Text('Profile submitted for review.$ssnNote')),
         );
       }
     } catch (e) {
@@ -909,8 +953,48 @@ class EngagementsScreen extends StatelessWidget {
   }
 }
 
-class RefundTrackerScreen extends StatelessWidget {
+class RefundTrackerScreen extends ConsumerStatefulWidget {
   const RefundTrackerScreen({super.key});
+
+  @override
+  ConsumerState<RefundTrackerScreen> createState() => _RefundTrackerScreenState();
+}
+
+class _RefundTrackerScreenState extends ConsumerState<RefundTrackerScreen> {
+  bool _loading = true;
+  Map<String, dynamic> _federal = const {};
+  List<StateTaxResource> _withRefund = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await ref.read(stateTaxResourcesRepositoryProvider).load();
+      if (!mounted) return;
+      setState(() {
+        _federal = result.federal;
+        _withRefund = [
+          for (final s in result.states)
+            if (s.refundTrackerUrl != null && s.refundTrackerUrl!.isNotEmpty) s,
+        ];
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _open(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -918,37 +1002,51 @@ class RefundTrackerScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         const SectionHeader('Refund tracker'),
-        const Text('Check official IRS and state status (same links as the web portal).'),
+        const Text('Official IRS and state “Where’s My Refund?” pages from the shared tax-resources registry.'),
         const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.account_balance, color: MkgColors.primary),
-            title: const Text('IRS Where\'s My Refund'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => launchUrl(
-              Uri.parse('https://www.irs.gov/refunds'),
-              mode: LaunchMode.externalApplication,
+        if (_loading)
+          const Center(child: CircularProgressIndicator())
+        else ...[
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.account_balance, color: MkgColors.primary),
+              title: const Text('IRS Where\'s My Refund'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => _open(_federal['refund_tracker_url']?.toString() ?? 'https://www.irs.gov/refunds'),
             ),
           ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.map_outlined, color: MkgColors.primary),
-            title: const Text('California FTB refund status'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => launchUrl(
-              Uri.parse('https://www.ftb.ca.gov/about-ftb/newsroom/news-articles/wheres-my-refund.html'),
-              mode: LaunchMode.externalApplication,
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.library_books_outlined, color: MkgColors.primary),
+              title: const Text('All state tax resources'),
+              subtitle: const Text('Agency · forms · portals'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.go('/tax-resources'),
             ),
           ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
-            title: const Text('Refund advance calculator'),
-            onTap: () => context.go('/financial'),
+          const SizedBox(height: 8),
+          const Text('States with a personal income tax refund portal', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          for (final s in _withRefund)
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                  child: Text(s.code, style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w800, fontSize: 11)),
+                ),
+                title: Text('${s.name} refund status'),
+                trailing: const Icon(Icons.open_in_new),
+                onTap: () => _open(s.refundTrackerUrl),
+              ),
+            ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
+              title: const Text('Refund advance calculator'),
+              onTap: () => context.go('/financial'),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

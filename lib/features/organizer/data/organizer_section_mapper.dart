@@ -40,12 +40,17 @@ class OrganizerSectionMapper {
     'schedule1A',
     'schedule2',
     'schedule3',
+    'scheduleSE',
+    'schedule8812',
     'scheduleH',
     'scheduleR',
     'form8863',
     'form5695',
     'form8962',
     'form8889',
+    'form8995',
+    'form8839',
+    'form2441',
     'form8829',
     'form6251',
     'form8959',
@@ -272,6 +277,7 @@ class OrganizerSectionMapper {
       'selfEmploymentTax',
       'retirementContributions',
       'healthInsurancePremiums',
+      'creditsGuidanceAcknowledged',
     ]);
     for (final key in _creditFormKeys) {
       if (credits[key] is Map) {
@@ -474,6 +480,7 @@ class OrganizerSectionMapper {
           'selfEmploymentTax': data['selfEmploymentTax'],
           'retirementContributions': data['retirementContributions'],
           'healthInsurancePremiums': data['healthInsurancePremiums'],
+          'creditsGuidanceAcknowledged': data['creditsGuidanceAcknowledged'],
           for (final key in _creditFormKeys) key: data[key] ?? {},
         };
       case 'form_1040x':
