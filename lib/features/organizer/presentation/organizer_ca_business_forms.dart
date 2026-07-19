@@ -4,12 +4,10 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/ca_business_estimate_math.dart';
 import '../data/official_form_links.dart';
+import '../data/organizer_enum_options.dart';
 import 'organizer_fields.dart';
 
-const _accountingMethods = <(String, String)>[
-  ('accrual', 'Accrual'),
-  ('cash', 'Cash'),
-];
+const _accountingMethods = accountingMethodOptions;
 
 const _fiduciaryTypes = <(String, String)>[
   ('estate', 'Estate'),
@@ -344,6 +342,16 @@ class _CaForm100S extends StatelessWidget {
             value: '${data['caSecretaryOfStateNo'] ?? ''}',
             onChanged: (v) => _patch('caSecretaryOfStateNo', v),
           ),
+          OrganizerDropdown<String>(
+            label: 'Accounting method',
+            value: normalizeEnumValue(
+              data['accountingMethod'],
+              _accountingMethods,
+              fallback: 'accrual',
+            ),
+            items: _accountingMethods,
+            onChanged: (v) => _patch('accountingMethod', v ?? 'accrual'),
+          ),
           OrganizerMoneyField(
             label: 'Shareholder count',
             value: data['shareholderCount'],
@@ -645,10 +653,15 @@ class _CaForm199 extends StatelessWidget {
             value: '${data['feinCA'] ?? ''}',
             onChanged: (v) => _patch('feinCA', v),
           ),
-          OrganizerTextField(
-            label: 'Organization type (e.g. 501(c)(3))',
-            value: '${data['orgType'] ?? ''}',
-            onChanged: (v) => _patch('orgType', v),
+          OrganizerDropdown<String>(
+            label: 'Organization type',
+            value: normalizeEnumValue(
+              data['orgType'],
+              caOrgTypeOptions,
+              fallback: '',
+            ),
+            items: caOrgTypeOptions,
+            onChanged: (v) => _patch('orgType', v ?? ''),
           ),
           for (final f in const [
             ('Gross receipts', 'grossReceipts'),

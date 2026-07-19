@@ -5,6 +5,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_defaults.dart';
+import '../data/organizer_enum_options.dart';
 import '../data/organizer_income_math.dart';
 import '../data/us_states.dart';
 import 'organizer_fields.dart';
@@ -104,10 +105,10 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           subtitle: 'Payment card / marketplace → business income.',
           builder: (_) => _form1099KSection(bodyOnly: true),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 1040 income summary',
           subtitle: 'Auto-filled from forms above. Edit only to override.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerMoneyField(label: '1a — Wages (W-2 total)', value: data['wages'], onChanged: (v) => onRoot('wages', v)),
               OrganizerMoneyField(label: '2b — Taxable interest', value: data['interestIncome'], onChanged: (v) => onRoot('interestIncome', v)),
@@ -131,10 +132,10 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 1 — Additional income highlights',
           subtitle: 'Form 1040 Line 8 ← Schedule 1, line 10.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule1,
             onlyKeys: const [
               'stateTaxRefund',
@@ -266,7 +267,34 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
                   OrganizerMoneyField(label: '10 — Dependent care benefits', value: rows[i]['box10_dependentCareBenefits'], onChanged: (v) => _patchRow(key, i, 'box10_dependentCareBenefits', v)),
                   OrganizerMoneyField(label: '11 — Nonqualified plans', value: rows[i]['box11_nonqualifiedPlans'], onChanged: (v) => _patchRow(key, i, 'box11_nonqualifiedPlans', v)),
                   for (final code in const ['a', 'b', 'c', 'd']) ...[
-                    OrganizerTextField(label: '12$code code', value: '${rows[i]['box12${code}_code'] ?? ''}', onChanged: (v) => _patchRow(key, i, 'box12${code}_code', v)),
+                    Builder(
+                      builder: (_) {
+                        final field = 'box12${code}_code';
+                        final raw = '${rows[i][field] ?? ''}'.trim();
+                        final normalized = normalizeEnumValue(
+                          raw.toUpperCase(),
+                          w2Box12CodeOptions,
+                          fallback: '',
+                        );
+                        final items = raw.isNotEmpty &&
+                                !w2Box12CodeOptions.any((e) => e.$1 == raw.toUpperCase())
+                            ? <(String, String)>[
+                                ...w2Box12CodeOptions,
+                                (raw.toUpperCase(), '${raw.toUpperCase()} — Custom'),
+                              ]
+                            : w2Box12CodeOptions;
+                        final value = raw.isNotEmpty &&
+                                !w2Box12CodeOptions.any((e) => e.$1 == raw.toUpperCase())
+                            ? raw.toUpperCase()
+                            : normalized;
+                        return OrganizerDropdown<String>(
+                          label: '12$code code',
+                          value: value,
+                          items: items,
+                          onChanged: (v) => _patchRow(key, i, field, v ?? ''),
+                        );
+                      },
+                    ),
                     OrganizerMoneyField(label: '12$code amount', value: rows[i]['box12${code}_amount'], onChanged: (v) => _patchRow(key, i, 'box12${code}_amount', v)),
                   ],
                   OrganizerCheckbox(label: '13 — Statutory employee', value: rows[i]['box13_statutory'] == true, onChanged: (v) => _patchRow(key, i, 'box13_statutory', v)),
@@ -394,7 +422,29 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
                   OrganizerMoneyField(label: '3 — Capital gain', value: rows[i]['box3_capitalGain'], onChanged: (v) => _patchRow(key, i, 'box3_capitalGain', v)),
                   OrganizerMoneyField(label: '4 — Federal income tax withheld → Line 25b', value: rows[i]['box4_fedTaxWithheld'], onChanged: (v) => _patchRow(key, i, 'box4_fedTaxWithheld', v)),
                   OrganizerMoneyField(label: '5 — Employee contributions / designated Roth', value: rows[i]['box5_employeeContributions'], onChanged: (v) => _patchRow(key, i, 'box5_employeeContributions', v)),
-                  OrganizerTextField(label: '7 — Distribution code(s)', value: '${rows[i]['box7_distributionCode'] ?? ''}', onChanged: (v) => _patchRow(key, i, 'box7_distributionCode', v)),
+                  Builder(
+                    builder: (_) {
+                      final raw = '${rows[i]['box7_distributionCode'] ?? ''}'.trim();
+                      final normalized = normalizeEnumValue(
+                        raw,
+                        form1099RDistributionCodeOptions,
+                        fallback: '',
+                      );
+                      final known = form1099RDistributionCodeOptions.any((e) => e.$1 == raw);
+                      final items = raw.isNotEmpty && !known
+                          ? <(String, String)>[
+                              ...form1099RDistributionCodeOptions,
+                              (raw, '$raw — Custom'),
+                            ]
+                          : form1099RDistributionCodeOptions;
+                      return OrganizerDropdown<String>(
+                        label: '7 — Distribution code(s)',
+                        value: raw.isNotEmpty && !known ? raw : normalized,
+                        items: items,
+                        onChanged: (v) => _patchRow(key, i, 'box7_distributionCode', v ?? ''),
+                      );
+                    },
+                  ),
                   OrganizerCheckbox(label: 'IRA/SEP/SIMPLE → Form 1040 Line 4', value: rows[i]['box7_iraSepSimple'] == true, onChanged: (v) => _patchRow(key, i, 'box7_iraSepSimple', v)),
                   OrganizerMoneyField(label: '14 — State tax withheld', value: rows[i]['box14_stateTaxWithheld'], onChanged: (v) => _patchRow(key, i, 'box14_stateTaxWithheld', v)),
                   _stateField(key, i, 'box15_state', rows[i]),

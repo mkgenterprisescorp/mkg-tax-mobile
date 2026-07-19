@@ -8,6 +8,7 @@ import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../organizer/data/organizer_defaults.dart';
 
 /// Clean home dashboard with dual-brand service pillars.
 class HomeDashboardScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,8 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Prefetch organizer defaults JSON so Organizer open skips asset I/O.
+      OrganizerDefaults.load();
       ref.read(taxYearProvider.notifier).bootstrap();
     });
   }

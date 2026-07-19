@@ -49,7 +49,8 @@ num form5695Total(Map<String, dynamic> form5695) {
 ) {
   final tuition = creditsNum(form8863['tuitionPaid']);
   final scholarships = creditsNum(form8863['scholarships']);
-  final net = (tuition - scholarships).clamp(0, double.infinity);
+  // Keep finite — Dio/jsonEncode throws on Infinity/NaN and breaks autosave.
+  final net = (tuition - scholarships).clamp(0, 1e12);
   final type = '${form8863['creditType'] ?? 'american_opportunity'}';
   if (type == 'lifetime_learning' || type == 'llc') {
     final llc = (net * 0.20).clamp(0, 2000);
