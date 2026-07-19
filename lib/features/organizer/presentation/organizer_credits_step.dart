@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_credits_math.dart';
+import 'organizer_credits_tessa_sheet.dart';
 import 'organizer_fields.dart';
 
 /// Full federal credits & deductions intake aligned to Form 1040 (TY2025)
@@ -35,6 +37,16 @@ class OrganizerCreditsStep extends StatelessWidget {
     onPatch(applyCreditsRollups(next));
   }
 
+  bool get _guidanceAcknowledged => data['creditsGuidanceAcknowledged'] == true;
+
+  Future<void> _openTessaGuidance(BuildContext context) async {
+    await showCreditsTessaGuidanceSheet(
+      context,
+      alreadyAcknowledged: _guidanceAcknowledged,
+      onAcknowledged: (v) => onRoot('creditsGuidanceAcknowledged', v),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheduleA = _map('scheduleA');
@@ -52,9 +64,77 @@ class OrganizerCreditsStep extends StatelessWidget {
     final form8995 = _map('form8995');
     final form8839 = _map('form8839');
     final form2441 = _map('form2441');
+    final creditType = normalizeEducationCreditType(form8863['creditType']);
 
     return Column(
       children: [
+        MkgCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: MkgColors.lightPrimary,
+                    child: Icon(Icons.smart_toy_outlined, color: MkgColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Tessa · credit & deduction guidance',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Tap for eligibility, disallowance reasons, fines/penalties for false claims, '
+                'and documentation requirements before you enter amounts.',
+                style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _openTessaGuidance(context),
+                    icon: const Icon(Icons.tips_and_updates_outlined),
+                    label: Text(_guidanceAcknowledged ? 'Review Tessa guidance' : 'Ask Tessa'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/tessa'),
+                    icon: const Icon(Icons.chat_outlined),
+                    label: const Text('Tessa chat'),
+                  ),
+                ],
+              ),
+              if (!_guidanceAcknowledged) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Acknowledgement recommended before claiming refundable credits.',
+                  style: TextStyle(color: MkgColors.orange, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ] else ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Guidance acknowledged for this return.',
+                  style: TextStyle(color: MkgColors.green, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const MkgCard(
+          child: Text(
+            'Guardrail: Supporting documentation (1098-T, receipts, provider TINs, etc.) may be '
+            'required by your tax preparer before any credit or deduction is claimed.',
+            style: TextStyle(color: MkgColors.textGrey, fontSize: 12.5, height: 1.4),
+          ),
+        ),
+        const SizedBox(height: 14),
         OfficialFormLinksCard(
           title: 'Official Form 1040 references',
           subtitle: 'Credits & deductions map to these IRS schedules and forms.',
@@ -333,21 +413,60 @@ class OrganizerCreditsStep extends StatelessWidget {
           title: 'Form 8863 — Education credits',
           subtitle: 'Nonrefundable portion → Sch. 3 / Line 20. Refundable AOTC → Form 1040 Line 29.',
           builder: (_) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              OrganizerDropdown<String>(
+                label: 'Education credit type',
+                value: creditType,
+                items: educationCreditTypeOptions,
+                onChanged: (v) {
+                  final next = Map<String, dynamic>.from(form8863)
+                    ..['creditType'] = v ?? 'american_opportunity';
+                  _setNestedAndRollup('form8863', next);
+                },
+              ),
+              Text(
+                creditType == 'lifetime_learning'
+                    ? 'Lifetime Learning: 20% of qualified expenses up to \$10,000 (max \$2,000). Nonrefundable only.'
+                    : 'American Opportunity: up to \$2,500 per eligible student; up to \$1,000 may be refundable.',
+                style: const TextStyle(color: MkgColors.textGrey, fontSize: 12.5, height: 1.35),
+              ),
+              const SizedBox(height: 8),
               NestedMapEditor(
                 data: form8863,
+                excludeKeys: const {'creditType'},
+                onlyKeys: [
+                  'studentName',
+                  'institution',
+                  'tuitionPaid',
+                  'scholarships',
+                  if (creditType == 'american_opportunity') ...[
+                    'americanOpportunityCredit',
+                    'refundableAotc',
+                  ] else
+                    'lifetimeLearningCredit',
+                  'nonrefundableCredit',
+                ],
                 labels: const {
                   'studentName': 'Student name',
                   'institution': 'Institution (Form 1098-T)',
                   'tuitionPaid': 'Qualified tuition & fees paid',
                   'scholarships': 'Scholarships / grants',
-                  'creditType': 'Credit type (american_opportunity / lifetime_learning)',
                   'americanOpportunityCredit': 'American Opportunity credit (total)',
                   'lifetimeLearningCredit': 'Lifetime Learning credit',
                   'refundableAotc': 'Refundable AOTC → Form 1040 Line 29',
                   'nonrefundableCredit': 'Nonrefundable education credit → Sch. 3 / Line 20',
                 },
-                onChanged: (m) => _setNestedAndRollup('form8863', m),
+                onChanged: (m) {
+                  final next = Map<String, dynamic>.from(m)..['creditType'] = creditType;
+                  _setNestedAndRollup('form8863', next);
+                },
+              ),
+              const SizedBox(height: 6),
+              TextButton.icon(
+                onPressed: () => _openTessaGuidance(context),
+                icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                label: const Text('Tessa: AOTC vs LLC eligibility & penalties'),
               ),
             ],
           ),

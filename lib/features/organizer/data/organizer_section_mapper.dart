@@ -272,6 +272,7 @@ class OrganizerSectionMapper {
       'selfEmploymentTax',
       'retirementContributions',
       'healthInsurancePremiums',
+      'creditsGuidanceAcknowledged',
     ]);
     for (final key in _creditFormKeys) {
       if (credits[key] is Map) {
@@ -474,6 +475,7 @@ class OrganizerSectionMapper {
           'selfEmploymentTax': data['selfEmploymentTax'],
           'retirementContributions': data['retirementContributions'],
           'healthInsurancePremiums': data['healthInsurancePremiums'],
+          'creditsGuidanceAcknowledged': data['creditsGuidanceAcknowledged'],
           for (final key in _creditFormKeys) key: data[key] ?? {},
         };
       case 'form_1040x':
