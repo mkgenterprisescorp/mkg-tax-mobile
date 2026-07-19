@@ -1,0 +1,48 @@
+name: Staging Flutter Web Build
+
+# Manual trigger only (matches staging-apk.yml). DO App Platform builds from
+# Dockerfile separately; this workflow produces a reviewable artifact.
+on:
+  workflow_dispatch: {}
+
+env:
+  FLUTTER_VERSION: "3.44.6"
+
+jobs:
+  build-staging-web:
+    name: Build staging Flutter web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test
+
+      - name: Build staging web
+        run: |
+          flutter build web --release \
+            --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+            --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com \
+            --dart-define=WEB_BASE_URL=https://finance.mkgtaxconsultants.com
+
+      - name: Upload web build (private artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkg-tax-mobile-staging-web
+          path: build/web
+          retention-days: 14
+          if-no-files-found: error
