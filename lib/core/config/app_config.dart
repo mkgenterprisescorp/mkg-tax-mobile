@@ -3,7 +3,10 @@
 /// Authoritative staging/production API root:
 /// `https://app.mkgtaxconsultants.com/api/v1`
 ///
-/// Web client portal:
+/// Mobile app website frontend (companion site / Flutter web):
+/// `https://finance.mkgtaxconsultants.com`
+///
+/// Staff/client web portal (financemkgtaxpro) — separate host:
 /// `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
@@ -18,15 +21,16 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Public web client portal origin (DigitalOcean). Deep links / marketing —
-  /// not part of the authenticated mobile API surface.
+  /// Mobile app website origin (Flutter web / companion deep links).
+  /// Distinct from the web portal on [canonicalPortalHost].
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
-    defaultValue: 'https://mkgtaxconsultants.com',
+    defaultValue: 'https://finance.mkgtaxconsultants.com',
   );
 
   /// Hosted invoices/payments page opened from the mobile billing UI.
-  /// Always defaults to the authoritative portal — never `financemkgtax.com`.
+  /// Defaults to the web portal `/payments` (Stripe return URLs live there) —
+  /// never `financemkgtax.com`.
   static const String _paymentsWebUrlEnv = String.fromEnvironment(
     'PAYMENTS_WEB_URL',
     defaultValue: '',
@@ -45,7 +49,11 @@ class AppConfig {
     'www.financemkgtax.com',
   };
 
+  /// Web portal host (`financemkgtaxpro` on DO) — payments, staff, S2S.
   static const String canonicalPortalHost = 'mkgtaxconsultants.com';
+
+  /// Mobile website host — Flutter web / companion site (not the portal).
+  static const String canonicalMobileWebHost = 'finance.mkgtaxconsultants.com';
 
   /// Set only for local-development builds against a plain-HTTP dev server
   /// (e.g. an Android emulator hitting `http://10.0.2.2:8000`). Never set
@@ -59,7 +67,11 @@ class AppConfig {
 
   static String get apiRoot => _trim(apiBaseUrl);
 
+  /// Mobile website origin ([canonicalMobileWebHost] by default).
   static String get webRoot => rewriteLegacyPortalUri(Uri.parse(_trim(webBaseUrl))).toString();
+
+  /// Web portal origin for staff/client SPA deep links (dashboard, documents, etc.).
+  static String get portalRoot => 'https://$canonicalPortalHost';
 
   /// Authoritative hosted payments URL for "Open hosted payments on web".
   static String get paymentsWebUrl {
@@ -67,7 +79,7 @@ class AppConfig {
     if (configured.isNotEmpty) {
       return rewriteLegacyPortalUri(Uri.parse(_trim(configured))).toString();
     }
-    return 'https://$canonicalPortalHost/payments';
+    return '$portalRoot/payments';
   }
 
   /// Rewrites legacy `financemkgtax.com` portal hosts to `mkgtaxconsultants.com`.

@@ -177,7 +177,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await launchUrl(Uri.file(file.path), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!mounted) return;
-      final uri = Uri.parse('${AppConfig.webRoot}/documents');
+      final uri = Uri.parse('${AppConfig.portalRoot}/documents');
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

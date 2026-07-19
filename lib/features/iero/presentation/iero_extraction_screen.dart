@@ -278,7 +278,7 @@ class _IeroExtractionScreenState extends ConsumerState<IeroExtractionScreen> {
                 ),
                 TextButton(
                   onPressed: () => launchUrl(
-                    Uri.parse(AppConfig.webRoot),
+                    Uri.parse(AppConfig.portalRoot),
                     mode: LaunchMode.externalApplication,
                   ),
                   child: const Text('Open full tool on web'),

@@ -166,7 +166,7 @@ class _TaxSavingsScreenState extends State<TaxSavingsScreen> {
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => launchUrl(
-            Uri.parse('${AppConfig.webRoot}/tax-savings'),
+            Uri.parse('${AppConfig.portalRoot}/tax-savings'),
             mode: LaunchMode.externalApplication,
           ),
           icon: const Icon(Icons.open_in_new),

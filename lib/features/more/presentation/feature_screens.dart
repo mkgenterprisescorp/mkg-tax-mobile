@@ -705,7 +705,7 @@ class ToolsScreen extends StatelessWidget {
             title: const Text('More calculators on web'),
             subtitle: const Text('Budget, overtime, full paycheck tools'),
             onTap: () => launchUrl(
-              Uri.parse('${AppConfig.webRoot}/dashboard'),
+              Uri.parse('${AppConfig.portalRoot}/dashboard'),
               mode: LaunchMode.externalApplication,
             ),
           ),
@@ -737,7 +737,7 @@ class SupportScreen extends StatelessWidget {
             leading: const Icon(Icons.language, color: MkgColors.primary),
             title: const Text('Open web portal'),
             onTap: () => launchUrl(
-              Uri.parse(AppConfig.webRoot),
+              Uri.parse(AppConfig.portalRoot),
               mode: LaunchMode.externalApplication,
             ),
           ),

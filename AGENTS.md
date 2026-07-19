@@ -2,10 +2,11 @@
 
 ## Cursor Cloud specific instructions
 
-### Auth / API host (until DigitalOcean API URL is live)
-- **Web client portal:** `https://mkgtaxconsultants.com` (not `financemkgtax.com`).
-- **Staging mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
-- **Portal deep links only:** `WEB_BASE_URL=https://mkgtaxconsultants.com`.
+### Auth / API / website hosts
+- **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro — not the mobile website).
+- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL` default). DNS managed at GoDaddy for the apex zone; `finance` subdomain may be NS-delegated (currently to DigitalOcean, same pattern as `app`).
+- **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum). Do **not** reuse `app.` for the website.
+- **Payments deep links / Stripe return:** stay on portal `https://mkgtaxconsultants.com/payments` (`PAYMENTS_WEB_URL` / `canonicalPortalHost`).
 - Flutter never talks to Neon, `/internal/*`, or portal S2S credentials.
 - Domain cutover is **not** complete until portal internal routes on `mkgtaxconsultants.com` return controlled 401 for unsigned S2S (see financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`).
 
@@ -16,6 +17,7 @@
 
 ### Product topology
 - **Flutter** (`mkg-tax-mobile`) is the mobile SoT for iOS/Android — not Swift.
+- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (companion / Flutter web — not the portal).
 - **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro).
 - **Mobile API:** `https://app.mkgtaxconsultants.com/api/v1` (mkg-tax-backend-2).
 - **WordPress (`www`)** is **marketing only** — no tax returns, SSNs, bank data, or uploads in the WP DB. Sensitive work stays in **Laravel + portal + Neon + DigitalOcean Spaces**.
