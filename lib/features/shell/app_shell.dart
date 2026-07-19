@@ -31,6 +31,7 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/documents') ||
         location.startsWith('/all-returns') ||
         location.startsWith('/refund-tracker') ||
+        location.startsWith('/tax-resources') ||
         location.startsWith('/tools') ||
         location.startsWith('/payroll-tools') ||
         location.startsWith('/things-to-bring') ||
@@ -88,6 +89,7 @@ class AppShell extends ConsumerWidget {
       return 'REFUND ADVANCE';
     }
     if (location.startsWith('/refund-tracker')) return 'REFUND TRACKER';
+    if (location.startsWith('/tax-resources')) return 'TAX RESOURCES';
     return caps.isProfessional ? 'PRO HOME' : 'HOME';
   }
 

@@ -1,0 +1,5228 @@
+{
+  "version": "2025.2",
+  "tax_year": 2025,
+  "source": "mkg-tax-backend-2/resources/tax/state-tax-resources.json",
+  "federal": {
+    "agency_name": "Internal Revenue Service (IRS)",
+    "agency_url": "https://www.irs.gov",
+    "forms_url": "https://www.irs.gov/forms-instructions",
+    "refund_tracker_url": "https://www.irs.gov/refunds",
+    "efile_url": "https://www.irs.gov/filing/e-file-options",
+    "taxpayer_portal_url": "https://www.irs.gov/payments",
+    "form_urls": {
+      "individual": "https://www.irs.gov/forms-pubs/about-form-1040",
+      "business": "https://www.irs.gov/businesses",
+      "corporate": "https://www.irs.gov/forms-pubs/about-form-1120",
+      "partnership": "https://www.irs.gov/forms-pubs/about-form-1065",
+      "s_corporation": "https://www.irs.gov/forms-pubs/about-form-1120-s",
+      "fiduciary": "https://www.irs.gov/forms-pubs/about-form-1041",
+      "exempt_organization": "https://www.irs.gov/forms-pubs/about-form-990",
+      "withholding_payroll": "https://www.irs.gov/forms-pubs/about-form-w-4",
+      "sales_use": null
+    }
+  },
+  "regions": [
+    {
+      "id": "1",
+      "name": "West",
+      "states": [
+        "AK",
+        "AZ",
+        "CA",
+        "HI",
+        "NV",
+        "NM",
+        "UT"
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Midwest",
+      "states": [
+        "IL",
+        "IN",
+        "IA",
+        "KS",
+        "MI",
+        "MN",
+        "MO",
+        "NE",
+        "ND",
+        "OH",
+        "SD",
+        "WI"
+      ]
+    },
+    {
+      "id": "3",
+      "name": "South",
+      "states": [
+        "AL",
+        "AR",
+        "FL",
+        "GA",
+        "KY",
+        "LA",
+        "MS",
+        "NC",
+        "OK",
+        "SC",
+        "TN",
+        "TX",
+        "VA",
+        "WV"
+      ]
+    },
+    {
+      "id": "4",
+      "name": "East",
+      "states": [
+        "DE",
+        "DC",
+        "MD",
+        "NJ",
+        "PA"
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Northeast",
+      "states": [
+        "CT",
+        "ME",
+        "MA",
+        "NH",
+        "NY",
+        "RI",
+        "VT"
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Northwest",
+      "states": [
+        "CO",
+        "ID",
+        "MT",
+        "OR",
+        "WA",
+        "WY"
+      ]
+    }
+  ],
+  "states": [
+    {
+      "code": "AK",
+      "name": "Alaska",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://tax.alaska.gov",
+      "forms_url": "https://tax.alaska.gov/programs/forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://tax.alaska.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": false,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://tax.alaska.gov/programs/forms",
+        "corporate": "https://tax.alaska.gov/programs/forms",
+        "partnership": "https://tax.alaska.gov/programs/forms",
+        "s_corporation": "https://tax.alaska.gov/programs/forms",
+        "fiduciary": "https://tax.alaska.gov/programs/forms",
+        "exempt_organization": "https://tax.alaska.gov/programs/forms",
+        "withholding_payroll": "https://tax.alaska.gov/programs/forms",
+        "sales_use": null
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "AK-CORP",
+          "title": "Alaska Corporation Net Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "AK-S-CORP",
+          "title": "Alaska S Corporation Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "AK-PART",
+          "title": "Alaska Partnership Information Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "AK-FID",
+          "title": "Alaska Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "AK-EO",
+          "title": "Alaska Exempt Organization Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "AK-EO-EZ",
+          "title": "Alaska Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "AL",
+      "name": "Alabama",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.revenue.alabama.gov",
+      "forms_url": "https://www.revenue.alabama.gov/forms",
+      "refund_tracker_url": "https://myalabamataxes.alabama.gov",
+      "efile_url": "https://www.revenue.alabama.gov/individual-income-taxes/efile/",
+      "taxpayer_portal_url": "https://myalabamataxes.alabama.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.revenue.alabama.gov/forms",
+        "business": "https://www.revenue.alabama.gov/forms",
+        "corporate": "https://www.revenue.alabama.gov/forms",
+        "partnership": "https://www.revenue.alabama.gov/forms",
+        "s_corporation": "https://www.revenue.alabama.gov/forms",
+        "fiduciary": "https://www.revenue.alabama.gov/forms",
+        "exempt_organization": "https://www.revenue.alabama.gov/forms",
+        "withholding_payroll": "https://www.revenue.alabama.gov/forms",
+        "sales_use": "https://www.revenue.alabama.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "AL40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "AL40",
+          "title": "Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "AL40NR",
+          "title": "Nonresident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "20C",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "20S",
+          "title": "S Corporation Information / Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "65",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "20C",
+          "title": "Exempt Organization Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "AR",
+      "name": "Arkansas",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.dfa.arkansas.gov",
+      "forms_url": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+      "refund_tracker_url": "https://www.atap.arkansas.gov",
+      "efile_url": "https://www.dfa.arkansas.gov/office/taxes/income-tax/",
+      "taxpayer_portal_url": "https://www.atap.arkansas.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "business": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "corporate": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "partnership": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "s_corporation": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "fiduciary": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "exempt_organization": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "withholding_payroll": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms",
+        "sales_use": "https://www.dfa.arkansas.gov/office/taxes/income-tax/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "AR1000F",
+          "title": "Individual Income Tax Return (Full Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "AR1000NR",
+          "title": "Individual Income Tax Return (Part-Year/Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "AR1000NR",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "AR1100CT",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "AR1100S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "AR1050",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "AR1002F",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "AR1100CT",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "AZ",
+      "name": "Arizona",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://azdor.gov",
+      "forms_url": "https://azdor.gov/forms",
+      "refund_tracker_url": "https://azdor.gov/individuals/income-tax-filing-assistance/wheres-my-refund",
+      "efile_url": "https://azdor.gov/e-file",
+      "taxpayer_portal_url": "https://aztaxes.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://azdor.gov/forms",
+        "business": "https://azdor.gov/forms",
+        "corporate": "https://azdor.gov/forms",
+        "partnership": "https://azdor.gov/forms",
+        "s_corporation": "https://azdor.gov/forms",
+        "fiduciary": "https://azdor.gov/forms",
+        "exempt_organization": "https://azdor.gov/forms",
+        "withholding_payroll": "https://azdor.gov/forms",
+        "sales_use": "https://azdor.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "140",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "140PY",
+          "title": "Part-Year Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "140NR",
+          "title": "Nonresident Personal Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "120",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "120S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "165",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "141AZ",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "99T",
+          "title": "Exempt Organization Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "99",
+          "title": "Exempt Organization Information Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "CA",
+      "name": "California",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://www.ftb.ca.gov",
+      "forms_url": "https://www.ftb.ca.gov/forms",
+      "refund_tracker_url": "https://www.ftb.ca.gov/online/refund",
+      "efile_url": "https://www.ftb.ca.gov/file/",
+      "taxpayer_portal_url": "https://www.ftb.ca.gov/online/",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_supported",
+      "form_urls": {
+        "individual": "https://www.ftb.ca.gov/forms/search/#searchResults?q=540",
+        "business": "https://www.ftb.ca.gov/forms",
+        "corporate": "https://www.ftb.ca.gov/forms/search/#searchResults?q=100",
+        "partnership": "https://www.ftb.ca.gov/forms/search/#searchResults?q=565",
+        "s_corporation": "https://www.ftb.ca.gov/forms/search/#searchResults?q=100S",
+        "fiduciary": "https://www.ftb.ca.gov/forms/search/#searchResults?q=541",
+        "exempt_organization": "https://www.ftb.ca.gov/forms/search/#searchResults?q=199",
+        "withholding_payroll": "https://www.ftb.ca.gov/forms",
+        "sales_use": "https://www.ftb.ca.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "540",
+          "title": "California Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "100",
+          "title": "Corporation Franchise or Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "100S",
+          "title": "S Corporation Franchise or Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "565",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "541",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "199",
+          "title": "Exempt Organization Annual Information Return",
+          "federal_base": "990"
+        }
+      ]
+    },
+    {
+      "code": "CO",
+      "name": "Colorado",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://tax.colorado.gov",
+      "forms_url": "https://tax.colorado.gov/tax-forms",
+      "refund_tracker_url": "https://tax.colorado.gov/where-is-my-refund",
+      "efile_url": "https://tax.colorado.gov/electronic-services",
+      "taxpayer_portal_url": "https://tax.colorado.gov/myaccount",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.colorado.gov/tax-forms",
+        "business": "https://tax.colorado.gov/tax-forms",
+        "corporate": "https://tax.colorado.gov/tax-forms",
+        "partnership": "https://tax.colorado.gov/tax-forms",
+        "s_corporation": "https://tax.colorado.gov/tax-forms",
+        "fiduciary": "https://tax.colorado.gov/tax-forms",
+        "exempt_organization": "https://tax.colorado.gov/tax-forms",
+        "withholding_payroll": "https://tax.colorado.gov/tax-forms",
+        "sales_use": "https://tax.colorado.gov/tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "DR0104",
+          "title": "Colorado Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "DR0104PN",
+          "title": "Part-Year/Nonresident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "DR0104PN",
+          "title": "Part-Year/Nonresident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "DR0112",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "DR0106",
+          "title": "S Corporation / Partnership Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "DR0106",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "DR0105",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "DR0112",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "CT",
+      "name": "Connecticut",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://portal.ct.gov/drs",
+      "forms_url": "https://portal.ct.gov/DRS/Forms",
+      "refund_tracker_url": "https://portal.ct.gov/drs",
+      "efile_url": "https://portal.ct.gov/DRS",
+      "taxpayer_portal_url": "https://portal.ct.gov/DRS",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://portal.ct.gov/DRS/Forms",
+        "business": "https://portal.ct.gov/DRS/Forms",
+        "corporate": "https://portal.ct.gov/DRS/Forms",
+        "partnership": "https://portal.ct.gov/DRS/Forms",
+        "s_corporation": "https://portal.ct.gov/DRS/Forms",
+        "fiduciary": "https://portal.ct.gov/DRS/Forms",
+        "exempt_organization": "https://portal.ct.gov/DRS/Forms",
+        "withholding_payroll": "https://portal.ct.gov/DRS/Forms",
+        "sales_use": "https://portal.ct.gov/DRS/Forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "CT-1040",
+          "title": "Connecticut Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "CT-1040NR/PY",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "CT-1040NR/PY",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CT-1120",
+          "title": "Corporation Business Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "CT-1120S",
+          "title": "S Corporation Business Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "CT-1065/CT-1120SI",
+          "title": "Pass-Through Entity Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "CT-1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CT-990T",
+          "title": "Exempt Organization Business Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "DC",
+      "name": "District of Columbia",
+      "region_id": "4",
+      "region_name": "East",
+      "agency_url": "https://otr.cfo.dc.gov",
+      "forms_url": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+      "refund_tracker_url": "https://mytax.dc.gov",
+      "efile_url": "https://otr.cfo.dc.gov",
+      "taxpayer_portal_url": "https://mytax.dc.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "business": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "corporate": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "partnership": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "s_corporation": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "fiduciary": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "exempt_organization": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "withholding_payroll": "https://otr.cfo.dc.gov/page/tax-forms-and-publications",
+        "sales_use": "https://otr.cfo.dc.gov/page/tax-forms-and-publications"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "D-40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "D-40EZ",
+          "title": "Individual Income Tax Return (Part-Year path)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "D-40B",
+          "title": "Nonresident Request for Refund",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "D-20",
+          "title": "Corporation Franchise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "D-20",
+          "title": "Corporation Franchise Tax Return (S-Corp path)",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "D-65",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "D-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "D-20",
+          "title": "Exempt Organization Franchise Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "DE",
+      "name": "Delaware",
+      "region_id": "4",
+      "region_name": "East",
+      "agency_url": "https://revenue.delaware.gov",
+      "forms_url": "https://revenue.delaware.gov/services/current-year-tax-forms",
+      "refund_tracker_url": "https://tax.delaware.gov",
+      "efile_url": "https://revenue.delaware.gov",
+      "taxpayer_portal_url": "https://tax.delaware.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": true,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": "franchise_tax",
+      "has_sales_tax": false,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "business": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "corporate": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "partnership": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "s_corporation": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "fiduciary": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "exempt_organization": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "withholding_payroll": "https://revenue.delaware.gov/services/current-year-tax-forms",
+        "sales_use": null
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "PIT-RES",
+          "title": "Personal Income Tax Return (Resident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "PIT-NON",
+          "title": "Personal Income Tax Return (Part-Year/Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "PIT-NON",
+          "title": "Personal Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CIT-CORP",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "CIT-S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "CIT-PART",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "CIT-FID",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "EO",
+          "title": "Exempt Organization Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "FL",
+      "name": "Florida",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://floridarevenue.com",
+      "forms_url": "https://floridarevenue.com/forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://floridarevenue.com",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://floridarevenue.com/forms",
+        "corporate": "https://floridarevenue.com/forms",
+        "partnership": "https://floridarevenue.com/forms",
+        "s_corporation": "https://floridarevenue.com/forms",
+        "fiduciary": "https://floridarevenue.com/forms",
+        "exempt_organization": "https://floridarevenue.com/forms",
+        "withholding_payroll": "https://floridarevenue.com/forms",
+        "sales_use": "https://floridarevenue.com/forms"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "F-1120",
+          "title": "Florida Corporate Income/Franchise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "F-1120",
+          "title": "Florida Corporate Income/Franchise Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "F-1065",
+          "title": "Florida Partnership Information Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "F-1041",
+          "title": "Florida Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "F-1120",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "GA",
+      "name": "Georgia",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://dor.georgia.gov",
+      "forms_url": "https://dor.georgia.gov/all-tax-forms",
+      "refund_tracker_url": "https://gtc.dor.ga.gov",
+      "efile_url": "https://dor.georgia.gov",
+      "taxpayer_portal_url": "https://gtc.dor.ga.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://dor.georgia.gov/all-tax-forms",
+        "business": "https://dor.georgia.gov/all-tax-forms",
+        "corporate": "https://dor.georgia.gov/all-tax-forms",
+        "partnership": "https://dor.georgia.gov/all-tax-forms",
+        "s_corporation": "https://dor.georgia.gov/all-tax-forms",
+        "fiduciary": "https://dor.georgia.gov/all-tax-forms",
+        "exempt_organization": "https://dor.georgia.gov/all-tax-forms",
+        "withholding_payroll": "https://dor.georgia.gov/all-tax-forms",
+        "sales_use": "https://dor.georgia.gov/all-tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "500",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "500",
+          "title": "Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "500",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "600",
+          "title": "Corporation Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "600S",
+          "title": "S Corporation Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "700",
+          "title": "Partnership Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "501",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "600",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "HI",
+      "name": "Hawaii",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://tax.hawaii.gov",
+      "forms_url": "https://tax.hawaii.gov/forms",
+      "refund_tracker_url": "https://tax.hawaii.gov/refunds",
+      "efile_url": "https://tax.hawaii.gov",
+      "taxpayer_portal_url": "https://hitax.hawaii.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.hawaii.gov/forms",
+        "business": "https://tax.hawaii.gov/forms",
+        "corporate": "https://tax.hawaii.gov/forms",
+        "partnership": "https://tax.hawaii.gov/forms",
+        "s_corporation": "https://tax.hawaii.gov/forms",
+        "fiduciary": "https://tax.hawaii.gov/forms",
+        "exempt_organization": "https://tax.hawaii.gov/forms",
+        "withholding_payroll": "https://tax.hawaii.gov/forms",
+        "sales_use": "https://tax.hawaii.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "N-11",
+          "title": "Individual Income Tax Return (Resident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "N-15",
+          "title": "Individual Income Tax Return (Nonresident/Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "N-15",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "N-30",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "N-35",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "N-20",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "N-40",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "N-70NP",
+          "title": "Exempt Organization Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "IA",
+      "name": "Iowa",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://revenue.iowa.gov",
+      "forms_url": "https://revenue.iowa.gov/taxes/tax-forms",
+      "refund_tracker_url": "https://govconnect.iowa.gov",
+      "efile_url": "https://revenue.iowa.gov",
+      "taxpayer_portal_url": "https://govconnect.iowa.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://revenue.iowa.gov/taxes/tax-forms",
+        "business": "https://revenue.iowa.gov/taxes/tax-forms",
+        "corporate": "https://revenue.iowa.gov/taxes/tax-forms",
+        "partnership": "https://revenue.iowa.gov/taxes/tax-forms",
+        "s_corporation": "https://revenue.iowa.gov/taxes/tax-forms",
+        "fiduciary": "https://revenue.iowa.gov/taxes/tax-forms",
+        "exempt_organization": "https://revenue.iowa.gov/taxes/tax-forms",
+        "withholding_payroll": "https://revenue.iowa.gov/taxes/tax-forms",
+        "sales_use": "https://revenue.iowa.gov/taxes/tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IA1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IA1040",
+          "title": "Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IA1040",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "IA1120",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "IA1120S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IA1065",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IA1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "IA1120",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "ID",
+      "name": "Idaho",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://tax.idaho.gov",
+      "forms_url": "https://tax.idaho.gov/forms",
+      "refund_tracker_url": "https://tax.idaho.gov/refund",
+      "efile_url": "https://tax.idaho.gov",
+      "taxpayer_portal_url": "https://tax.idaho.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.idaho.gov/forms",
+        "business": "https://tax.idaho.gov/forms",
+        "corporate": "https://tax.idaho.gov/forms",
+        "partnership": "https://tax.idaho.gov/forms",
+        "s_corporation": "https://tax.idaho.gov/forms",
+        "fiduciary": "https://tax.idaho.gov/forms",
+        "exempt_organization": "https://tax.idaho.gov/forms",
+        "withholding_payroll": "https://tax.idaho.gov/forms",
+        "sales_use": "https://tax.idaho.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "43",
+          "title": "Part-Year/Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "43",
+          "title": "Part-Year/Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "41",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "41S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "65",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "66",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "41",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "IL",
+      "name": "Illinois",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://tax.illinois.gov",
+      "forms_url": "https://tax.illinois.gov/forms.html",
+      "refund_tracker_url": "https://mytax.illinois.gov",
+      "efile_url": "https://tax.illinois.gov",
+      "taxpayer_portal_url": "https://mytax.illinois.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.illinois.gov/forms.html",
+        "business": "https://tax.illinois.gov/forms.html",
+        "corporate": "https://tax.illinois.gov/forms.html",
+        "partnership": "https://tax.illinois.gov/forms.html",
+        "s_corporation": "https://tax.illinois.gov/forms.html",
+        "fiduciary": "https://tax.illinois.gov/forms.html",
+        "exempt_organization": "https://tax.illinois.gov/forms.html",
+        "withholding_payroll": "https://tax.illinois.gov/forms.html",
+        "sales_use": "https://tax.illinois.gov/forms.html"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IL-1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IL-1040",
+          "title": "Individual Income Tax Return (Part-Year Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IL-1040",
+          "title": "Individual Income Tax Return (Nonresident Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "IL-1120",
+          "title": "Corporation Income and Replacement Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "IL-1120-ST",
+          "title": "Small Business Corporation Replacement Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IL-1065",
+          "title": "Partnership Replacement Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IL-1041",
+          "title": "Fiduciary Income and Replacement Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "IL-990-T",
+          "title": "Exempt Organization Income and Replacement Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "IN",
+      "name": "Indiana",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.in.gov/dor",
+      "forms_url": "https://www.in.gov/dor/tax-forms",
+      "refund_tracker_url": "https://www.in.gov/dor/individual-income-taxes/check-the-status-of-your-refund",
+      "efile_url": "https://www.in.gov/dor",
+      "taxpayer_portal_url": "https://www.intax.in.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.in.gov/dor/tax-forms",
+        "business": "https://www.in.gov/dor/tax-forms",
+        "corporate": "https://www.in.gov/dor/tax-forms",
+        "partnership": "https://www.in.gov/dor/tax-forms",
+        "s_corporation": "https://www.in.gov/dor/tax-forms",
+        "fiduciary": "https://www.in.gov/dor/tax-forms",
+        "exempt_organization": "https://www.in.gov/dor/tax-forms",
+        "withholding_payroll": "https://www.in.gov/dor/tax-forms",
+        "sales_use": "https://www.in.gov/dor/tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IT-40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IT-40PNR",
+          "title": "Part-Year/Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IT-40PNR",
+          "title": "Part-Year/Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "IT-20",
+          "title": "Corporate Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "IT-20S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IT-65",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IT-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "IT-20NP",
+          "title": "Nonprofit Organization Unrelated Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "KS",
+      "name": "Kansas",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.ksrevenue.gov",
+      "forms_url": "https://www.ksrevenue.gov/forms.html",
+      "refund_tracker_url": "https://www.ksrevenue.gov/refundstatus.html",
+      "efile_url": "https://www.ksrevenue.gov",
+      "taxpayer_portal_url": "https://www.ksrevenue.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.ksrevenue.gov/forms.html",
+        "business": "https://www.ksrevenue.gov/forms.html",
+        "corporate": "https://www.ksrevenue.gov/forms.html",
+        "partnership": "https://www.ksrevenue.gov/forms.html",
+        "s_corporation": "https://www.ksrevenue.gov/forms.html",
+        "fiduciary": "https://www.ksrevenue.gov/forms.html",
+        "exempt_organization": "https://www.ksrevenue.gov/forms.html",
+        "withholding_payroll": "https://www.ksrevenue.gov/forms.html",
+        "sales_use": "https://www.ksrevenue.gov/forms.html"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "K-40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "K-40",
+          "title": "Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "K-40",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "K-120",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "K-120S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "K-120S",
+          "title": "Partnership / Pass-Through Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "K-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "K-120",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "KY",
+      "name": "Kentucky",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://revenue.ky.gov",
+      "forms_url": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+      "refund_tracker_url": "https://refund.ky.gov",
+      "efile_url": "https://revenue.ky.gov",
+      "taxpayer_portal_url": "https://refund.ky.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "business": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "corporate": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "partnership": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "s_corporation": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "fiduciary": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "exempt_organization": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "withholding_payroll": "https://revenue.ky.gov/Forms/Pages/default.aspx",
+        "sales_use": "https://revenue.ky.gov/Forms/Pages/default.aspx"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "740",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "740-NP",
+          "title": "Nonresident/Part-Year Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "740-NP",
+          "title": "Nonresident/Part-Year Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "720",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "720S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "765",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "741",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "720",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "LA",
+      "name": "Louisiana",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://revenue.louisiana.gov",
+      "forms_url": "https://revenue.louisiana.gov/Forms",
+      "refund_tracker_url": "https://revenue.louisiana.gov/refund",
+      "efile_url": "https://revenue.louisiana.gov",
+      "taxpayer_portal_url": "https://revenue.louisiana.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://revenue.louisiana.gov/Forms",
+        "business": "https://revenue.louisiana.gov/Forms",
+        "corporate": "https://revenue.louisiana.gov/Forms",
+        "partnership": "https://revenue.louisiana.gov/Forms",
+        "s_corporation": "https://revenue.louisiana.gov/Forms",
+        "fiduciary": "https://revenue.louisiana.gov/Forms",
+        "exempt_organization": "https://revenue.louisiana.gov/Forms",
+        "withholding_payroll": "https://revenue.louisiana.gov/Forms",
+        "sales_use": "https://revenue.louisiana.gov/Forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IT-540",
+          "title": "Louisiana Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IT-540B",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IT-540B",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CIFT-620",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "IT-565",
+          "title": "S Corporation / Partnership Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IT-565",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IT-541",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CIFT-620",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MA",
+      "name": "Massachusetts",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://www.mass.gov/dor",
+      "forms_url": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+      "refund_tracker_url": "https://mtc.dor.state.ma.us",
+      "efile_url": "https://www.mass.gov/dor",
+      "taxpayer_portal_url": "https://mtc.dor.state.ma.us",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "business": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "corporate": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "partnership": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "s_corporation": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "fiduciary": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "exempt_organization": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "withholding_payroll": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions",
+        "sales_use": "https://www.mass.gov/lists/dor-personal-income-tax-forms-and-instructions"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "1",
+          "title": "Massachusetts Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "1-NR/PY",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "1-NR/PY",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "355",
+          "title": "Business / Corporate Excise Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "355S",
+          "title": "S Corporation Excise Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "3",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "2",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "M-990T",
+          "title": "Exempt Organization Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MD",
+      "name": "Maryland",
+      "region_id": "4",
+      "region_name": "East",
+      "agency_url": "https://www.marylandtaxes.gov",
+      "forms_url": "https://www.marylandtaxes.gov/forms",
+      "refund_tracker_url": "https://interactive.marylandtaxes.gov",
+      "efile_url": "https://www.marylandtaxes.gov",
+      "taxpayer_portal_url": "https://interactive.marylandtaxes.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.marylandtaxes.gov/forms",
+        "business": "https://www.marylandtaxes.gov/forms",
+        "corporate": "https://www.marylandtaxes.gov/forms",
+        "partnership": "https://www.marylandtaxes.gov/forms",
+        "s_corporation": "https://www.marylandtaxes.gov/forms",
+        "fiduciary": "https://www.marylandtaxes.gov/forms",
+        "exempt_organization": "https://www.marylandtaxes.gov/forms",
+        "withholding_payroll": "https://www.marylandtaxes.gov/forms",
+        "sales_use": "https://www.marylandtaxes.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "502",
+          "title": "Maryland Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "505",
+          "title": "Maryland Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "505",
+          "title": "Maryland Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "500",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "510",
+          "title": "Pass-Through Entity Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "510",
+          "title": "Pass-Through Entity Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "504",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "500",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "ME",
+      "name": "Maine",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://www.maine.gov/revenue",
+      "forms_url": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+      "refund_tracker_url": "https://portal.maine.gov/refundstatus",
+      "efile_url": "https://www.maine.gov/revenue",
+      "taxpayer_portal_url": "https://portal.maine.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "business": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "corporate": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "partnership": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "s_corporation": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "fiduciary": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "exempt_organization": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "withholding_payroll": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms",
+        "sales_use": "https://www.maine.gov/revenue/taxes/tax-relief-credits-programs/income-tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "1040ME",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "1040ME",
+          "title": "Individual Income Tax Return (Part-Year Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "1040ME",
+          "title": "Individual Income Tax Return (Nonresident Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "1120ME",
+          "title": "Corporate Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "1120S-ME",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "1065ME",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "1041ME",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "1120ME",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MI",
+      "name": "Michigan",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.michigan.gov/taxes",
+      "forms_url": "https://www.michigan.gov/taxes/forms",
+      "refund_tracker_url": "https://etreas.michigan.gov/iit",
+      "efile_url": "https://www.michigan.gov/taxes",
+      "taxpayer_portal_url": "https://etreas.michigan.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.michigan.gov/taxes/forms",
+        "business": "https://www.michigan.gov/taxes/forms",
+        "corporate": "https://www.michigan.gov/taxes/forms",
+        "partnership": "https://www.michigan.gov/taxes/forms",
+        "s_corporation": "https://www.michigan.gov/taxes/forms",
+        "fiduciary": "https://www.michigan.gov/taxes/forms",
+        "exempt_organization": "https://www.michigan.gov/taxes/forms",
+        "withholding_payroll": "https://www.michigan.gov/taxes/forms",
+        "sales_use": "https://www.michigan.gov/taxes/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "MI-1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "MI-1040",
+          "title": "Individual Income Tax Return (Part-Year Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "MI-1040",
+          "title": "Individual Income Tax Return (Nonresident Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "4891",
+          "title": "Corporate Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "4891",
+          "title": "Corporate Income Tax Return (S-Corp path)",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "4912",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "4913",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "4891",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MN",
+      "name": "Minnesota",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.revenue.state.mn.us",
+      "forms_url": "https://www.revenue.state.mn.us/forms-and-instructions",
+      "refund_tracker_url": "https://www.revenue.state.mn.us/wheres-my-refund",
+      "efile_url": "https://www.revenue.state.mn.us",
+      "taxpayer_portal_url": "https://www.revenue.state.mn.us",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "business": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "corporate": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "partnership": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "s_corporation": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "fiduciary": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "exempt_organization": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "withholding_payroll": "https://www.revenue.state.mn.us/forms-and-instructions",
+        "sales_use": "https://www.revenue.state.mn.us/forms-and-instructions"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "M1",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "M1",
+          "title": "Individual Income Tax Return (Part-Year Schedule M1NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "M1",
+          "title": "Individual Income Tax Return (Nonresident Schedule M1NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "M4",
+          "title": "Corporation Franchise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "M8",
+          "title": "S Corporation Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "M3",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "M2",
+          "title": "Income Tax Return for Estates and Trusts",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "M4NP",
+          "title": "Unrelated Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MO",
+      "name": "Missouri",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://dor.mo.gov",
+      "forms_url": "https://dor.mo.gov/forms",
+      "refund_tracker_url": "https://mytax.mo.gov",
+      "efile_url": "https://dor.mo.gov",
+      "taxpayer_portal_url": "https://mytax.mo.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://dor.mo.gov/forms",
+        "business": "https://dor.mo.gov/forms",
+        "corporate": "https://dor.mo.gov/forms",
+        "partnership": "https://dor.mo.gov/forms",
+        "s_corporation": "https://dor.mo.gov/forms",
+        "fiduciary": "https://dor.mo.gov/forms",
+        "exempt_organization": "https://dor.mo.gov/forms",
+        "withholding_payroll": "https://dor.mo.gov/forms",
+        "sales_use": "https://dor.mo.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "MO-1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "MO-1040",
+          "title": "Individual Income Tax Return (Part-Year Form MO-NRI)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "MO-1040",
+          "title": "Individual Income Tax Return (Nonresident Form MO-NRI)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "MO-1120",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "MO-1120S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "MO-1065",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "MO-1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "MO-1120",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MS",
+      "name": "Mississippi",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.dor.ms.gov",
+      "forms_url": "https://www.dor.ms.gov/tax-forms",
+      "refund_tracker_url": "https://tap.dor.ms.gov",
+      "efile_url": "https://www.dor.ms.gov",
+      "taxpayer_portal_url": "https://tap.dor.ms.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.dor.ms.gov/tax-forms",
+        "business": "https://www.dor.ms.gov/tax-forms",
+        "corporate": "https://www.dor.ms.gov/tax-forms",
+        "partnership": "https://www.dor.ms.gov/tax-forms",
+        "s_corporation": "https://www.dor.ms.gov/tax-forms",
+        "fiduciary": "https://www.dor.ms.gov/tax-forms",
+        "exempt_organization": "https://www.dor.ms.gov/tax-forms",
+        "withholding_payroll": "https://www.dor.ms.gov/tax-forms",
+        "sales_use": "https://www.dor.ms.gov/tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "80-105",
+          "title": "Resident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "80-205",
+          "title": "Nonresident/Part-Year Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "80-205",
+          "title": "Nonresident/Part-Year Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "83-105",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "84-105",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "85-105",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "81-110",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "83-105",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "MT",
+      "name": "Montana",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://mtrevenue.gov",
+      "forms_url": "https://mtrevenue.gov/forms",
+      "refund_tracker_url": "https://tap.dor.mt.gov",
+      "efile_url": "https://mtrevenue.gov",
+      "taxpayer_portal_url": "https://tap.dor.mt.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": false,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://mtrevenue.gov/forms",
+        "business": "https://mtrevenue.gov/forms",
+        "corporate": "https://mtrevenue.gov/forms",
+        "partnership": "https://mtrevenue.gov/forms",
+        "s_corporation": "https://mtrevenue.gov/forms",
+        "fiduciary": "https://mtrevenue.gov/forms",
+        "exempt_organization": "https://mtrevenue.gov/forms",
+        "withholding_payroll": "https://mtrevenue.gov/forms",
+        "sales_use": null
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "Form-2",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "Form-2",
+          "title": "Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "Form-2",
+          "title": "Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CIT",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "PRT",
+          "title": "Pass-Through Entity Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "PRT",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "FID",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CIT",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NC",
+      "name": "North Carolina",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.ncdor.gov",
+      "forms_url": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+      "refund_tracker_url": "https://eservices.dor.nc.gov",
+      "efile_url": "https://www.ncdor.gov",
+      "taxpayer_portal_url": "https://eservices.dor.nc.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "business": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "corporate": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "partnership": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "s_corporation": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "fiduciary": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "exempt_organization": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "withholding_payroll": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions",
+        "sales_use": "https://www.ncdor.gov/taxes-forms/find-tax-forms-and-instructions"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "D-400",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "D-400",
+          "title": "Individual Income Tax Return (Part-Year Schedule PN)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "D-400",
+          "title": "Individual Income Tax Return (Nonresident Schedule PN)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CD-405",
+          "title": "C Corporation Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "CD-401S",
+          "title": "S Corporation Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "D-403",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "D-407",
+          "title": "Estate and Trust Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CD-405",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "ND",
+      "name": "North Dakota",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.tax.nd.gov",
+      "forms_url": "https://www.tax.nd.gov/forms",
+      "refund_tracker_url": "https://www.tax.nd.gov/income/individual-income-tax/refunds",
+      "efile_url": "https://www.tax.nd.gov",
+      "taxpayer_portal_url": "https://www.tax.nd.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.tax.nd.gov/forms",
+        "business": "https://www.tax.nd.gov/forms",
+        "corporate": "https://www.tax.nd.gov/forms",
+        "partnership": "https://www.tax.nd.gov/forms",
+        "s_corporation": "https://www.tax.nd.gov/forms",
+        "fiduciary": "https://www.tax.nd.gov/forms",
+        "exempt_organization": "https://www.tax.nd.gov/forms",
+        "withholding_payroll": "https://www.tax.nd.gov/forms",
+        "sales_use": "https://www.tax.nd.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "ND-1",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "ND-1",
+          "title": "Individual Income Tax Return (Part-Year Schedule ND-1NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "ND-1",
+          "title": "Individual Income Tax Return (Nonresident Schedule ND-1NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "40",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "60",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "58",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "38",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "40",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NE",
+      "name": "Nebraska",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://revenue.nebraska.gov",
+      "forms_url": "https://revenue.nebraska.gov/forms",
+      "refund_tracker_url": "https://revenue.nebraska.gov",
+      "efile_url": "https://revenue.nebraska.gov",
+      "taxpayer_portal_url": "https://revenue.nebraska.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://revenue.nebraska.gov/forms",
+        "business": "https://revenue.nebraska.gov/forms",
+        "corporate": "https://revenue.nebraska.gov/forms",
+        "partnership": "https://revenue.nebraska.gov/forms",
+        "s_corporation": "https://revenue.nebraska.gov/forms",
+        "fiduciary": "https://revenue.nebraska.gov/forms",
+        "exempt_organization": "https://revenue.nebraska.gov/forms",
+        "withholding_payroll": "https://revenue.nebraska.gov/forms",
+        "sales_use": "https://revenue.nebraska.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "1040N",
+          "title": "Nebraska Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "1040N",
+          "title": "Nebraska Individual Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "1040N",
+          "title": "Nebraska Individual Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "1120N",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "1120-SN",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "1065N",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "1041N",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "1120N",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NH",
+      "name": "New Hampshire",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://www.revenue.nh.gov",
+      "forms_url": "https://www.revenue.nh.gov/forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://www.revenue.nh.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": false,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://www.revenue.nh.gov/forms",
+        "corporate": "https://www.revenue.nh.gov/forms",
+        "partnership": "https://www.revenue.nh.gov/forms",
+        "s_corporation": "https://www.revenue.nh.gov/forms",
+        "fiduciary": "https://www.revenue.nh.gov/forms",
+        "exempt_organization": "https://www.revenue.nh.gov/forms",
+        "withholding_payroll": "https://www.revenue.nh.gov/forms",
+        "sales_use": null
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "DP-10",
+          "title": "Interest and Dividends Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "DP-10",
+          "title": "Interest and Dividends Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "DP-10",
+          "title": "Interest and Dividends Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "BET",
+          "title": "Business Enterprise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "BET",
+          "title": "Business Enterprise Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "BET",
+          "title": "Business Enterprise Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "BET",
+          "title": "Business Enterprise Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "BET",
+          "title": "Business Enterprise Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NJ",
+      "name": "New Jersey",
+      "region_id": "4",
+      "region_name": "East",
+      "agency_url": "https://www.nj.gov/treasury/taxation",
+      "forms_url": "https://www.nj.gov/treasury/taxation/forms.shtml",
+      "refund_tracker_url": "https://www.nj.gov/treasury/taxation/checkrefund.shtml",
+      "efile_url": "https://www.nj.gov/treasury/taxation",
+      "taxpayer_portal_url": "https://www1.nj.gov/treasury/taxation",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "business": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "corporate": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "partnership": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "s_corporation": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "fiduciary": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "exempt_organization": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "withholding_payroll": "https://www.nj.gov/treasury/taxation/forms.shtml",
+        "sales_use": "https://www.nj.gov/treasury/taxation/forms.shtml"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "NJ-1040",
+          "title": "Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "NJ-1040NR",
+          "title": "Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "NJ-1040NR",
+          "title": "Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CBT-100",
+          "title": "Corporation Business Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "CBT-100S",
+          "title": "S Corporation Business Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "NJ-1065",
+          "title": "Partnership Return of Income",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "NJ-1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CBT-100",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NM",
+      "name": "New Mexico",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://www.tax.newmexico.gov",
+      "forms_url": "https://www.tax.newmexico.gov/forms-publications",
+      "refund_tracker_url": "https://tap.state.nm.us/",
+      "efile_url": "https://www.tax.newmexico.gov",
+      "taxpayer_portal_url": "https://tap.state.nm.us",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.tax.newmexico.gov/forms-publications",
+        "business": "https://www.tax.newmexico.gov/forms-publications",
+        "corporate": "https://www.tax.newmexico.gov/forms-publications",
+        "partnership": "https://www.tax.newmexico.gov/forms-publications",
+        "s_corporation": "https://www.tax.newmexico.gov/forms-publications",
+        "fiduciary": "https://www.tax.newmexico.gov/forms-publications",
+        "exempt_organization": "https://www.tax.newmexico.gov/forms-publications",
+        "withholding_payroll": "https://www.tax.newmexico.gov/forms-publications",
+        "sales_use": "https://www.tax.newmexico.gov/forms-publications"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "PIT-1",
+          "title": "Personal Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "PIT-1",
+          "title": "Personal Income Tax Return (Part-Year)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "PIT-1",
+          "title": "Personal Income Tax Return (Nonresident)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CIT-1",
+          "title": "Corporate Income and Franchise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "S-Corp",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "PTE",
+          "title": "Pass-Through Entity Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "FID-1",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CIT-1",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NV",
+      "name": "Nevada",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://tax.nv.gov",
+      "forms_url": "https://tax.nv.gov/Forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://www.nevadatax.nv.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": true,
+      "business_tax_type": "commerce_tax",
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://tax.nv.gov/Forms",
+        "corporate": "https://tax.nv.gov/Forms",
+        "partnership": "https://tax.nv.gov/Forms",
+        "s_corporation": "https://tax.nv.gov/Forms",
+        "fiduciary": "https://tax.nv.gov/Forms",
+        "exempt_organization": "https://tax.nv.gov/Forms",
+        "withholding_payroll": "https://tax.nv.gov/Forms",
+        "sales_use": "https://tax.nv.gov/Forms"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "NV-COMM",
+          "title": "Nevada Commerce Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "NV-COMM",
+          "title": "Nevada Commerce Tax Return (S-Corp)",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "NV-COMM",
+          "title": "Nevada Commerce Tax Return (Partnership)",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "NV-FID",
+          "title": "Nevada Fiduciary Filing",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "NV-EO",
+          "title": "Nevada Exempt Organization Filing",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "NV-EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "NY",
+      "name": "New York",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://www.tax.ny.gov",
+      "forms_url": "https://www.tax.ny.gov/forms",
+      "refund_tracker_url": "https://www.tax.ny.gov/pit/file/refund.htm",
+      "efile_url": "https://www.tax.ny.gov/pit/file/",
+      "taxpayer_portal_url": "https://www.tax.ny.gov/online/",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.tax.ny.gov/forms",
+        "business": "https://www.tax.ny.gov/forms",
+        "corporate": "https://www.tax.ny.gov/forms",
+        "partnership": "https://www.tax.ny.gov/forms",
+        "s_corporation": "https://www.tax.ny.gov/forms",
+        "fiduciary": "https://www.tax.ny.gov/forms",
+        "exempt_organization": "https://www.tax.ny.gov/forms",
+        "withholding_payroll": "https://www.tax.ny.gov/forms",
+        "sales_use": "https://www.tax.ny.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IT-201",
+          "title": "Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IT-203",
+          "title": "Nonresident and Part-Year Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IT-203",
+          "title": "Nonresident and Part-Year Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CT-3",
+          "title": "General Business Corporation Franchise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "CT-3-S",
+          "title": "New York S Corporation Franchise Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IT-204",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IT-205",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CT-13",
+          "title": "Unrelated Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "OH",
+      "name": "Ohio",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://tax.ohio.gov",
+      "forms_url": "https://tax.ohio.gov/help-center/resources/tax-forms",
+      "refund_tracker_url": "https://tax.ohio.gov/wps/portal/gov/tax/individual/resources/refund-status",
+      "efile_url": "https://tax.ohio.gov",
+      "taxpayer_portal_url": "https://tax.ohio.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": true,
+      "business_tax_type": "commercial_activity_tax",
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "business": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "corporate": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "partnership": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "s_corporation": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "fiduciary": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "exempt_organization": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "withholding_payroll": "https://tax.ohio.gov/help-center/resources/tax-forms",
+        "sales_use": "https://tax.ohio.gov/help-center/resources/tax-forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IT1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IT1040",
+          "title": "Individual Income Tax Return (Part-Year Schedule IT NRC)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IT1040",
+          "title": "Individual Income Tax Return (Nonresident Schedule IT NRC)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "IT 4708",
+          "title": "Pass-Through Entity / Composite / Corporate Path",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "IT 4708",
+          "title": "Pass-Through Entity Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "IT 4708",
+          "title": "Pass-Through Entity Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IT 1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CAT",
+          "title": "Commercial Activity Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "OK",
+      "name": "Oklahoma",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://oklahoma.gov/tax",
+      "forms_url": "https://oklahoma.gov/tax/forms.html",
+      "refund_tracker_url": "https://oktap.tax.ok.gov",
+      "efile_url": "https://oklahoma.gov/tax",
+      "taxpayer_portal_url": "https://oktap.tax.ok.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://oklahoma.gov/tax/forms.html",
+        "business": "https://oklahoma.gov/tax/forms.html",
+        "corporate": "https://oklahoma.gov/tax/forms.html",
+        "partnership": "https://oklahoma.gov/tax/forms.html",
+        "s_corporation": "https://oklahoma.gov/tax/forms.html",
+        "fiduciary": "https://oklahoma.gov/tax/forms.html",
+        "exempt_organization": "https://oklahoma.gov/tax/forms.html",
+        "withholding_payroll": "https://oklahoma.gov/tax/forms.html",
+        "sales_use": "https://oklahoma.gov/tax/forms.html"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "511",
+          "title": "Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "511NR",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "511NR",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "512",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "512-S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "514",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "513",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "512",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "OR",
+      "name": "Oregon",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://www.oregon.gov/dor",
+      "forms_url": "https://www.oregon.gov/dor/forms",
+      "refund_tracker_url": "https://revenueonline.dor.oregon.gov",
+      "efile_url": "https://www.oregon.gov/dor",
+      "taxpayer_portal_url": "https://revenueonline.dor.oregon.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": false,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.oregon.gov/dor/forms",
+        "business": "https://www.oregon.gov/dor/forms",
+        "corporate": "https://www.oregon.gov/dor/forms",
+        "partnership": "https://www.oregon.gov/dor/forms",
+        "s_corporation": "https://www.oregon.gov/dor/forms",
+        "fiduciary": "https://www.oregon.gov/dor/forms",
+        "exempt_organization": "https://www.oregon.gov/dor/forms",
+        "withholding_payroll": "https://www.oregon.gov/dor/forms",
+        "sales_use": null
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "OR-40",
+          "title": "Oregon Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "OR-40-N",
+          "title": "Oregon Part-Year/Nonresident Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "OR-40-N",
+          "title": "Oregon Part-Year/Nonresident Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "OR-20",
+          "title": "Corporation Excise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "OR-20-S",
+          "title": "S Corporation Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "OR-65",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "OR-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "OR-20",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "PA",
+      "name": "Pennsylvania",
+      "region_id": "4",
+      "region_name": "East",
+      "agency_url": "https://www.revenue.pa.gov",
+      "forms_url": "https://www.revenue.pa.gov/FormsandPublications",
+      "refund_tracker_url": "https://mypath.pa.gov",
+      "efile_url": "https://www.revenue.pa.gov",
+      "taxpayer_portal_url": "https://mypath.pa.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.revenue.pa.gov/FormsandPublications",
+        "business": "https://www.revenue.pa.gov/FormsandPublications",
+        "corporate": "https://www.revenue.pa.gov/FormsandPublications",
+        "partnership": "https://www.revenue.pa.gov/FormsandPublications",
+        "s_corporation": "https://www.revenue.pa.gov/FormsandPublications",
+        "fiduciary": "https://www.revenue.pa.gov/FormsandPublications",
+        "exempt_organization": "https://www.revenue.pa.gov/FormsandPublications",
+        "withholding_payroll": "https://www.revenue.pa.gov/FormsandPublications",
+        "sales_use": "https://www.revenue.pa.gov/FormsandPublications"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "PA-40",
+          "title": "Pennsylvania Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "PA-40",
+          "title": "Pennsylvania Income Tax Return (Part-Year Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "PA-40",
+          "title": "Pennsylvania Income Tax Return (Nonresident Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "RCT-101",
+          "title": "Corporate Net Income Tax Report",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "PA-20S/PA-65",
+          "title": "S Corporation / Partnership Information Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "PA-20S/PA-65",
+          "title": "Partnership Information Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "PA-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "RCT-101",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "RI",
+      "name": "Rhode Island",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://tax.ri.gov",
+      "forms_url": "https://tax.ri.gov/forms",
+      "refund_tracker_url": "https://tax.ri.gov/refunds",
+      "efile_url": "https://tax.ri.gov",
+      "taxpayer_portal_url": "https://tax.ri.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.ri.gov/forms",
+        "business": "https://tax.ri.gov/forms",
+        "corporate": "https://tax.ri.gov/forms",
+        "partnership": "https://tax.ri.gov/forms",
+        "s_corporation": "https://tax.ri.gov/forms",
+        "fiduciary": "https://tax.ri.gov/forms",
+        "exempt_organization": "https://tax.ri.gov/forms",
+        "withholding_payroll": "https://tax.ri.gov/forms",
+        "sales_use": "https://tax.ri.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "RI-1040",
+          "title": "Resident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "RI-1040NR",
+          "title": "Nonresident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "RI-1040NR",
+          "title": "Nonresident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "RI-1120C",
+          "title": "Business Corporation Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "RI-1120S",
+          "title": "S Corporation Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "RI-1065",
+          "title": "Partnership Income Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "RI-1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "RI-1120C",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "SC",
+      "name": "South Carolina",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://dor.sc.gov",
+      "forms_url": "https://dor.sc.gov/forms-site",
+      "refund_tracker_url": "https://dor.sc.gov/refund",
+      "efile_url": "https://dor.sc.gov",
+      "taxpayer_portal_url": "https://dor.sc.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://dor.sc.gov/forms-site",
+        "business": "https://dor.sc.gov/forms-site",
+        "corporate": "https://dor.sc.gov/forms-site",
+        "partnership": "https://dor.sc.gov/forms-site",
+        "s_corporation": "https://dor.sc.gov/forms-site",
+        "fiduciary": "https://dor.sc.gov/forms-site",
+        "exempt_organization": "https://dor.sc.gov/forms-site",
+        "withholding_payroll": "https://dor.sc.gov/forms-site",
+        "sales_use": "https://dor.sc.gov/forms-site"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "SC1040",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "SC1040",
+          "title": "Individual Income Tax Return (Part-Year Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "SC1040",
+          "title": "Individual Income Tax Return (Nonresident Schedule NR)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "SC1120",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "SC1120S",
+          "title": "S Corporation Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "SC1065",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "SC1041",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "SC1120",
+          "title": "Exempt Organization Corporate Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "SD",
+      "name": "South Dakota",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://dor.sd.gov",
+      "forms_url": "https://dor.sd.gov/forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://dor.sd.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://dor.sd.gov/forms",
+        "corporate": "https://dor.sd.gov/forms",
+        "partnership": "https://dor.sd.gov/forms",
+        "s_corporation": "https://dor.sd.gov/forms",
+        "fiduciary": "https://dor.sd.gov/forms",
+        "exempt_organization": "https://dor.sd.gov/forms",
+        "withholding_payroll": "https://dor.sd.gov/forms",
+        "sales_use": "https://dor.sd.gov/forms"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "SD-BANK",
+          "title": "South Dakota Entity / Bank Franchise Filing",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "SD-SCORP",
+          "title": "South Dakota S Corporation Filing",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "SD-PART",
+          "title": "South Dakota Partnership Filing",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "SD-FID",
+          "title": "South Dakota Fiduciary Filing",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "SD-EO",
+          "title": "South Dakota Exempt Organization Filing",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "SD-EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "TN",
+      "name": "Tennessee",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.tn.gov/revenue.html",
+      "forms_url": "https://www.tn.gov/revenue/taxes.html",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://tntap.tn.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": true,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": "franchise_tax",
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://www.tn.gov/revenue/taxes.html",
+        "corporate": "https://www.tn.gov/revenue/taxes.html",
+        "partnership": "https://www.tn.gov/revenue/taxes.html",
+        "s_corporation": "https://www.tn.gov/revenue/taxes.html",
+        "fiduciary": "https://www.tn.gov/revenue/taxes.html",
+        "exempt_organization": "https://www.tn.gov/revenue/taxes.html",
+        "withholding_payroll": "https://www.tn.gov/revenue/taxes.html",
+        "sales_use": "https://www.tn.gov/revenue/taxes.html"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "FAE170",
+          "title": "Franchise and Excise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "FAE170",
+          "title": "Franchise and Excise Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "FAE170",
+          "title": "Franchise and Excise Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "FAE170",
+          "title": "Franchise and Excise Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "FAE170",
+          "title": "Franchise and Excise Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "TX",
+      "name": "Texas",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://comptroller.texas.gov",
+      "forms_url": "https://comptroller.texas.gov/forms",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://comptroller.texas.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": true,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": "franchise_margin_tax",
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://comptroller.texas.gov/forms",
+        "corporate": "https://comptroller.texas.gov/forms",
+        "partnership": "https://comptroller.texas.gov/forms",
+        "s_corporation": "https://comptroller.texas.gov/forms",
+        "fiduciary": "https://comptroller.texas.gov/forms",
+        "exempt_organization": "https://comptroller.texas.gov/forms",
+        "withholding_payroll": "https://comptroller.texas.gov/forms",
+        "sales_use": "https://comptroller.texas.gov/forms"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "05-102",
+          "title": "Texas Franchise Tax Report",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "05-102",
+          "title": "Texas Franchise Tax Report",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "05-102",
+          "title": "Texas Franchise Tax Report",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "05-102",
+          "title": "Texas Franchise Tax Report",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "05-102",
+          "title": "Texas Franchise Tax Report (Exempt path)",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "UT",
+      "name": "Utah",
+      "region_id": "1",
+      "region_name": "West",
+      "agency_url": "https://tax.utah.gov",
+      "forms_url": "https://tax.utah.gov/forms",
+      "refund_tracker_url": "https://tap.tax.utah.gov",
+      "efile_url": "https://tax.utah.gov",
+      "taxpayer_portal_url": "https://tap.tax.utah.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.utah.gov/forms",
+        "business": "https://tax.utah.gov/forms",
+        "corporate": "https://tax.utah.gov/forms",
+        "partnership": "https://tax.utah.gov/forms",
+        "s_corporation": "https://tax.utah.gov/forms",
+        "fiduciary": "https://tax.utah.gov/forms",
+        "exempt_organization": "https://tax.utah.gov/forms",
+        "withholding_payroll": "https://tax.utah.gov/forms",
+        "sales_use": "https://tax.utah.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "TC-40",
+          "title": "Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "TC-40",
+          "title": "Individual Income Tax Return (Part-Year Schedule A)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "TC-40",
+          "title": "Individual Income Tax Return (Nonresident Schedule A)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "TC-20",
+          "title": "Corporation Franchise / Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "TC-20S",
+          "title": "S Corporation Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "TC-65",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "TC-41",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "TC-20",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "VA",
+      "name": "Virginia",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://www.tax.virginia.gov",
+      "forms_url": "https://www.tax.virginia.gov/forms",
+      "refund_tracker_url": "https://www.tax.virginia.gov/wheres-my-refund",
+      "efile_url": "https://www.tax.virginia.gov",
+      "taxpayer_portal_url": "https://www.tax.virginia.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.tax.virginia.gov/forms",
+        "business": "https://www.tax.virginia.gov/forms",
+        "corporate": "https://www.tax.virginia.gov/forms",
+        "partnership": "https://www.tax.virginia.gov/forms",
+        "s_corporation": "https://www.tax.virginia.gov/forms",
+        "fiduciary": "https://www.tax.virginia.gov/forms",
+        "exempt_organization": "https://www.tax.virginia.gov/forms",
+        "withholding_payroll": "https://www.tax.virginia.gov/forms",
+        "sales_use": "https://www.tax.virginia.gov/forms"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "760",
+          "title": "Resident Individual Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "760PY",
+          "title": "Part-Year Resident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "763",
+          "title": "Nonresident Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "500",
+          "title": "Corporation Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "502",
+          "title": "Pass-Through Entity Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "502",
+          "title": "Pass-Through Entity Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "770",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "500",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "VT",
+      "name": "Vermont",
+      "region_id": "5",
+      "region_name": "Northeast",
+      "agency_url": "https://tax.vermont.gov",
+      "forms_url": "https://tax.vermont.gov/forms-and-publications",
+      "refund_tracker_url": "https://myvtax.vermont.gov",
+      "efile_url": "https://tax.vermont.gov",
+      "taxpayer_portal_url": "https://myvtax.vermont.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.vermont.gov/forms-and-publications",
+        "business": "https://tax.vermont.gov/forms-and-publications",
+        "corporate": "https://tax.vermont.gov/forms-and-publications",
+        "partnership": "https://tax.vermont.gov/forms-and-publications",
+        "s_corporation": "https://tax.vermont.gov/forms-and-publications",
+        "fiduciary": "https://tax.vermont.gov/forms-and-publications",
+        "exempt_organization": "https://tax.vermont.gov/forms-and-publications",
+        "withholding_payroll": "https://tax.vermont.gov/forms-and-publications",
+        "sales_use": "https://tax.vermont.gov/forms-and-publications"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IN-111",
+          "title": "Vermont Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IN-111",
+          "title": "Vermont Income Tax Return (Part-Year Schedule IN-113)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IN-111",
+          "title": "Vermont Income Tax Return (Nonresident Schedule IN-113)",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CO-411",
+          "title": "Corporate Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "BI-471",
+          "title": "Business Income Tax Return (S-Corp)",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "BI-471",
+          "title": "Business Income Tax Return (Partnership)",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "FI-161",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CO-411",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "WA",
+      "name": "Washington",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://dor.wa.gov",
+      "forms_url": "https://dor.wa.gov/forms-publications",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://dor.wa.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": true,
+      "business_tax_type": "business_occupation_tax",
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://dor.wa.gov/forms-publications",
+        "corporate": "https://dor.wa.gov/forms-publications",
+        "partnership": "https://dor.wa.gov/forms-publications",
+        "s_corporation": "https://dor.wa.gov/forms-publications",
+        "fiduciary": "https://dor.wa.gov/forms-publications",
+        "exempt_organization": "https://dor.wa.gov/forms-publications",
+        "withholding_payroll": "https://dor.wa.gov/forms-publications",
+        "sales_use": "https://dor.wa.gov/forms-publications"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "WA-BO",
+          "title": "Washington Business & Occupation Excise Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "WA-BO",
+          "title": "Washington B&O Excise Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "WA-BO",
+          "title": "Washington B&O Excise Tax Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "WA-BO",
+          "title": "Washington B&O Excise Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "WA-BO",
+          "title": "Washington B&O Excise Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "WA-EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "WI",
+      "name": "Wisconsin",
+      "region_id": "2",
+      "region_name": "Midwest",
+      "agency_url": "https://www.revenue.wi.gov",
+      "forms_url": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+      "refund_tracker_url": "https://www.revenue.wi.gov/refund.html",
+      "efile_url": "https://www.revenue.wi.gov",
+      "taxpayer_portal_url": "https://www.revenue.wi.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "business": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "corporate": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "partnership": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "s_corporation": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "fiduciary": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "exempt_organization": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "withholding_payroll": "https://www.revenue.wi.gov/Pages/Forms/home.aspx",
+        "sales_use": "https://www.revenue.wi.gov/Pages/Forms/home.aspx"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "1",
+          "title": "Wisconsin Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "1NPR",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "1NPR",
+          "title": "Nonresident/Part-Year Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "4",
+          "title": "Corporation Franchise or Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "5S",
+          "title": "Tax-Option (S) Corporation Franchise or Income Tax Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "3",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "2",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "4T",
+          "title": "Exempt Organization Business Income Tax Return",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "WV",
+      "name": "West Virginia",
+      "region_id": "3",
+      "region_name": "South",
+      "agency_url": "https://tax.wv.gov",
+      "forms_url": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+      "refund_tracker_url": "https://mytaxes.wvtax.gov",
+      "efile_url": "https://tax.wv.gov",
+      "taxpayer_portal_url": "https://mytaxes.wvtax.gov",
+      "has_personal_income_tax": true,
+      "has_corporate_income_tax": true,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "organizer_intake",
+      "form_urls": {
+        "individual": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "business": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "corporate": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "partnership": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "s_corporation": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "fiduciary": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "exempt_organization": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "withholding_payroll": "https://tax.wv.gov/Business/Forms/Pages/default.aspx",
+        "sales_use": "https://tax.wv.gov/Business/Forms/Pages/default.aspx"
+      },
+      "supported_forms": [
+        "1040",
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "individual",
+          "filing_type": "resident",
+          "form_id": "IT-140",
+          "title": "Personal Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "part_year",
+          "form_id": "IT-140NR/PY",
+          "title": "Nonresident/Part-Year Personal Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "individual",
+          "filing_type": "nonresident",
+          "form_id": "IT-140NR/PY",
+          "title": "Nonresident/Part-Year Personal Income Tax Return",
+          "federal_base": "1040"
+        },
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "CNF-120",
+          "title": "Corporation Net Income Tax Return",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "SPF-100",
+          "title": "S Corporation / Partnership Return",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "SPF-100",
+          "title": "Partnership Return",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "IT-141",
+          "title": "Fiduciary Income Tax Return",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "CNF-120",
+          "title": "Exempt Organization Corporate Path",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    },
+    {
+      "code": "WY",
+      "name": "Wyoming",
+      "region_id": "6",
+      "region_name": "Northwest",
+      "agency_url": "https://revenue.wyo.gov",
+      "forms_url": "https://revenue.wyo.gov/",
+      "refund_tracker_url": null,
+      "efile_url": null,
+      "taxpayer_portal_url": "https://revenue.wyo.gov",
+      "has_personal_income_tax": false,
+      "has_corporate_income_tax": false,
+      "has_franchise_tax": false,
+      "has_gross_receipts_tax": false,
+      "business_tax_type": null,
+      "has_sales_tax": true,
+      "efile_support": "business_only",
+      "form_urls": {
+        "individual": null,
+        "business": "https://revenue.wyo.gov/",
+        "corporate": "https://revenue.wyo.gov/",
+        "partnership": "https://revenue.wyo.gov/",
+        "s_corporation": "https://revenue.wyo.gov/",
+        "fiduciary": "https://revenue.wyo.gov/",
+        "exempt_organization": "https://revenue.wyo.gov/",
+        "withholding_payroll": "https://revenue.wyo.gov/",
+        "sales_use": "https://revenue.wyo.gov/"
+      },
+      "supported_forms": [
+        "1041",
+        "1065",
+        "1120",
+        "1120S",
+        "990",
+        "990EZ",
+        "payroll"
+      ],
+      "workflow_forms": [
+        {
+          "return_family": "corporation",
+          "filing_type": "standard",
+          "form_id": "WY-MIN",
+          "title": "Wyoming Entity / Mineral Tax Filing",
+          "federal_base": "1120"
+        },
+        {
+          "return_family": "s_corporation",
+          "filing_type": "standard",
+          "form_id": "WY-SCORP",
+          "title": "Wyoming S Corporation Filing",
+          "federal_base": "1120S"
+        },
+        {
+          "return_family": "partnership",
+          "filing_type": "standard",
+          "form_id": "WY-PART",
+          "title": "Wyoming Partnership Filing",
+          "federal_base": "1065"
+        },
+        {
+          "return_family": "fiduciary",
+          "filing_type": "standard",
+          "form_id": "WY-FID",
+          "title": "Wyoming Fiduciary Filing",
+          "federal_base": "1041"
+        },
+        {
+          "return_family": "exempt_organization",
+          "filing_type": "standard",
+          "form_id": "WY-EO",
+          "title": "Wyoming Exempt Organization Filing",
+          "federal_base": "990"
+        },
+        {
+          "return_family": "exempt_organization_ez",
+          "filing_type": "standard",
+          "form_id": "WY-EO-EZ",
+          "title": "Exempt Organization Short Return",
+          "federal_base": "990EZ"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Full official URLs live in this Git-tracked registry (not only in app UI).",
+    "forms_url is the official state tax forms hub from product research.",
+    "form_urls.* currently deep-link to the forms hub (or CA FTB search) unless a more specific official page is curated later.",
+    "refund_tracker_url is null when the jurisdiction has no personal income tax refund portal.",
+    "Verify periodically via Federation of Tax Administrators state forms directory."
+  ]
+}
