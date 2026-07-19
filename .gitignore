@@ -27,10 +27,13 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
+build/
 /coverage/
 
 # Symbolication related
@@ -43,3 +46,19 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/.gradle/
+android/local.properties
+android/key.properties
+
+# Signing keys / keystores
+*.jks
+*.keystore
+
+# Build artifacts (never commit APKs/AABs into regular git history)
+*.apk
+*.aab
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
