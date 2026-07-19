@@ -11,10 +11,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/return_number.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/tax_year/tax_year_selector.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/documents_repository.dart';
 
 const _docTypes = <(String, String)>[
@@ -40,6 +42,7 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   List<Map<String, dynamic>> _docs = const [];
   dynamic _returnId;
+  String? _returnNumber;
   bool _loading = true;
   bool _uploading = false;
   String _docType = 'w2';
@@ -72,7 +75,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
       if (AppConfig.usesLaravelAuth) {
         await ref.read(taxYearProvider.notifier).refreshWorkspace();
-        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+        final workspace = ref.read(taxYearProvider).workspace;
+        final workspaceId = workspace?.workspaceId;
         final docs = workspaceId == null
             ? <Map<String, dynamic>>[]
             : await ref.read(documentsRepositoryProvider).list(workspaceId);
@@ -80,6 +84,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         setState(() {
           _boundYear = year;
           _returnId = workspaceId;
+          _returnNumber = workspace?.returnNumber;
           _docs = docs;
           _loading = false;
         });
@@ -87,13 +92,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       }
 
       final portal = ref.read(portalRepositoryProvider);
-      final row = await portal.getOrCreateReturnForYear(year);
+      final user = await ref.read(authRepositoryProvider).currentUser();
+      final row = await portal.getOrCreateReturnForYear(
+        year,
+        lastName: user?.lastName,
+      );
       final id = row['id'];
       final docs = id == null ? <Map<String, dynamic>>[] : await portal.listDocuments(id);
       if (!mounted) return;
       setState(() {
         _boundYear = year;
         _returnId = id;
+        _returnNumber = ReturnNumber.fromWorkspaceJson(row);
         _docs = docs;
         _loading = false;
       });
@@ -207,7 +217,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  'Document vault · Tax year $year · Return #${_returnId ?? '—'}',
+                  'Document vault · Tax year $year · Return #${_returnNumber ?? '—'}',
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                 ),
                 const SizedBox(height: 4),
