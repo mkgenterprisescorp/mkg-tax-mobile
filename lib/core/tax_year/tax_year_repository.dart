@@ -288,20 +288,47 @@ class TaxYearRepository {
         const [];
   }
 
-  Future<Map<String, dynamic>?> addState(
+  Future<Map<String, dynamic>> addState(
     String workspaceId,
     String stateCode, {
     String residencyType = 'resident',
   }) async {
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to save your state return.');
+    }
     final res = await _api.put<Map<String, dynamic>>(
       '/api/v1/tax-year-workspaces/$workspaceId/states',
-      data: {'state_code': stateCode, 'residency_type': residencyType},
+      data: {
+        'state_code': stateCode.trim().toUpperCase(),
+        'residency_type': residencyType,
+      },
     );
-    if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
+    final code = res.statusCode ?? 500;
+    if (code >= 400 || res.data == null) {
+      throw StateError(_stateSaveFailureMessage(code));
+    }
     final data = res.data!['data'];
-    if (data is! Map) return null;
+    if (data is! Map) {
+      throw StateError('We’re unable to save your state return right now. Please try again.');
+    }
     return Map<String, dynamic>.from(data);
+  }
+
+  static String _stateSaveFailureMessage(int statusCode) {
+    switch (statusCode) {
+      case 401:
+        return 'Please sign in again to save your state return.';
+      case 403:
+        return 'This action is not authorized.';
+      case 404:
+        return 'No tax-year workspace. Select a year and try again.';
+      case 422:
+        return 'Some information could not be validated. Please check your entries and try again.';
+      case 429:
+        return 'Too many requests — wait a moment and try again.';
+      default:
+        return 'We’re unable to save your state return right now. Please try again.';
+    }
   }
 
   int _localCurrentFilingYear() => DateTime.now().year - 1;
