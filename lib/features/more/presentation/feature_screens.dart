@@ -410,6 +410,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   List<Map<String, dynamic>> _invoices = const [];
   List<Map<String, dynamic>> _feeSchedule = const [];
   final Set<String> _selectedFees = {};
+  int _minimumCheckoutCents = InvoicesRepository.defaultMinimumCheckoutCents;
   bool _loading = true;
   bool _checkingOut = false;
   String? _error;
@@ -420,6 +421,21 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     _load();
   }
 
+  int get _selectedTotalCents {
+    var total = 0;
+    for (final fee in _feeSchedule) {
+      final id = fee['id']?.toString();
+      if (id == null || !_selectedFees.contains(id)) continue;
+      final price = fee['price'];
+      if (price is num) {
+        total += price.toInt();
+      }
+    }
+    return total;
+  }
+
+  String _formatCents(int cents) => '\$${(cents / 100).toStringAsFixed(2)}';
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -428,10 +444,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     try {
       List<Map<String, dynamic>> invoices;
       List<Map<String, dynamic>> fees = const [];
+      var minCents = InvoicesRepository.defaultMinimumCheckoutCents;
       if (AppConfig.usesLaravelAuth) {
         final repo = ref.read(invoicesRepositoryProvider);
         invoices = await repo.list();
         fees = await repo.feeSchedule();
+        final metaMin = repo.feeScheduleMeta['minimum_checkout_cents'];
+        if (metaMin is num && metaMin > 0) {
+          minCents = metaMin.toInt();
+        }
       } else {
         invoices = await ref.read(portalRepositoryProvider).listInvoices();
       }
@@ -439,6 +460,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       setState(() {
         _invoices = invoices;
         _feeSchedule = fees;
+        _minimumCheckoutCents = minCents;
+        _selectedFees.removeWhere((id) => fees.every((f) => f['id']?.toString() != id));
         _loading = false;
       });
     } catch (e) {
@@ -470,19 +493,26 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             idempotencyKey: 'mobile-$id-${DateTime.now().millisecondsSinceEpoch}',
           );
       if (!mounted) return;
-      final url = session?['hosted_checkout_url']?.toString() ??
-          session?['checkout_url']?.toString() ??
-          session?['url']?.toString();
+      final url = session['hosted_checkout_url']?.toString() ??
+          session['checkout_url']?.toString() ??
+          session['url']?.toString();
       if (url == null || url.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              (session?['status'] ?? session?['message'] ?? 'Hosted Stripe Checkout required.').toString(),
+              (session['message'] ?? 'We’re unable to start checkout right now. Please try again.')
+                  .toString(),
             ),
           ),
         );
+        return;
       }
       await _openHostedUrl(url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiErrorMapper.map(e))),
+      );
     } finally {
       if (mounted) setState(() => _checkingOut = false);
     }
@@ -490,6 +520,18 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
   Future<void> _checkoutSelectedFees() async {
     if (!AppConfig.usesLaravelAuth || _selectedFees.isEmpty) return;
+    final total = _selectedTotalCents;
+    if (total < _minimumCheckoutCents) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Minimum checkout total is ${_formatCents(_minimumCheckoutCents)}. '
+            'Selected: ${_formatCents(total)}.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _checkingOut = true);
     try {
       final services = [
@@ -502,12 +544,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             idempotencyKey: 'mobile-fee-${DateTime.now().millisecondsSinceEpoch}',
           );
       if (!mounted) return;
-      final url = session?['hosted_checkout_url']?.toString() ?? session?['url']?.toString();
+      final url = session['hosted_checkout_url']?.toString() ?? session['url']?.toString();
       if (url == null || url.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              (session?['message'] ?? 'Unable to start hosted Stripe Checkout.').toString(),
+              (session['message'] ?? 'We’re unable to start checkout right now. Please try again.')
+                  .toString(),
             ),
           ),
         );
@@ -586,9 +629,35 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 ),
             if (_selectedFees.isNotEmpty) ...[
               const SizedBox(height: 8),
+              Text(
+                'Selected: ${_formatCents(_selectedTotalCents)}'
+                '${_selectedTotalCents < _minimumCheckoutCents ? ' · Minimum checkout: ${_formatCents(_minimumCheckoutCents)}' : ''}',
+                style: TextStyle(
+                  color: _selectedTotalCents < _minimumCheckoutCents
+                      ? MkgColors.orange
+                      : MkgColors.textGrey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (_selectedTotalCents < _minimumCheckoutCents) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Add more services to reach the ${_formatCents(_minimumCheckoutCents)} Stripe checkout minimum.',
+                  style: const TextStyle(color: MkgColors.orange, fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 8),
               FilledButton(
-                onPressed: _checkingOut ? null : _checkoutSelectedFees,
-                child: Text(_checkingOut ? 'Opening Stripe…' : 'Pay selected fees (Stripe Checkout)'),
+                onPressed: (_checkingOut || _selectedTotalCents < _minimumCheckoutCents)
+                    ? null
+                    : _checkoutSelectedFees,
+                child: Text(
+                  _checkingOut
+                      ? 'Opening Stripe…'
+                      : _selectedTotalCents < _minimumCheckoutCents
+                          ? 'Minimum ${_formatCents(_minimumCheckoutCents)} required'
+                          : 'Pay selected fees (Stripe Checkout)',
+                ),
               ),
             ],
             const SizedBox(height: 20),

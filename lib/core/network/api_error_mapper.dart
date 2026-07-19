@@ -40,6 +40,9 @@ class ApiErrorMapper {
           msg.startsWith('No tax-year workspace') ||
           msg.startsWith('Could not open') ||
           msg.startsWith('Please sign in again to save') ||
+          msg.startsWith('Please sign in again to continue') ||
+          msg.startsWith('Minimum checkout') ||
+          msg.startsWith('No valid fee') ||
           msg.startsWith('CA Form 540') ||
           msg.startsWith('Calculate Form') ||
           msg.startsWith('We’re unable') ||
