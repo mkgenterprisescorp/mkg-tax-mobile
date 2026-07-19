@@ -9,7 +9,8 @@
 - **Payments deep links / Stripe return:** stay on portal `https://mkgtaxconsultants.com/payments` (`PAYMENTS_WEB_URL` / `portalRoot`).
 - **WordPress is marketing only.** Never store tax returns, SSNs, bank data, uploads, or taxpayer records in the WordPress DB. Taxpayer SoT stays in Laravel + portal + Neon + Spaces.
 - Flutter never talks to Neon, `/internal/*`, or portal S2S credentials.
-- **Split SoT:** mobile data → **Neon** (via Laravel); web portal data → **DigitalOcean Postgres** (`financemkgtaxpro`). Not merged — server-side APIs bridge them; Flutter never opens either DB.
+- **Product role:** this app is **CRM + POS** (clients, intake, payments UX). It does **not** build or submit IRS e-file XML — that stays on `financemkgtaxpro`.
+- **Split SoT:** mobile → **Neon** (Laravel); web → **DO Postgres** (`financemkgtaxpro`). Bidirectional **API** sync (tax data pushed to web for filing; status/checkout/etc. back). Flutter never opens either DB or `/internal/*`.
 - Domain cutover is **not** complete until portal internal routes on `mkgtaxconsultants.com` return controlled 401 for unsigned S2S (see financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`).
 
 ### Why Flutter (not native Swift/Kotlin)
