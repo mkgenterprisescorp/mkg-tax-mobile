@@ -3,15 +3,14 @@
 ## Cursor Cloud specific instructions
 
 ### Auth / API / website hosts
-- **Web e-file portal:** `https://mkgtaxconsultants.com` (`financemkgtaxpro` + DO Postgres) — IRS XML / MeF only.
-- **Product moat (this app + WP):** WordPress front `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL`) + Laravel/Neon backend for **clients, communications, CRM, POS, billing**. Registrar GoDaddy; `finance`/`app` DNS on DO.
-- **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
-- **Payments deep links / Stripe return:** portal `https://mkgtaxconsultants.com/payments` (`portalRoot`) unless product moves checkout fully into the moat API.
-- **WP MySQL** = CMS/UI only — CRM/billing SoT is **Neon**. No e-file packages or SSN/bank vaults in WordPress.
-- Flutter never talks to Neon/`/internal/*`/portal S2S credentials directly.
-- **Product role:** **CRM + POS + billing + communications**. Does **not** submit IRS e-file — pushes tax data to `financemkgtaxpro` over API.
-- **Split SoT:** mobile moat → **Neon**; web e-file → **DO Postgres**. Bidirectional API sync.
-- Domain cutover is **not** complete until portal internal routes on `mkgtaxconsultants.com` return controlled 401 for unsigned S2S (see financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`).
+- **DO web app (client login):** `https://mkgtaxconsultants.com` (`financemkgtaxpro` + DO Postgres) — clients manage taxes/forms; also owns IRS XML / MeF. Notifications/chats/staff UI live here, **not** in WordPress.
+- **WordPress:** marketing only (`WEB_BASE_URL` may be `https://finance.mkgtaxconsultants.com` or legacy `www`). No WP portal for app users / notifications / chats. See `mkg-tax-marketing-wp` `docs/MOBILE_MOAT_INSTALL.md`.
+- **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum + Neon).
+- **Payments deep links / Stripe return:** portal `https://mkgtaxconsultants.com/payments` (`portalRoot`).
+- **Bidirectional sync:** Flutter ↔ Laravel ↔ portal APIs — **latest successful update wins** on both surfaces. Flutter never talks to Neon/`/internal/*`/portal S2S credentials directly.
+- **Product role:** Native CRM/POS/billing/communications client. Does **not** submit IRS e-file — pushes tax data to `financemkgtaxpro` over API; pulls web status back.
+- **Split SoT:** mobile → **Neon**; web → **DO Postgres**. No shared DB URL.
+- Domain cutover notes: financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`.
 
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
@@ -20,10 +19,10 @@
 
 ### Product topology
 - **Flutter** (`mkg-tax-mobile`) is the native CRM/POS client for iOS/Android — not Swift.
-- **Moat WP front:** `https://finance.mkgtaxconsultants.com` (DO WordPress UI).
-- **Moat API/DB:** `https://app.mkgtaxconsultants.com/api/v1` + **Neon** (CRM/POS/billing).
-- **E-file web app:** `https://mkgtaxconsultants.com` (financemkgtaxpro + DO Postgres).
-- Legacy `www` WP Engine may redirect to `finance.` when approved.
+- **Client web portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro + DO Postgres) — login, taxes, forms, chats.
+- **Mobile API/DB:** `https://app.mkgtaxconsultants.com/api/v1` + **Neon**.
+- **WordPress:** marketing only (optional `finance.` on DO).
+- Legacy `www` WP Engine may redirect to `finance.` when marketing cutover is approved.
 - Do not configure S2S / portal bridge against `financemkgtax.com`.
 
 ### Brand assets
