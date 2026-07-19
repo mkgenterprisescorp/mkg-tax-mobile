@@ -101,6 +101,8 @@ GoRouter createRouter({
           '/billing',
           '/refund-advance',
           '/financial',
+          '/banking',
+          '/bookkeeping',
         };
         bool allowedWhileSoftGated(String location) {
           if (primaryIa.contains(location)) return true;
@@ -116,6 +118,7 @@ GoRouter createRouter({
           if (location.startsWith('/ca-540') || location.contains('/ca-540')) return true;
           if (location.startsWith('/billing') || location.startsWith('/payments')) return true;
           if (location.startsWith('/financial')) return true;
+          if (location.startsWith('/banking') || location.startsWith('/bookkeeping')) return true;
           return false;
         }
         if (pendingApproval && !allowedWhileSoftGated(loc)) {
