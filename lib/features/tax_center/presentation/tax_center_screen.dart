@@ -55,6 +55,15 @@ class TaxCenterScreen extends ConsumerWidget {
         accent: MkgColors.primary,
         progressLabel: 'Open',
       ),
+      // Federal 1040 left, CA 540 right (side-by-side in the 2-column grid).
+      _TaxSection(
+        title: 'Form 1040',
+        cue: 'Federal estimate · organizer',
+        icon: Icons.savings_outlined,
+        path: '/refund-advance/estimate',
+        accent: MkgColors.green,
+        progressLabel: 'Estimate',
+      ),
       _TaxSection(
         title: 'CA Form 540',
         cue: 'State tax & refund calculator',
@@ -62,14 +71,6 @@ class TaxCenterScreen extends ConsumerWidget {
         path: '/ca-540',
         accent: MkgColors.primary,
         progressLabel: 'Calculate',
-      ),
-      _TaxSection(
-        title: 'Refund calculator',
-        cue: 'Federal estimate · organizer',
-        icon: Icons.savings_outlined,
-        path: '/refund-advance/estimate',
-        accent: MkgColors.green,
-        progressLabel: 'Estimate',
       ),
       _TaxSection(
         title: 'Refund Advance',
