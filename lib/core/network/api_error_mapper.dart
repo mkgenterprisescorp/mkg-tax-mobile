@@ -10,10 +10,11 @@ class ApiErrorMapper {
     if (error is DioException) {
       return _mapDioException(error);
     }
-    // Avoid importing PortalException (circular with portal_repository).
-    if (error.runtimeType.toString() == 'PortalException') {
+    // Avoid importing PortalException / AuthException (circular deps).
+    final typeName = error.runtimeType.toString();
+    if (typeName == 'PortalException' || typeName == 'AuthException') {
       final msg = error.toString().trim();
-      // PortalException.toString() returns the user message only.
+      // These exceptions' toString() returns the user message only.
       if (msg.isNotEmpty &&
           !msg.contains('Exception') &&
           msg.length < 180 &&
@@ -30,6 +31,8 @@ class ApiErrorMapper {
           msg == genericMessage ||
           msg.startsWith('This action') ||
           msg.startsWith('Some information') ||
+          msg.startsWith('This information changed') ||
+          msg.startsWith('Unable to') ||
           msg.startsWith('The requested') ||
           msg.startsWith('Too many') ||
           msg.startsWith('Please check') ||
@@ -101,6 +104,8 @@ class ApiErrorMapper {
         return 'This action is not authorized.';
       case 404:
         return 'The requested item is unavailable.';
+      case 409:
+        return 'This information changed on another device or in the client portal. Please review and try again.';
       case 422:
         return 'Some information could not be validated. Please check your entries and try again.';
       case 429:

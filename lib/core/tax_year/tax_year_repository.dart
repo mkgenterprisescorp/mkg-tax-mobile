@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/auth_repository.dart';
 import '../../features/entities/data/entities_repository.dart';
 import '../api/portal_repository.dart';
 import '../config/app_config.dart';
 import '../network/api_error_mapper.dart';
 import '../network/laravel_api_client.dart';
+import 'return_number.dart';
 
 class TaxYearInfo {
   const TaxYearInfo({
@@ -52,6 +54,7 @@ class TaxYearWorkspace {
     this.taxReturnId,
     this.workspaceId,
     this.entityId,
+    this.returnNumber,
   });
 
   final int taxYear;
@@ -66,6 +69,8 @@ class TaxYearWorkspace {
   /// Laravel `/api/v1` tax-year workspace UUID.
   final String? workspaceId;
   final String? entityId;
+  /// Human desk code `{LAST4}-{MM}-{DD}-{SEQ}` (e.g. GOVA-07-19-01).
+  final String? returnNumber;
 
   factory TaxYearWorkspace.fromJson(Map<String, dynamic> json) {
     final states = (json['state_workspaces'] as List?) ?? (json['state_returns'] as List?);
@@ -88,6 +93,7 @@ class TaxYearWorkspace {
       taxReturnId: json['tax_return_id'] ?? json['taxReturnId'] ?? json['id'],
       workspaceId: (json['id'] ?? json['workspace_id'])?.toString(),
       entityId: (json['mobile_entity_id'] ?? json['entity_id'])?.toString(),
+      returnNumber: ReturnNumber.fromWorkspaceJson(json),
     );
   }
 
@@ -111,6 +117,7 @@ class TaxYearWorkspace {
       organizerCompletionPercentage: pct,
       documentsCount: documentsCount,
       taxReturnId: row['id'],
+      returnNumber: ReturnNumber.fromWorkspaceJson(row),
     );
   }
 }
@@ -199,7 +206,19 @@ class TaxYearRepository {
   /// Throws [StateError] with a safe, user-facing message on auth / API failure
   /// so Sanctum builds never silently fall through to a cookie-portal workspace
   /// (portal rows have no Laravel `workspaceId`, which breaks Tax Organizer).
+  ///
+  /// Prefer [activateWorkspacePacked] when the caller can reuse embedded
+  /// organizer/tasks (avoids follow-up GETs on staging).
   Future<TaxYearWorkspace> activateWorkspace({
+    required String entityId,
+    required int taxYear,
+  }) async {
+    final packed = await activateWorkspacePacked(entityId: entityId, taxYear: taxYear);
+    return packed.workspace;
+  }
+
+  /// Activate and return the embedded organizer/tasks snapshot in one round-trip.
+  Future<WorkspaceActivation> activateWorkspacePacked({
     required String entityId,
     required int taxYear,
   }) async {
@@ -218,11 +237,25 @@ class TaxYearRepository {
     if (data is! Map) {
       throw StateError('We’re unable to open your tax organizer right now. Please try again.');
     }
-    final workspace = TaxYearWorkspace.fromJson(Map<String, dynamic>.from(data));
+    final map = Map<String, dynamic>.from(data);
+    final workspace = TaxYearWorkspace.fromJson(map);
     if ((workspace.workspaceId ?? '').isEmpty) {
       throw StateError('No tax-year workspace. Select a year and try again.');
     }
-    return workspace;
+    final organizer = map['organizer'] is Map
+        ? Map<String, dynamic>.from(map['organizer'] as Map)
+        : null;
+    final tasks = (map['tasks'] as List?)
+            ?.whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        const <Map<String, dynamic>>[];
+    return WorkspaceActivation(
+      workspace: workspace,
+      tasks: tasks,
+      organizer: organizer,
+      tasksEmbedded: map.containsKey('tasks'),
+    );
   }
 
   static String _activateFailureMessage(int statusCode) {
@@ -351,6 +384,22 @@ final taxYearRepositoryProvider = Provider<TaxYearRepository>((ref) {
   return TaxYearRepository(ref.watch(laravelApiClientProvider));
 });
 
+/// Result of `POST .../tax-years/activate` including embedded payloads.
+class WorkspaceActivation {
+  const WorkspaceActivation({
+    required this.workspace,
+    this.tasks = const [],
+    this.organizer,
+    this.tasksEmbedded = false,
+  });
+
+  final TaxYearWorkspace workspace;
+  final List<Map<String, dynamic>> tasks;
+  final Map<String, dynamic>? organizer;
+  /// True when the activate JSON included a `tasks` key (even if empty).
+  final bool tasksEmbedded;
+}
+
 class TaxYearState {
   const TaxYearState({
     this.years = const [],
@@ -358,6 +407,7 @@ class TaxYearState {
     this.currentFilingYear,
     this.workspace,
     this.tasks = const [],
+    this.organizerSnapshot,
     this.loading = false,
     this.source = 'unknown',
     this.error,
@@ -368,6 +418,8 @@ class TaxYearState {
   final int? currentFilingYear;
   final TaxYearWorkspace? workspace;
   final List<Map<String, dynamic>> tasks;
+  /// Organizer JSON from the last activate (same shape as GET .../organizer).
+  final Map<String, dynamic>? organizerSnapshot;
   final bool loading;
   final String source;
   final String? error;
@@ -378,10 +430,12 @@ class TaxYearState {
     int? currentFilingYear,
     TaxYearWorkspace? workspace,
     List<Map<String, dynamic>>? tasks,
+    Map<String, dynamic>? organizerSnapshot,
     bool? loading,
     String? source,
     String? error,
     bool clearWorkspace = false,
+    bool clearOrganizerSnapshot = false,
   }) {
     return TaxYearState(
       years: years ?? this.years,
@@ -389,6 +443,9 @@ class TaxYearState {
       currentFilingYear: currentFilingYear ?? this.currentFilingYear,
       workspace: clearWorkspace ? null : (workspace ?? this.workspace),
       tasks: tasks ?? this.tasks,
+      organizerSnapshot: clearOrganizerSnapshot || clearWorkspace
+          ? null
+          : (organizerSnapshot ?? this.organizerSnapshot),
       loading: loading ?? this.loading,
       source: source ?? this.source,
       error: error,
@@ -425,6 +482,12 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     await refreshWorkspace();
   }
 
+  /// Drop cached activate-embedded organizer (e.g. after a successful save).
+  void clearOrganizerSnapshot() {
+    if (state.organizerSnapshot == null) return;
+    state = state.copyWith(clearOrganizerSnapshot: true);
+  }
+
   Future<void> refreshWorkspace({bool force = false}) async {
     // Organizer / Documents may open before the year selector is touched —
     // fall back to the catalog current year instead of no-op'ing.
@@ -452,12 +515,20 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         if (entityId == null || entityId.isEmpty) {
           throw StateError('We’re unable to open your tax organizer right now. Please try again.');
         }
-        final workspace = await _repo.activateWorkspace(entityId: entityId, taxYear: year);
-        final wid = workspace.workspaceId;
-        final tasks = wid == null ? const <Map<String, dynamic>>[] : await _repo.listTasks(wid);
+        final packed = await _repo.activateWorkspacePacked(
+          entityId: entityId,
+          taxYear: year,
+        );
+        // Activate already embeds tasks — avoid a second ~4s GET when present.
+        final tasks = packed.tasksEmbedded
+            ? packed.tasks
+            : (packed.workspace.workspaceId == null
+                ? const <Map<String, dynamic>>[]
+                : await _repo.listTasks(packed.workspace.workspaceId!));
         state = state.copyWith(
-          workspace: workspace,
+          workspace: packed.workspace,
           tasks: tasks,
+          organizerSnapshot: packed.organizer,
           source: 'laravel',
           error: null,
         );
@@ -477,7 +548,11 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     // Cookie-portal fallback: derive progress from tax_returns for the selected year.
     try {
       final portal = ref.read(portalRepositoryProvider);
-      final row = await portal.getOrCreateReturnForYear(year);
+      String? lastName;
+      try {
+        lastName = (await ref.read(authRepositoryProvider).currentUser())?.lastName;
+      } catch (_) {}
+      final row = await portal.getOrCreateReturnForYear(year, lastName: lastName);
       var docsCount = 0;
       try {
         if (row['id'] != null) {

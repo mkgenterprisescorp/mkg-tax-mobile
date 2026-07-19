@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/portal_repository.dart';
 import '../../../core/auth/app_roles.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/return_number.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -157,7 +158,9 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
     final email = (r['email'] ?? r['clientEmail'] ?? '').toString();
     if (phone.isNotEmpty) return phone;
     if (email.isNotEmpty) return email;
-    return (r['returnNumber'] ?? 'Return #${r['id']}').toString();
+    final code = ReturnNumber.fromWorkspaceJson(r);
+    if (code != null) return code;
+    return 'Return #${r['id']}';
   }
 
   @override
@@ -316,6 +319,7 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
     final name = (r['clientName'] ?? 'Unknown Client').toString();
     final status = (r['status'] ?? 'draft').toString();
     final year = (r['year'] ?? '—').toString();
+    final returnNo = ReturnNumber.fromWorkspaceJson(r);
     final locked = _isLocked(r);
     final selected = _selectedId == r['id'];
 
@@ -362,6 +366,8 @@ class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
                 children: [
                   StatusChip(label: status, color: locked ? MkgColors.red : MkgColors.textGrey),
                   StatusChip(label: 'TY $year', color: MkgColors.primary),
+                  if (returnNo != null)
+                    StatusChip(label: returnNo, color: MkgColors.primary),
                   StatusChip(label: _filingStatus(r), color: MkgColors.textGrey),
                 ],
               ),

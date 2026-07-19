@@ -13,6 +13,7 @@ import '../../address/presentation/address_autofill_fields.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_autofill_settings.dart';
 import '../data/organizer_defaults.dart';
+import '../data/organizer_enum_options.dart';
 import '../data/organizer_profile_prefill.dart';
 import '../data/organizer_repository.dart';
 import '../data/organizer_section_mapper.dart';
@@ -128,12 +129,20 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           );
         }
         final year = taxAfter.workspace?.taxYear ?? yearHint;
-        // Parallel: defaults JSON + first organizer fetch.
+        // Activate already embeds organizer (~20KB, same as GET .../organizer).
+        // Reuse it to avoid a second 3–5s round-trip on cold open.
+        final snap = taxAfter.organizerSnapshot;
+        final snapMatchesWorkspace = snap != null &&
+            '${snap['tax_year_workspace_id'] ?? ''}' == workspaceId;
         final defaultsFuture = OrganizerDefaults.load();
-        final orgFuture = ref.read(laravelOrganizerRepositoryProvider).show(
-              workspaceId,
-              prepType: 'personal',
-            );
+        final Map<String, dynamic>? cachedOrg =
+            snapMatchesWorkspace ? Map<String, dynamic>.from(snap) : null;
+        final orgFuture = cachedOrg != null
+            ? Future<Map<String, dynamic>?>.value(cachedOrg)
+            : ref.read(laravelOrganizerRepositoryProvider).show(
+                  workspaceId,
+                  prepType: 'personal',
+                );
         final defaults = await defaultsFuture;
         Map<String, dynamic>? org;
         try {
@@ -305,8 +314,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (mounted) setState(() {});
     }
     final step = (_steps.isNotEmpty && _step >= 0 && _step < _steps.length) ? _steps[_step] : '';
-    final delay = (step == 'State Tax Returns' || step == 'CA 540 State Tax' || step == 'Income (1040)')
-        ? const Duration(milliseconds: 1100)
+    // Heavier sections: longer debounce so Neon PUTs (~5–8s) are not stacked.
+    final delay = (step == 'State Tax Returns' ||
+            step == 'CA 540 State Tax' ||
+            step == 'Income (1040)' ||
+            step == 'Credits & Deductions')
+        ? const Duration(milliseconds: 1400)
         : _autoSaveDebounce;
     _autoSaveTimer = Timer(delay, _runAutoSave);
   }
@@ -368,6 +381,11 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
+      // Drop activate-embedded snapshot so the next Organizer open re-fetches.
+      // Never let snapshot bookkeeping fail a successful save.
+      try {
+        ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
+      } catch (_) {}
       setState(() {
         _status = status;
         _saving = false;
@@ -1432,26 +1450,47 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   Widget _scheduleFStep() {
     final scheduleF = _map('scheduleF');
+    final method = normalizeEnumValue(
+      scheduleF['accountingMethod'],
+      accountingMethodOptions,
+      fallback: 'cash',
+    );
     const identity = [
       'farmName',
       'farmEIN',
       'principalProduct',
-      'accountingMethod',
       'employerIDNumber',
     ];
-    final rest = scheduleF.keys.where((k) => !identity.contains(k)).toList();
+    final rest = scheduleF.keys
+        .where((k) => !identity.contains(k) && k != 'accountingMethod')
+        .toList();
     return Column(
       children: [
         OrganizerSection(
           title: 'Schedule F — Farm identity',
-          child: NestedMapEditor(
-            data: scheduleF,
-            onlyKeys: identity,
-            onChanged: (m) {
-              _setNested('scheduleF', m);
-              final gross = m['grossFarmIncome'];
-              if (gross != null) _setRoot('farmIncome', gross);
-            },
+          child: Column(
+            children: [
+              NestedMapEditor(
+                data: scheduleF,
+                onlyKeys: identity,
+                onChanged: (m) {
+                  final next = Map<String, dynamic>.from(m)..['accountingMethod'] = method;
+                  _setNested('scheduleF', next);
+                  final gross = next['grossFarmIncome'];
+                  if (gross != null) _setRoot('farmIncome', gross);
+                },
+              ),
+              OrganizerDropdown<String>(
+                label: 'Accounting method',
+                value: method,
+                items: accountingMethodOptions,
+                onChanged: (v) {
+                  final next = Map<String, dynamic>.from(scheduleF)
+                    ..['accountingMethod'] = v ?? 'cash';
+                  _setNested('scheduleF', next);
+                },
+              ),
+            ],
           ),
         ),
         OrganizerSection(
@@ -1460,8 +1499,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             data: scheduleF,
             onlyKeys: rest,
             onChanged: (m) {
-              _setNested('scheduleF', m);
-              final gross = m['grossFarmIncome'];
+              final next = Map<String, dynamic>.from(m)..['accountingMethod'] = method;
+              _setNested('scheduleF', next);
+              final gross = next['grossFarmIncome'];
               if (gross != null) _setRoot('farmIncome', gross);
             },
           ),
@@ -1472,11 +1512,19 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   Widget _scheduleCStep() {
     final scheduleC = _map('scheduleC');
+    final businessType = normalizeEnumValue(
+      scheduleC['businessType'],
+      scheduleCBusinessTypeOptions,
+      fallback: '',
+    );
+    final method = normalizeEnumValue(
+      scheduleC['accountingMethod'],
+      accountingMethodOptions,
+      fallback: 'cash',
+    );
     const identity = [
       'businessName',
       'businessEIN',
-      'businessType',
-      'accountingMethod',
     ];
     final addressKeys = {
       'businessAddress',
@@ -1486,17 +1534,52 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       'businessZip',
     };
     final expenseKeys = scheduleC.keys
-        .where((k) => !identity.contains(k) && !addressKeys.contains(k))
+        .where(
+          (k) =>
+              !identity.contains(k) &&
+              !addressKeys.contains(k) &&
+              k != 'businessType' &&
+              k != 'accountingMethod',
+        )
         .toList();
     return Column(
       children: [
         OrganizerSection(
           title: 'Business identity',
           subtitle: 'Schedule C — Profit or Loss From Business (sole prop / gig).',
-          child: NestedMapEditor(
-            data: scheduleC,
-            onlyKeys: identity,
-            onChanged: (m) => _setNested('scheduleC', m),
+          child: Column(
+            children: [
+              NestedMapEditor(
+                data: scheduleC,
+                onlyKeys: identity,
+                onChanged: (m) {
+                  final next = Map<String, dynamic>.from(m)
+                    ..['businessType'] = businessType
+                    ..['accountingMethod'] = method;
+                  _setNested('scheduleC', next);
+                },
+              ),
+              OrganizerDropdown<String>(
+                label: 'Business type',
+                value: businessType,
+                items: scheduleCBusinessTypeOptions,
+                onChanged: (v) {
+                  final next = Map<String, dynamic>.from(scheduleC)
+                    ..['businessType'] = v ?? '';
+                  _setNested('scheduleC', next);
+                },
+              ),
+              OrganizerDropdown<String>(
+                label: 'Accounting method',
+                value: method,
+                items: accountingMethodOptions,
+                onChanged: (v) {
+                  final next = Map<String, dynamic>.from(scheduleC)
+                    ..['accountingMethod'] = v ?? 'cash';
+                  _setNested('scheduleC', next);
+                },
+              ),
+            ],
           ),
         ),
         OrganizerSection(
@@ -1522,7 +1605,12 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           child: NestedMapEditor(
             data: scheduleC,
             onlyKeys: expenseKeys,
-            onChanged: (m) => _setNested('scheduleC', m),
+            onChanged: (m) {
+              final next = Map<String, dynamic>.from(m)
+                ..['businessType'] = businessType
+                ..['accountingMethod'] = method;
+              _setNested('scheduleC', next);
+            },
           ),
         ),
       ],
@@ -1548,13 +1636,59 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     );
   }
 
+  /// Enum fields pulled out of NestedMapEditor as dropdowns (AOTC pattern).
+  List<(String key, String label, List<(String, String)> options, String fallback)>
+      _entityEnumSpecs(String prep) {
+    switch (prep) {
+      case 'form1041':
+        return [
+          ('entityType', 'Entity type', form1041EntityTypeOptions, 'simple_trust'),
+          ('taxYearType', 'Tax year type', taxYearTypeOptions, 'calendar'),
+        ];
+      case 'form1065':
+        return [
+          ('partnershipType', 'Partnership type', partnershipTypeOptions, 'general'),
+        ];
+      case 'form1120':
+      case 'form1120S':
+        return [
+          (
+            'stateOfIncorporation',
+            'State of incorporation',
+            stateOfIncorporationOptions,
+            '',
+          ),
+        ];
+      case 'form990':
+        return [
+          ('taxExemptStatus', 'Tax-exempt status', taxExemptStatusOptions, '501c3'),
+          ('organizationType', 'Organization type', nonprofitOrgTypeOptions, 'corporation'),
+          ('groupReturn', 'Group return', yesNoOptions, 'no'),
+        ];
+      case 'form990EZ':
+        return [
+          ('taxExemptStatus', 'Tax-exempt status', taxExemptStatusOptions, '501c3'),
+          ('organizationType', 'Organization type', nonprofitOrgTypeOptions, 'corporation'),
+        ];
+      default:
+        return const [];
+    }
+  }
+
   Widget _entityFormStep(String prep) {
     final form = _map(prep);
     final labels = businessFormLabels[prep] ?? prep;
+    final enumSpecs = _entityEnumSpecs(prep);
+    final enumKeys = {for (final s in enumSpecs) s.$1};
+    final enumValues = <String, String>{
+      for (final s in enumSpecs)
+        s.$1: normalizeEnumValue(form[s.$1], s.$3, fallback: s.$4),
+    };
     // Prefer identity-ish keys first for usability.
     final keys = form.keys.toList();
     final identityKeys = <String>[];
     for (final k in keys) {
+      if (enumKeys.contains(k)) continue;
       final lower = k.toLowerCase();
       if (lower.startsWith('schedule')) continue;
       final isId = lower.contains('name') ||
@@ -1577,17 +1711,40 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (isId) identityKeys.add(k);
       if (identityKeys.length >= 18) break;
     }
-    final rest = keys.where((k) => !identityKeys.contains(k)).toList();
+    final rest = keys.where((k) => !identityKeys.contains(k) && !enumKeys.contains(k)).toList();
+
+    void persist(Map<String, dynamic> m) {
+      final next = Map<String, dynamic>.from(m);
+      for (final e in enumValues.entries) {
+        next[e.key] = e.value;
+      }
+      _setNested(prep, next);
+    }
 
     return Column(
       children: [
         OrganizerSection(
           title: labels,
           subtitle: 'Field names match mkgtaxconsultants.com `$prep` in tax_returns.data.',
-          child: NestedMapEditor(
-            data: form,
-            onlyKeys: identityKeys.isEmpty ? keys.take(12).toList() : identityKeys,
-            onChanged: (m) => _setNested(prep, m),
+          child: Column(
+            children: [
+              for (final s in enumSpecs)
+                OrganizerDropdown<String>(
+                  label: s.$2,
+                  value: enumValues[s.$1]!,
+                  items: s.$3,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(form)..[s.$1] = v ?? s.$4;
+                    _setNested(prep, next);
+                  },
+                ),
+              NestedMapEditor(
+                data: form,
+                onlyKeys: identityKeys.isEmpty ? keys.where((k) => !enumKeys.contains(k)).take(12).toList() : identityKeys,
+                excludeKeys: enumKeys,
+                onChanged: persist,
+              ),
+            ],
           ),
         ),
         OrganizerSection(
@@ -1595,7 +1752,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           child: NestedMapEditor(
             data: form,
             onlyKeys: rest,
-            onChanged: (m) => _setNested(prep, m),
+            excludeKeys: enumKeys,
+            onChanged: persist,
           ),
         ),
       ],

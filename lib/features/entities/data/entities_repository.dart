@@ -7,11 +7,25 @@ class EntitiesRepository {
   EntitiesRepository(this._api);
   final LaravelApiClient _api;
 
-  Future<List<Map<String, dynamic>>> list() async {
+  List<Map<String, dynamic>>? _listCache;
+  DateTime? _listCacheAt;
+  static const _listCacheTtl = Duration(seconds: 45);
+
+  Future<List<Map<String, dynamic>>> list({bool force = false}) async {
     if (_api.bearerToken == null) return const [];
+    final now = DateTime.now();
+    if (!force &&
+        _listCache != null &&
+        _listCacheAt != null &&
+        now.difference(_listCacheAt!) < _listCacheTtl) {
+      return _listCache!;
+    }
     final res = await _api.get<Map<String, dynamic>>('/api/v1/entities');
     if (!PlatformApi.ok(res)) return const [];
-    return PlatformApi.unwrapList(res);
+    final rows = PlatformApi.unwrapList(res);
+    _listCache = rows;
+    _listCacheAt = now;
+    return rows;
   }
 
   Future<Map<String, dynamic>?> create({
@@ -25,7 +39,7 @@ class EntitiesRepository {
       data: {
         'entity_type': entityType,
         'legal_name': legalName,
-        if (formationState != null) 'formation_state': formationState,
+        'formation_state': ?formationState,
       },
     );
     if (!PlatformApi.ok(res)) return null;
@@ -43,7 +57,11 @@ class EntitiesRepository {
   Future<Map<String, dynamic>?> ensurePrimaryEntity({String legalName = 'Primary filing'}) async {
     final existing = await list();
     if (existing.isNotEmpty) return existing.first;
-    return create(entityType: 'individual', legalName: legalName);
+    final created = await create(entityType: 'individual', legalName: legalName);
+    // Invalidate short cache so the next list sees the new entity.
+    _listCache = null;
+    _listCacheAt = null;
+    return created;
   }
 }
 

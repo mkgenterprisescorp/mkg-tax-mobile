@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/app_roles.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
+import '../data/ca540_estimate_math.dart';
 import '../data/ca540_repository.dart';
+import '../data/computed_field_policy.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_defaults.dart';
+import 'organizer_computed_money_field.dart';
 import 'organizer_fields.dart';
 
 /// Complete California Form 540 tax & refund calculator (estimate-only).
@@ -39,6 +44,12 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
   int _personalExemptions = 1;
   int _dependentExemptions = 0;
   bool _claimRenters = true;
+  bool _autoCalEitc = true;
+  bool _hasYoungChild = false;
+  bool _agiOverridden = false;
+  bool _whOverridden = false;
+  num _computedAgi = 0;
+  num _computedWithholding = 0;
   bool _busy = false;
   bool _saving = false;
   String? _error;
@@ -80,11 +91,17 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
       setState(() {
         _filingStatus = filingStatusOptions.any((e) => e.$1 == status) ? status : 'single';
         if (ca != null) {
-          _federalAgi.text = '${ca['federalAGI'] ?? ''}';
+          final agi = num.tryParse('${ca['federalAGI'] ?? 0}') ?? 0;
+          final wh = num.tryParse('${ca['caWithholding'] ?? 0}') ?? 0;
+          _computedAgi = agi;
+          _computedWithholding = wh;
+          _agiOverridden = ComputedFieldPolicy.isOverridden(Map<String, dynamic>.from(ca), 'federalAGI');
+          _whOverridden = ComputedFieldPolicy.isOverridden(Map<String, dynamic>.from(ca), 'caWithholding');
+          _federalAgi.text = '$agi';
           _subtractions.text = '${ca['caSubtractions'] ?? 0}';
           _additions.text = '${ca['caAdditions'] ?? 0}';
           _itemized.text = '${ca['itemizedDeduction'] ?? 0}';
-          _withholding.text = '${ca['caWithholding'] ?? 0}';
+          _withholding.text = '$wh';
           _estimated.text = '${ca['estimatedPayments'] ?? 0}';
           _calEitc.text = '${ca['calEITC'] ?? 0}';
           _yctc.text = '${ca['youngChildTaxCredit'] ?? 0}';
@@ -96,32 +113,138 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           _dependentExemptions = int.tryParse('${ca['dependentExemptions'] ?? 0}') ?? 0;
           _claimRenters = (num.tryParse('${ca['rentersCredit'] ?? 0}') ?? 0) > 0 || ca['claimRentersCredit'] == true;
         }
+        final ftb = preview['ftb3514'] as Map? ?? preview['prefill_inputs']?['ftb3514'] as Map?;
+        if (ftb != null) {
+          _hasYoungChild = ftb['hasYCTC'] == true || (num.tryParse('${ftb['yctcChildAge'] ?? 99}') ?? 99) < 6;
+          if ((num.tryParse('${ftb['calEITCAmount'] ?? 0}') ?? 0) > 0 && _n(_calEitc) <= 0) {
+            _calEitc.text = '${ftb['calEITCAmount']}';
+          }
+        }
+        _hasYoungChild = _hasYoungChild ||
+            preview['hasYoungChild'] == true ||
+            preview['prefill_inputs']?['hasYoungChild'] == true;
         _result = preview;
+        if (_autoCalEitc) _applyLocalCalEitcEstimate();
       });
     } catch (_) {}
   }
 
-  Map<String, dynamic> _payload() => {
-        'filingStatus': _filingStatus,
-        'tax_year': 2025,
-        'ca540': {
-          'federalAGI': _n(_federalAgi),
-          'caSubtractions': _n(_subtractions),
-          'caAdditions': _n(_additions),
-          'deductionType': _deductionType,
-          'itemizedDeduction': _n(_itemized),
-          'personalExemptions': _personalExemptions,
-          'dependentExemptions': _dependentExemptions,
-          'claimRentersCredit': _claimRenters,
-          'childDependentCareCredit': _n(_careCredit),
-          'caWithholding': _n(_withholding),
-          'estimatedPayments': _n(_estimated),
-          'calEITC': _n(_calEitc),
-          'youngChildTaxCredit': _n(_yctc),
-          'fosterYouthTaxCredit': _n(_fytc),
-          'useTax': _n(_useTax),
-        },
-      };
+  void _applyLocalCalEitcEstimate() {
+    final agi = _n(_federalAgi);
+    final earned = agi > 0 && agi <= kCalEitcMaxEarnedIncome ? agi : 0;
+    final est = estimateCalEitc(
+      earnedIncome: earned,
+      federalAgi: agi,
+      qualifyingChildren: _dependentExemptions,
+      hasYoungChild: _hasYoungChild,
+    );
+    if (_n(_calEitc) <= 0) _calEitc.text = '${est.calEitc}';
+    if (_n(_yctc) <= 0) _yctc.text = '${est.youngChildTaxCredit}';
+    if (_n(_fytc) <= 0) _fytc.text = '${est.fosterYouthTaxCredit}';
+  }
+
+  Map<String, dynamic> _payload() {
+    if (_autoCalEitc) _applyLocalCalEitcEstimate();
+    return {
+      'filingStatus': _filingStatus,
+      'tax_year': 2025,
+      'earnedIncome': _n(_federalAgi) > 0 && _n(_federalAgi) <= kCalEitcMaxEarnedIncome
+          ? _n(_federalAgi)
+          : 0,
+      'qualifyingChildren': _dependentExemptions,
+      'hasYoungChild': _hasYoungChild,
+      'ca540': {
+        'federalAGI': _n(_federalAgi),
+        'caSubtractions': _n(_subtractions),
+        'caAdditions': _n(_additions),
+        'deductionType': _deductionType,
+        'itemizedDeduction': _n(_itemized),
+        'personalExemptions': _personalExemptions,
+        'dependentExemptions': _dependentExemptions,
+        'claimRentersCredit': _claimRenters,
+        'childDependentCareCredit': _n(_careCredit),
+        'caWithholding': _n(_withholding),
+        'estimatedPayments': _n(_estimated),
+        // Send 0 when auto so server can compute; keep manual overrides.
+        'calEITC': _autoCalEitc ? 0 : _n(_calEitc),
+        'youngChildTaxCredit': _autoCalEitc ? 0 : _n(_yctc),
+        'fosterYouthTaxCredit': _autoCalEitc ? 0 : _n(_fytc),
+        'useTax': _n(_useTax),
+      },
+    };
+  }
+
+  Map<String, dynamic> _localCalculate() {
+    final payload = _payload();
+    final ca = Map<String, dynamic>.from(payload['ca540'] as Map);
+    if (_autoCalEitc) {
+      final est = estimateCalEitc(
+        earnedIncome: payload['earnedIncome'] as num? ?? 0,
+        federalAgi: _n(_federalAgi),
+        qualifyingChildren: _dependentExemptions,
+        hasYoungChild: _hasYoungChild,
+      );
+      ca['calEITC'] = est.calEitc;
+      ca['youngChildTaxCredit'] = est.youngChildTaxCredit;
+      ca['fosterYouthTaxCredit'] = est.fosterYouthTaxCredit;
+      ca['earnedIncome'] = est.earnedIncome;
+      ca['qualifyingChildren'] = est.qualifyingChildren;
+      ca['hasYoungChild'] = _hasYoungChild;
+    }
+    final summary = summarizeCa540(ca540: ca, filingStatus: _filingStatus);
+    final refund = summary.refundOrOwed >= 0 ? summary.refundOrOwed : 0;
+    final owing = summary.refundOrOwed < 0 ? -summary.refundOrOwed : 0;
+    final cal = _nFrom(ca['calEITC']);
+    return {
+      'estimate_only': true,
+      'submission_engine': 'ca540_local',
+      'form': '540',
+      'filing_status': _filingStatus,
+      'ca540': {
+        ...ca,
+        'caTax': summary.caTax,
+        'caAGI': summary.caAgi,
+        'taxableIncome': summary.taxableIncome,
+        'totalTax': summary.totalTax,
+        'totalPayments': summary.totalPayments,
+        'refundOrOwed': summary.refundOrOwed,
+      },
+      'lines': {
+        'line_13_federal_agi': _n(_federalAgi),
+        'line_17_ca_agi': summary.caAgi,
+        'line_18_deduction': summary.deduction,
+        'line_19_taxable_income': summary.taxableIncome,
+        'line_31_ca_tax': summary.caTax,
+        'line_32_exemption_credits': summary.exemptionCredits,
+        'line_35_subtotal': summary.taxAfterCredits,
+        'line_40_48_nonrefundable_credits': 0,
+        'total_tax': summary.totalTax,
+        'total_payments': summary.totalPayments,
+        'refund_or_owed': summary.refundOrOwed,
+      },
+      'refund': refund,
+      'owing': owing,
+      'ftb3514': {
+        'cal_eitc': ca['calEITC'],
+        'young_child_tax_credit': ca['youngChildTaxCredit'],
+        'foster_youth_tax_credit': ca['fosterYouthTaxCredit'],
+        'eligible': cal > 0,
+      },
+      'advice': summary.isRefund
+          ? 'Estimated California refund (local Form 540 + CalEITC). Confirm with FTB 3514 tables before filing.'
+          : 'Estimated California balance due (local Form 540 + CalEITC). Confirm withholdings and credits with your preparer.',
+    };
+  }
+
+  num _nFrom(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+
+  void _syncCreditFieldsFromResult(Map<String, dynamic> result) {
+    final ca = result['ca540'];
+    if (ca is! Map) return;
+    _calEitc.text = '${ca['calEITC'] ?? _calEitc.text}';
+    _yctc.text = '${ca['youngChildTaxCredit'] ?? _yctc.text}';
+    _fytc.text = '${ca['fosterYouthTaxCredit'] ?? _fytc.text}';
+  }
 
   Future<void> _calculate() async {
     setState(() {
@@ -131,14 +254,19 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
     try {
       final result = await ref.read(ca540RepositoryProvider).calculate(_payload());
       if (!mounted) return;
+      _syncCreditFieldsFromResult(result);
       setState(() {
         _result = result;
         _busy = false;
       });
     } catch (e) {
+      // Workflow continues offline with client-side Form 540 + CalEITC estimate.
+      final local = _localCalculate();
       if (!mounted) return;
+      _syncCreditFieldsFromResult(local);
       setState(() {
-        _error = ApiErrorMapper.map(e);
+        _result = local;
+        _error = '${ApiErrorMapper.map(e)} Showing local Form 540 + CalEITC estimate.';
         _busy = false;
       });
     }
@@ -234,10 +362,25 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           items: filingStatusOptions,
           onChanged: (v) => setState(() => _filingStatus = v ?? 'single'),
         ),
-        TextField(
-          controller: _federalAgi,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Line 13 — Federal AGI', prefixText: '\$ '),
+        OrganizerComputedMoneyField(
+          policy: ComputedFieldPolicy.federalAgi,
+          computedValue: _computedAgi,
+          storedValue: _n(_federalAgi),
+          isOverridden: _agiOverridden,
+          isProfessional: capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional,
+          onApplyComputed: () => setState(() {
+            _agiOverridden = false;
+            _federalAgi.text = '$_computedAgi';
+          }),
+          onManualValue: (v) => setState(() {
+            _agiOverridden = true;
+            _federalAgi.text = '$v';
+          }),
+          onMarkOverridden: () => setState(() => _agiOverridden = true),
+          onClearOverride: () => setState(() {
+            _agiOverridden = false;
+            _federalAgi.text = '$_computedAgi';
+          }),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -278,10 +421,25 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           decoration: const InputDecoration(labelText: 'Child & dependent care credit (FTB 3506)', prefixText: '\$ '),
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: _withholding,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'CA income tax withheld (W-2 Box 17)', prefixText: '\$ '),
+        OrganizerComputedMoneyField(
+          policy: ComputedFieldPolicy.caWithholding,
+          computedValue: _computedWithholding,
+          storedValue: _n(_withholding),
+          isOverridden: _whOverridden,
+          isProfessional: capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional,
+          onApplyComputed: () => setState(() {
+            _whOverridden = false;
+            _withholding.text = '$_computedWithholding';
+          }),
+          onManualValue: (v) => setState(() {
+            _whOverridden = true;
+            _withholding.text = '$v';
+          }),
+          onMarkOverridden: () => setState(() => _whOverridden = true),
+          onClearOverride: () => setState(() {
+            _whOverridden = false;
+            _withholding.text = '$_computedWithholding';
+          }),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -290,22 +448,55 @@ class _Ca540CalculatorScreenState extends ConsumerState<Ca540CalculatorScreen> {
           decoration: const InputDecoration(labelText: 'CA estimated tax payments', prefixText: '\$ '),
         ),
         const SizedBox(height: 10),
+        OrganizerCheckbox(
+          label: 'Auto-calculate CalEITC / YCTC (FTB 3514 TY2025 estimate)',
+          value: _autoCalEitc,
+          onChanged: (v) => setState(() {
+            _autoCalEitc = v;
+            if (v) _applyLocalCalEitcEstimate();
+          }),
+        ),
+        OrganizerCheckbox(
+          label: 'Qualifying child under age 6 (Young Child Tax Credit)',
+          value: _hasYoungChild,
+          onChanged: (v) => setState(() {
+            _hasYoungChild = v;
+            if (_autoCalEitc) _applyLocalCalEitcEstimate();
+          }),
+        ),
+        const Text(
+          'CalEITC uses federal AGI as earned-income estimate when ≤ \$32,900 and dependent exemptions as qualifying children. Confirm with FTB 3514 before filing.',
+          style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
+        ),
+        const SizedBox(height: 8),
         TextField(
           controller: _calEitc,
+          readOnly: _autoCalEitc,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'CalEITC (FTB 3514)', prefixText: '\$ '),
+          decoration: InputDecoration(
+            labelText: _autoCalEitc ? 'CalEITC (FTB 3514) — auto' : 'CalEITC (FTB 3514)',
+            prefixText: '\$ ',
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _yctc,
+          readOnly: _autoCalEitc,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Young Child Tax Credit', prefixText: '\$ '),
+          decoration: InputDecoration(
+            labelText: _autoCalEitc ? 'Young Child Tax Credit — auto' : 'Young Child Tax Credit',
+            prefixText: '\$ ',
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _fytc,
+          readOnly: _autoCalEitc,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Foster Youth Tax Credit', prefixText: '\$ '),
+          decoration: InputDecoration(
+            labelText: _autoCalEitc ? 'Foster Youth Tax Credit — auto' : 'Foster Youth Tax Credit',
+            prefixText: '\$ ',
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
