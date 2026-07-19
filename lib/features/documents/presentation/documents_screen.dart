@@ -19,11 +19,15 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/documents_repository.dart';
 
+const _titanFileUrl = 'https://upload-mkgtax.titanfile.com/';
+
 const _docTypes = <(String, String)>[
   ('w2', 'W-2'),
   ('1099', '1099'),
   ('id', 'Photo ID'),
   ('prior_return', 'Prior year return'),
+  ('irs_notice', 'IRS tax notice'),
+  ('state_notice', 'State tax notice'),
   ('bank', 'Bank statement'),
   ('credit_card', 'Credit card statement'),
   ('receipt', 'Receipt / invoice'),
@@ -222,8 +226,49 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Upload W-2s, 1099s, ID, and business records for this filing year.',
+                  'Upload W-2s, 1099s, ID, IRS/state notices, and business records for this filing year.',
                   style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  color: MkgColors.primary.withValues(alpha: 0.06),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Welcome to TitanFile — Upload Documents Securely',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Logging in is free. Use your email as your username and create a secure password. '
+                          'Once logged in, you can communicate securely and upload documents with ease.',
+                          style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Use TitanFile for large documents (over 15MB), IRS tax notices, and state tax notices.',
+                          style: TextStyle(fontSize: 12, height: 1.35),
+                        ),
+                        const SizedBox(height: 10),
+                        FilledButton.icon(
+                          onPressed: () => launchUrl(
+                            Uri.parse(_titanFileUrl),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(Icons.lock_outline),
+                          label: const Text('Open Secure File Submit'),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          _titanFileUrl,
+                          style: TextStyle(color: MkgColors.textGrey, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -278,7 +323,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     child: ListTile(
                       leading: Icon(Icons.folder_open_outlined),
                       title: Text('No documents yet'),
-                      subtitle: Text('Add W-2s, 1099s, ID, prior returns, or business records.'),
+                      subtitle: Text(
+                        'Add W-2s, 1099s, ID, IRS/state notices, prior returns, or business records. '
+                        'Large files go to TitanFile Secure File Submit.',
+                      ),
                     ),
                   )
                 else

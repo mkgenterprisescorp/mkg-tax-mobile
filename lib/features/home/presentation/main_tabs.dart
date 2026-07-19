@@ -374,7 +374,7 @@ class BlogsScreen extends StatelessWidget {
       children: const [
         SectionHeader('Learn'),
         Card(child: ListTile(title: Text('Tax filing tips'), subtitle: Text('See video tutorials on the web portal'))),
-        Card(child: ListTile(title: Text('Document checklist'), subtitle: Text('W-2, 1099, ID, prior year return'))),
+        Card(child: ListTile(title: Text('Document checklist'), subtitle: Text('W-2, 1099, ID, IRS/state notices, TitanFile for large files'))),
       ],
     );
   }

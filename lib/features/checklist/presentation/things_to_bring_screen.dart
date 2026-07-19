@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -51,7 +52,12 @@ class _ThingsToBringScreenState extends State<ThingsToBringScreen> {
     'Moving expenses*',
     'Tuition and Education Fees / 1098-T*',
     'Student loan interest / 1098-E*',
+    'IRS tax notices received*',
+    'State tax notices received*',
+    'Large document packets (upload via TitanFile Secure File Submit)*',
   ];
+
+  static const _titanFileUrl = 'https://upload-mkgtax.titanfile.com/';
 
   static const _shareTemplate = '''MKG Tax Consultants — Tax Appointment Checklist
 
@@ -69,6 +75,8 @@ Please bring (if applicable):
 - Health insurance forms (1095-A/B/C)
 - Investment statements (1099-B, 1099-DIV)
 - Rental property income & expenses
+- IRS and state tax notices
+- Large files: upload securely at https://upload-mkgtax.titanfile.com/
 
 Questions? Call (559) 412-7248
 MKG Tax Consultants
@@ -146,6 +154,15 @@ MKG Tax Consultants
           onPressed: () => context.go('/documents'),
           icon: const Icon(Icons.upload_file_outlined),
           label: const Text('Upload gathered documents'),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: () => launchUrl(
+            Uri.parse(_titanFileUrl),
+            mode: LaunchMode.externalApplication,
+          ),
+          icon: const Icon(Icons.lock_outline),
+          label: const Text('Upload large docs / notices (TitanFile)'),
         ),
         const SizedBox(height: 12),
         for (var i = 0; i < items.length; i++)
