@@ -104,10 +104,10 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           subtitle: 'Payment card / marketplace → business income.',
           builder: (_) => _form1099KSection(bodyOnly: true),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 1040 income summary',
           subtitle: 'Auto-filled from forms above. Edit only to override.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerMoneyField(label: '1a — Wages (W-2 total)', value: data['wages'], onChanged: (v) => onRoot('wages', v)),
               OrganizerMoneyField(label: '2b — Taxable interest', value: data['interestIncome'], onChanged: (v) => onRoot('interestIncome', v)),
@@ -131,10 +131,10 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 1 — Additional income highlights',
           subtitle: 'Form 1040 Line 8 ← Schedule 1, line 10.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule1,
             onlyKeys: const [
               'stateTaxRefund',

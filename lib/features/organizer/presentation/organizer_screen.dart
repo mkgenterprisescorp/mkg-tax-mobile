@@ -108,17 +108,26 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         if (warm?.workspaceId == null || warm?.taxYear != yearHint) {
           await ref.read(taxYearProvider.notifier).refreshWorkspace();
         }
-        final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+        final taxState = ref.read(taxYearProvider);
+        final workspaceId = taxState.workspace?.workspaceId;
         if (workspaceId == null) {
           throw Exception('No tax-year workspace. Select a year and try again.');
         }
-        final year = ref.read(taxYearProvider).workspace?.taxYear ?? yearHint;
-        // Parallel: defaults JSON + first organizer fetch.
+        final year = taxState.workspace?.taxYear ?? yearHint;
+        // Activate already embeds organizer (~20KB, same as GET .../organizer).
+        // Reuse it to avoid a second 3–5s round-trip on cold open.
+        final snap = taxState.organizerSnapshot;
+        final snapMatchesWorkspace = snap != null &&
+            '${snap['tax_year_workspace_id'] ?? ''}' == workspaceId;
         final defaultsFuture = OrganizerDefaults.load();
-        final orgFuture = ref.read(laravelOrganizerRepositoryProvider).show(
-              workspaceId,
-              prepType: 'personal',
-            );
+        final Map<String, dynamic>? cachedOrg =
+            snapMatchesWorkspace ? Map<String, dynamic>.from(snap) : null;
+        final orgFuture = cachedOrg != null
+            ? Future<Map<String, dynamic>?>.value(cachedOrg)
+            : ref.read(laravelOrganizerRepositoryProvider).show(
+                  workspaceId,
+                  prepType: 'personal',
+                );
         final defaults = await defaultsFuture;
         final org = await orgFuture;
         if (!mounted) return;
@@ -327,6 +336,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
+      // Drop activate-embedded snapshot so the next Organizer open re-fetches.
+      ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
       setState(() {
         _status = status;
         _saving = false;

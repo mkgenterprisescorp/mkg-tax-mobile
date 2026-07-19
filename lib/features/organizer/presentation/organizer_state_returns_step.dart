@@ -571,35 +571,35 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'California Form 540',
           subtitle: 'Complete FTB Form 540 lines — residency dropdown, payments, credits, and live refund estimate.',
-          child: OrganizerCa540Form(
+          builder: (_) => OrganizerCa540Form(
             ca540: ca540,
             filingStatus: '${data['filingStatus'] ?? 'single'}',
             homeState: homeState,
             onChanged: (m) => onNested('ca540', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule CA (540)',
-          child: NestedMapEditor(data: _map('scheduleCA'), onChanged: (m) => onNested('scheduleCA', m)),
+          builder: (_) => NestedMapEditor(data: _map('scheduleCA'), onChanged: (m) => onNested('scheduleCA', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'FTB 3514 — CalEITC / YCTC / FYTC',
-          child: NestedMapEditor(data: _map('ftb3514'), onChanged: (m) => onNested('ftb3514', m)),
+          builder: (_) => NestedMapEditor(data: _map('ftb3514'), onChanged: (m) => onNested('ftb3514', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'FTB 3506 — CA child & dependent care',
-          child: NestedMapEditor(data: _map('ftb3506'), onChanged: (m) => onNested('ftb3506', m)),
+          builder: (_) => NestedMapEditor(data: _map('ftb3506'), onChanged: (m) => onNested('ftb3506', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule P (540) — CA AMT',
-          child: NestedMapEditor(data: _map('scheduleP540'), onChanged: (m) => onNested('scheduleP540', m)),
+          builder: (_) => NestedMapEditor(data: _map('scheduleP540'), onChanged: (m) => onNested('scheduleP540', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule S — Other state tax credit',
-          child: NestedMapEditor(data: _map('scheduleS'), onChanged: (m) => onNested('scheduleS', m)),
+          builder: (_) => NestedMapEditor(data: _map('scheduleS'), onChanged: (m) => onNested('scheduleS', m)),
         ),
         const OfficialFormLinksCard(
           title: 'Official California Form 540-X',
@@ -610,23 +610,27 @@ class OrganizerStateReturnsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 540X — Amended CA return',
           subtitle: 'Complete when amending a previously filed CA Form 540.',
-          child: NestedMapEditor(data: _map('ca540x'), onChanged: (m) => onNested('ca540x', m)),
+          builder: (_) => NestedMapEditor(data: _map('ca540x'), onChanged: (m) => onNested('ca540x', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'CA payment / direct deposit',
-          child: Column(
+          builder: (_) => Column(
             children: [
               NestedMapEditor(data: _map('caDirectDeposit'), onChanged: (m) => onNested('caDirectDeposit', m)),
               NestedMapEditor(data: _map('caPayment'), onChanged: (m) => onNested('caPayment', m)),
             ],
           ),
         ),
-        OrganizerCaBusinessForms(
-          data: data,
-          onNested: onNested,
+        OrganizerLazySection(
+          title: 'California business entity forms',
+          subtitle: 'Forms 100 / 100S / 565 / 541 / 199 — expand to edit.',
+          builder: (_) => OrganizerCaBusinessForms(
+            data: data,
+            onNested: onNested,
+          ),
         ),
       ],
     );

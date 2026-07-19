@@ -106,10 +106,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8889 — Health Savings Account',
           subtitle: 'HSA deduction flows to Schedule 1, then Form 1040 Line 10. Do not use “health insurance premiums” for HSA.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form8889,
             onlyKeys: const [
               'hsaCoverage',
@@ -134,10 +134,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form8889', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule SE — Self-employment tax',
           subtitle: 'SE tax → Form 1040 Line 23 (via Schedule 2). Deductible half → Schedule 1 / Line 10.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: scheduleSE,
             onlyKeys: const [
               'netProfitScheduleC',
@@ -162,10 +162,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('scheduleSE', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 1-A — Additional deductions',
           subtitle: 'Form 1040 Line 13b ← Schedule 1-A, line 38.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule1A,
             labels: const {
               'tipIncome': 'Tip income deduction (Sch. 1-A → Line 13b)',
@@ -177,10 +177,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule1A', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8995 — Qualified business income (QBI)',
           subtitle: 'Form 1040 Line 13a ← Form 8995 / 8995-A.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form8995,
             onlyKeys: const [
               'qualifiedBusinessIncome',
@@ -197,10 +197,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form8995', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule A — Itemized deductions',
           subtitle: 'Form 1040 Line 12e when itemizing (instead of standard deduction).',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerCheckbox(
                 label: 'Itemize deductions (Schedule A → Form 1040 Line 12e)',
@@ -245,10 +245,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 8812 — Child tax credit & other dependents',
           subtitle: 'Form 1040 Line 19 (CTC/ODC) and Line 28 (ACTC).',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule8812,
             onlyKeys: const [
               'qualifyingChildren',
@@ -269,10 +269,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule8812', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 1040 Line 27a — Earned Income Credit',
           subtitle: 'Attach Schedule EIC when claiming with qualifying children.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               OrganizerCheckbox(
                 label: 'Claim Earned Income Credit (EIC) — Form 1040 Line 27a',
@@ -288,10 +288,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 2441 — Child & dependent care',
           subtitle: 'Nonrefundable credit → Schedule 3 → Form 1040 Line 20.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               NestedMapEditor(
                 data: {
@@ -329,10 +329,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8863 — Education credits',
           subtitle: 'Nonrefundable portion → Sch. 3 / Line 20. Refundable AOTC → Form 1040 Line 29.',
-          child: Column(
+          builder: (_) => Column(
             children: [
               NestedMapEditor(
                 data: form8863,
@@ -352,10 +352,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             ],
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 5695 — Residential energy credits',
           subtitle: '→ Schedule 3 → Form 1040 Line 20.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form5695,
             labels: const {
               'solarElectric': 'Solar electric',
@@ -373,10 +373,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form5695', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8839 — Adoption credit',
           subtitle: 'Refundable adoption credit → Form 1040 Line 30.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: form8839,
             labels: const {
               'childName': 'Adopted child name',
@@ -388,18 +388,18 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('form8839', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8962 — Premium Tax Credit',
           subtitle: 'Marketplace coverage (1095-A). Net PTC / repayment ties to Schedule 2 / Schedule 3 / Line 31.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: _map('form8962'),
             onChanged: (m) => _setNestedAndRollup('form8962', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 3 — Nonrefundable credits & other payments',
           subtitle: 'Line 8 → Form 1040 Line 20. Line 15 → Form 1040 Line 31.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule3,
             labels: const {
               'foreignTaxCredit': 'Foreign tax credit (Form 1116) → Sch. 3 / Line 20',
@@ -418,10 +418,10 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule3', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule 2 — Additional taxes',
           subtitle: 'Sch. 2 line 3 → Form 1040 Line 17. Sch. 2 line 21 (incl. SE tax) → Line 23.',
-          child: NestedMapEditor(
+          builder: (_) => NestedMapEditor(
             data: schedule2,
             labels: const {
               'altMinimumTax': 'Alternative minimum tax (Form 6251) → Line 17',
@@ -439,35 +439,35 @@ class OrganizerCreditsStep extends StatelessWidget {
             onChanged: (m) => _setNestedAndRollup('schedule2', m),
           ),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8829 — Home office (Schedule C)',
           subtitle: 'Business use of home deduction supporting Schedule C (not a Form 1040 credit line).',
-          child: NestedMapEditor(data: _map('form8829'), onChanged: (m) => onNested('form8829', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8829'), onChanged: (m) => onNested('form8829', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 6251 — Alternative Minimum Tax',
           subtitle: 'AMT → Schedule 2 → Form 1040 Line 17.',
-          child: NestedMapEditor(data: _map('form6251'), onChanged: (m) => _setNestedAndRollup('form6251', m)),
+          builder: (_) => NestedMapEditor(data: _map('form6251'), onChanged: (m) => _setNestedAndRollup('form6251', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8959 — Additional Medicare Tax',
           subtitle: '→ Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: _map('form8959'), onChanged: (m) => _setNestedAndRollup('form8959', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8959'), onChanged: (m) => _setNestedAndRollup('form8959', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Form 8960 — Net Investment Income Tax',
           subtitle: '→ Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: _map('form8960'), onChanged: (m) => _setNestedAndRollup('form8960', m)),
+          builder: (_) => NestedMapEditor(data: _map('form8960'), onChanged: (m) => _setNestedAndRollup('form8960', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule H — Household employment',
           subtitle: 'Household employment tax → Schedule 2 → Form 1040 Line 23.',
-          child: NestedMapEditor(data: scheduleH, onChanged: (m) => _setNestedAndRollup('scheduleH', m)),
+          builder: (_) => NestedMapEditor(data: scheduleH, onChanged: (m) => _setNestedAndRollup('scheduleH', m)),
         ),
-        OrganizerSection(
+        OrganizerLazySection(
           title: 'Schedule R — Credit for the elderly or disabled',
           subtitle: 'Nonrefundable credit → Schedule 3 → Form 1040 Line 20.',
-          child: NestedMapEditor(data: scheduleR, onChanged: (m) => _setNestedAndRollup('scheduleR', m)),
+          builder: (_) => NestedMapEditor(data: scheduleR, onChanged: (m) => _setNestedAndRollup('scheduleR', m)),
         ),
         const MkgCard(
           child: Text(
