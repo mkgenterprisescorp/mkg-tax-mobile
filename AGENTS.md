@@ -4,7 +4,7 @@
 
 ### Auth / API / website hosts
 - **Web client portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro — not the mobile website).
-- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL` default). DNS managed at GoDaddy for the apex zone; `finance` subdomain may be NS-delegated (currently to DigitalOcean, same pattern as `app`).
+- **Mobile app website:** `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL` default). Domain registrar is **GoDaddy**; DNS for `finance` (and `app`) is **DigitalOcean** nameservers — create A/CNAME / App Platform domain records in DO Networking, not as ordinary GoDaddy host records.
 - **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum). Do **not** reuse `app.` for the website.
 - **Payments deep links / Stripe return:** stay on portal `https://mkgtaxconsultants.com/payments` (`PAYMENTS_WEB_URL` / `canonicalPortalHost`).
 - Flutter never talks to Neon, `/internal/*`, or portal S2S credentials.
