@@ -4,6 +4,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../states/data/state_workflow_repository.dart';
 import '../data/official_form_links.dart';
+import '../data/organizer_enum_options.dart';
 import '../data/rollout_regions.dart';
 import '../data/us_states.dart';
 import 'organizer_ca540_form.dart';
@@ -587,7 +588,38 @@ class OrganizerStateReturnsStep extends StatelessWidget {
         ),
         OrganizerLazySection(
           title: 'FTB 3514 — CalEITC / YCTC / FYTC',
-          builder: (_) => NestedMapEditor(data: _map('ftb3514'), onChanged: (m) => onNested('ftb3514', m)),
+          builder: (_) {
+            final ftb = _map('ftb3514');
+            final status = normalizeEnumValue(
+              ftb['filingStatusCalEITC'],
+              calEitcFilingStatusOptions,
+              fallback: '',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'Filing status (CalEITC)',
+                  value: status,
+                  items: calEitcFilingStatusOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(ftb)
+                      ..['filingStatusCalEITC'] = v ?? '';
+                    onNested('ftb3514', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: ftb,
+                  excludeKeys: const {'filingStatusCalEITC'},
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)
+                      ..['filingStatusCalEITC'] = status;
+                    onNested('ftb3514', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
         OrganizerLazySection(
           title: 'FTB 3506 — CA child & dependent care',
@@ -617,12 +649,60 @@ class OrganizerStateReturnsStep extends StatelessWidget {
         ),
         OrganizerLazySection(
           title: 'CA payment / direct deposit',
-          builder: (_) => Column(
-            children: [
-              NestedMapEditor(data: _map('caDirectDeposit'), onChanged: (m) => onNested('caDirectDeposit', m)),
-              NestedMapEditor(data: _map('caPayment'), onChanged: (m) => onNested('caPayment', m)),
-            ],
-          ),
+          builder: (_) {
+            final deposit = _map('caDirectDeposit');
+            final payment = _map('caPayment');
+            final accountType = normalizeEnumValue(
+              deposit['accountType'],
+              bankAccountTypeOptions,
+              fallback: 'checking',
+            );
+            final payMethod = normalizeEnumValue(
+              payment['paymentMethod'],
+              caPaymentMethodOptions,
+              fallback: 'web_pay',
+            );
+            return Column(
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'Direct deposit account type',
+                  value: accountType,
+                  items: bankAccountTypeOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(deposit)
+                      ..['accountType'] = v ?? 'checking';
+                    onNested('caDirectDeposit', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: deposit,
+                  excludeKeys: const {'accountType'},
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)..['accountType'] = accountType;
+                    onNested('caDirectDeposit', next);
+                  },
+                ),
+                OrganizerDropdown<String>(
+                  label: 'CA payment method',
+                  value: payMethod,
+                  items: caPaymentMethodOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(payment)
+                      ..['paymentMethod'] = v ?? 'web_pay';
+                    onNested('caPayment', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: payment,
+                  excludeKeys: const {'paymentMethod'},
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)..['paymentMethod'] = payMethod;
+                    onNested('caPayment', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
         OrganizerLazySection(
           title: 'California business entity forms',

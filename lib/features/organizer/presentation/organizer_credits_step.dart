@@ -5,6 +5,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_credits_math.dart';
+import '../data/organizer_enum_options.dart';
 import 'organizer_credits_tessa_sheet.dart';
 import 'organizer_fields.dart';
 
@@ -189,30 +190,54 @@ class OrganizerCreditsStep extends StatelessWidget {
         OrganizerLazySection(
           title: 'Form 8889 — Health Savings Account',
           subtitle: 'HSA deduction flows to Schedule 1, then Form 1040 Line 10. Do not use “health insurance premiums” for HSA.',
-          builder: (_) => NestedMapEditor(
-            data: form8889,
-            onlyKeys: const [
-              'hsaCoverage',
-              'hsaContributions',
-              'employerContributions',
-              'hsaDeduction',
-              'qualifiedDistributions',
-              'totalDistributions',
-              'excessContributions',
-              'highDeductiblePlan',
-            ],
-            labels: const {
-              'hsaCoverage': 'HSA coverage (self / family)',
-              'hsaContributions': 'HSA contributions (Form 8889)',
-              'employerContributions': 'Employer HSA contributions',
-              'hsaDeduction': 'HSA deduction → Sch. 1 / Form 1040 Line 10',
-              'qualifiedDistributions': 'Qualified medical distributions',
-              'totalDistributions': 'Total HSA distributions',
-              'excessContributions': 'Excess contributions',
-              'highDeductiblePlan': 'Covered by HDHP',
-            },
-            onChanged: (m) => _setNestedAndRollup('form8889', m),
-          ),
+          builder: (_) {
+            final coverage = normalizeEnumValue(
+              form8889['hsaCoverage'],
+              hsaCoverageOptions,
+              fallback: 'self',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'HSA coverage',
+                  value: coverage,
+                  items: hsaCoverageOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(form8889)
+                      ..['hsaCoverage'] = v ?? 'self';
+                    _setNestedAndRollup('form8889', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: form8889,
+                  excludeKeys: const {'hsaCoverage'},
+                  onlyKeys: const [
+                    'hsaContributions',
+                    'employerContributions',
+                    'hsaDeduction',
+                    'qualifiedDistributions',
+                    'totalDistributions',
+                    'excessContributions',
+                    'highDeductiblePlan',
+                  ],
+                  labels: const {
+                    'hsaContributions': 'HSA contributions (Form 8889)',
+                    'employerContributions': 'Employer HSA contributions',
+                    'hsaDeduction': 'HSA deduction → Sch. 1 / Form 1040 Line 10',
+                    'qualifiedDistributions': 'Qualified medical distributions',
+                    'totalDistributions': 'Total HSA distributions',
+                    'excessContributions': 'Excess contributions',
+                    'highDeductiblePlan': 'Covered by HDHP',
+                  },
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)..['hsaCoverage'] = coverage;
+                    _setNestedAndRollup('form8889', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
         OrganizerLazySection(
           title: 'Schedule SE — Self-employment tax',
@@ -586,7 +611,37 @@ class OrganizerCreditsStep extends StatelessWidget {
         OrganizerLazySection(
           title: 'Schedule R — Credit for the elderly or disabled',
           subtitle: 'Nonrefundable credit → Schedule 3 → Form 1040 Line 20.',
-          builder: (_) => NestedMapEditor(data: scheduleR, onChanged: (m) => _setNestedAndRollup('scheduleR', m)),
+          builder: (_) {
+            final filing = normalizeEnumValue(
+              scheduleR['filingStatusForCredit'],
+              scheduleRFilingStatusOptions,
+              fallback: 'single_under65',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OrganizerDropdown<String>(
+                  label: 'Filing status for credit',
+                  value: filing,
+                  items: scheduleRFilingStatusOptions,
+                  onChanged: (v) {
+                    final next = Map<String, dynamic>.from(scheduleR)
+                      ..['filingStatusForCredit'] = v ?? 'single_under65';
+                    _setNestedAndRollup('scheduleR', next);
+                  },
+                ),
+                NestedMapEditor(
+                  data: scheduleR,
+                  excludeKeys: const {'filingStatusForCredit'},
+                  onChanged: (m) {
+                    final next = Map<String, dynamic>.from(m)
+                      ..['filingStatusForCredit'] = filing;
+                    _setNestedAndRollup('scheduleR', next);
+                  },
+                ),
+              ],
+            );
+          },
         ),
         const MkgCard(
           child: Text(
