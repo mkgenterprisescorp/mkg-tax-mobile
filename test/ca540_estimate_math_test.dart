@@ -36,6 +36,35 @@ void main() {
       },
       filingStatus: 'single',
     );
-    expect(summary.totalPayments, 500);
+    // Low AGI also picks up auto CalEITC in payments when blank.
+    expect(summary.totalPayments, greaterThanOrEqualTo(500));
+  });
+
+  test('estimateCalEitc TY2025 peaks and income cap', () {
+    final peak = estimateCalEitc(earnedIncome: 4661, qualifyingChildren: 0);
+    expect(peak.calEitc, 302);
+    final over = estimateCalEitc(earnedIncome: 40000, qualifyingChildren: 2);
+    expect(over.calEitc, 0);
+    final withKid = estimateCalEitc(
+      earnedIncome: 18000,
+      federalAgi: 18000,
+      qualifyingChildren: 1,
+      hasYoungChild: true,
+    );
+    expect(withKid.calEitc, greaterThan(0));
+    expect(withKid.youngChildTaxCredit, 1189);
+  });
+
+  test('summarizeCa540 auto-includes CalEITC when blank and eligible', () {
+    final summary = summarizeCa540(
+      ca540: {
+        'federalAGI': 18000,
+        'caWithholding': 200,
+        'dependentExemptions': 1,
+        'hasYoungChild': true,
+      },
+      filingStatus: 'single',
+    );
+    expect(summary.totalPayments, greaterThan(200));
   });
 }

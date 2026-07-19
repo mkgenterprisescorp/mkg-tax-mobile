@@ -330,20 +330,66 @@ class OrganizerCa540Form extends StatelessWidget {
                 value: ca540['motionPictureCredit'],
                 onChanged: (v) => _patch('motionPictureCredit', v),
               ),
-              OrganizerMoneyField(
-                label: 'Line 75 — CalEITC (FTB 3514)',
-                value: ca540['calEITC'],
-                onChanged: (v) => _patch('calEITC', v),
-              ),
-              OrganizerMoneyField(
-                label: 'Line 76 — Young child tax credit',
-                value: ca540['youngChildTaxCredit'],
-                onChanged: (v) => _patch('youngChildTaxCredit', v),
-              ),
-              OrganizerMoneyField(
-                label: 'Line 77 — Foster youth tax credit',
-                value: ca540['fosterYouthTaxCredit'],
-                onChanged: (v) => _patch('fosterYouthTaxCredit', v),
+              Builder(
+                builder: (_) {
+                  final earned = _n(ca540['earnedIncome']) > 0
+                      ? _n(ca540['earnedIncome'])
+                      : (_n(ca540['stateWages']) > 0
+                          ? _n(ca540['stateWages'])
+                          : (_n(ca540['federalAGI']) > 0 &&
+                                  _n(ca540['federalAGI']) <= kCalEitcMaxEarnedIncome
+                              ? _n(ca540['federalAGI'])
+                              : 0));
+                  final est = estimateCalEitc(
+                    earnedIncome: earned,
+                    federalAgi: _n(ca540['federalAGI']),
+                    investmentIncome: _n(ca540['investmentIncome']),
+                    qualifyingChildren: _i(ca540['qualifyingChildren'] ?? ca540['dependentExemptions']),
+                    hasYoungChild: ca540['hasYoungChild'] == true || _i(ca540['yctcChildAge']) < 6,
+                    hasFosterYouth: ca540['hasFosterYouth'] == true,
+                  );
+                  final cal = _n(ca540['calEITC']);
+                  final yctc = _n(ca540['youngChildTaxCredit']);
+                  final fytc = _n(ca540['fosterYouthTaxCredit']);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (est.eligible && (cal <= 0 || yctc <= 0))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: OutlinedButton.icon(
+                            onPressed: () => _patchAll({
+                              if (cal <= 0) 'calEITC': est.calEitc,
+                              if (yctc <= 0) 'youngChildTaxCredit': est.youngChildTaxCredit,
+                              if (fytc <= 0) 'fosterYouthTaxCredit': est.fosterYouthTaxCredit,
+                              'earnedIncome': est.earnedIncome,
+                              'qualifyingChildren': est.qualifyingChildren,
+                            }),
+                            icon: const Icon(Icons.auto_awesome, size: 18),
+                            label: Text(
+                              'Apply FTB 3514 estimate — CalEITC \$${est.calEitc}'
+                              '${est.youngChildTaxCredit > 0 ? ' · YCTC \$${est.youngChildTaxCredit}' : ''}',
+                            ),
+                          ),
+                        ),
+                      OrganizerMoneyField(
+                        label: 'Line 75 — CalEITC (FTB 3514)',
+                        value: cal,
+                        onChanged: (v) => _patch('calEITC', v),
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Line 76 — Young child tax credit',
+                        value: yctc,
+                        onChanged: (v) => _patch('youngChildTaxCredit', v),
+                      ),
+                      OrganizerMoneyField(
+                        label: 'Line 77 — Foster youth tax credit',
+                        value: fytc,
+                        onChanged: (v) => _patch('fosterYouthTaxCredit', v),
+                      ),
+                    ],
+                  );
+                },
               ),
               OrganizerMoneyField(
                 label: 'FTB 3514 — IHSS payments',
@@ -421,6 +467,21 @@ class OrganizerCa540Form extends StatelessWidget {
                 const SizedBox(height: 12),
                 FilledButton.tonalIcon(
                   onPressed: () {
+                    final earned = _n(ca540['earnedIncome']) > 0
+                        ? _n(ca540['earnedIncome'])
+                        : (_n(ca540['stateWages']) > 0
+                            ? _n(ca540['stateWages'])
+                            : (_n(ca540['federalAGI']) > 0 &&
+                                    _n(ca540['federalAGI']) <= kCalEitcMaxEarnedIncome
+                                ? _n(ca540['federalAGI'])
+                                : 0));
+                    final est = estimateCalEitc(
+                      earnedIncome: earned,
+                      federalAgi: _n(ca540['federalAGI']),
+                      qualifyingChildren: _i(ca540['qualifyingChildren'] ?? ca540['dependentExemptions']),
+                      hasYoungChild: ca540['hasYoungChild'] == true || _i(ca540['yctcChildAge']) < 6,
+                      hasFosterYouth: ca540['hasFosterYouth'] == true,
+                    );
                     _patchAll({
                       'caAGI': summary.caAgi,
                       'standardDeduction': summary.deduction,
@@ -431,6 +492,11 @@ class OrganizerCa540Form extends StatelessWidget {
                       'totalPayments': summary.totalPayments,
                       'refundOrOwed': summary.refundOrOwed,
                       'behavioralHealthTax': summary.behavioralHealthTax,
+                      if (_n(ca540['calEITC']) <= 0 && est.calEitc > 0) 'calEITC': est.calEitc,
+                      if (_n(ca540['youngChildTaxCredit']) <= 0 && est.youngChildTaxCredit > 0)
+                        'youngChildTaxCredit': est.youngChildTaxCredit,
+                      if (_n(ca540['fosterYouthTaxCredit']) <= 0 && est.fosterYouthTaxCredit > 0)
+                        'fosterYouthTaxCredit': est.fosterYouthTaxCredit,
                     });
                   },
                   icon: const Icon(Icons.sync),
@@ -454,6 +520,8 @@ class OrganizerCa540Form extends StatelessWidget {
   }
 
   num _n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+
+  int _i(dynamic v) => int.tryParse('$v') ?? 0;
 
   String _money(num v) => '\$${v.toStringAsFixed(v == v.roundToDouble() ? 0 : 2)}';
 
