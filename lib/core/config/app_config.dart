@@ -26,6 +26,13 @@ class AppConfig {
     defaultValue: 'https://financemkgtax.com',
   );
 
+  /// Hosted invoices/payments landing page opened from the mobile billing UI.
+  /// Replaces the legacy `https://financemkgtax.com/payments` deep link.
+  static const String paymentsWebUrl = String.fromEnvironment(
+    'PAYMENTS_WEB_URL',
+    defaultValue: 'https://mkgtaxconsultants.com',
+  );
+
   /// Optional override for Laravel host origin (defaults derived from [apiBaseUrl]).
   /// Used when Dio needs the host without `/api/v1` (paths then include `/api/v1/...`).
   static const String laravelApiBaseUrl = String.fromEnvironment(

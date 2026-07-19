@@ -78,5 +78,11 @@ void main() {
       // the getter's logic is host-string-based and not a hardcoded guess.
       expect(AppConfig.usesLaravelAuth, AppConfig.apiRoot.toLowerCase().contains('/api/v1'));
     });
+
+    test('paymentsWebUrl defaults to mkgtaxconsultants.com (not legacy /payments)', () {
+      expect(AppConfig.paymentsWebUrl, 'https://mkgtaxconsultants.com');
+      expect(AppConfig.paymentsWebUrl.contains('financemkgtax.com'), isFalse);
+      expect(AppConfig.paymentsWebUrl.endsWith('/payments'), isFalse);
+    });
   });
 }
