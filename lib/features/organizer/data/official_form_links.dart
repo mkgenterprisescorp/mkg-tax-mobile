@@ -21,8 +21,6 @@ abstract final class OfficialFormLinks {
   static const form1040xAbout = 'https://www.irs.gov/forms-pubs/about-form-1040x';
   static const form1040xPdf = 'https://www.irs.gov/pub/irs-pdf/f1040x.pdf';
   static const form1040Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040.pdf';
-  static const form1040LineByLine =
-      'https://www.irs.gov/e-file-providers/line-by-line-instructions-free-file-fillable-forms';
   static const schedule1Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040s1.pdf';
   static const scheduleAPdf = 'https://www.irs.gov/pub/irs-pdf/f1040sa.pdf';
   static const schedule3Pdf = 'https://www.irs.gov/pub/irs-pdf/f1040s3.pdf';

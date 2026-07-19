@@ -10,8 +10,6 @@ import '../data/us_states.dart';
 import 'organizer_fields.dart';
 
 /// Form 1040 Income step: W-2 + 1099 schemas wired to TY2025 line rollups.
-/// IRS Free File line-by-line:
-/// https://www.irs.gov/e-file-providers/line-by-line-instructions-free-file-fillable-forms
 class OrganizerIncomeFormsStep extends StatelessWidget {
   const OrganizerIncomeFormsStep({
     super.key,
@@ -51,7 +49,6 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           title: 'Official income form references',
           subtitle: 'Enter paper forms box-by-box. Totals roll into Form 1040 lines.',
           links: const [
-            ('Form 1040 line-by-line (Free File)', OfficialFormLinks.form1040LineByLine),
             ('Form W-2', OfficialFormLinks.formW2Pdf),
             ('Form 1099-NEC', OfficialFormLinks.form1099NecPdf),
             ('Form 1099-R', OfficialFormLinks.form1099RPdf),
@@ -60,16 +57,53 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
+        // Keep W-2 + summary open; lazy-build other forms on expand (faster first paint).
         _w2Section(),
-        _necSection(),
-        _form1099RSection(),
-        _ssaSection(),
-        _form1099GSection(),
-        _form1099DaSection(),
-        _form1099IntSection(),
-        _form1099DivSection(),
-        _form1099BSection(),
-        _form1099KSection(),
+        OrganizerLazySection(
+          title: 'Form 1099-NEC',
+          subtitle: 'Nonemployee compensation → Schedule C / Line 8 path.',
+          builder: (_) => _necSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-R',
+          subtitle: 'IRA / pensions → Lines 4a–5b.',
+          builder: (_) => _form1099RSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'SSA-1099',
+          subtitle: 'Social Security → Lines 6a / 6b.',
+          builder: (_) => _ssaSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-G',
+          subtitle: 'Unemployment / state refund → Schedule 1.',
+          builder: (_) => _form1099GSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-DA / digital assets',
+          subtitle: 'Proceeds → Line 7 / Schedule D path.',
+          builder: (_) => _form1099DaSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-INT',
+          subtitle: 'Interest → Line 2b.',
+          builder: (_) => _form1099IntSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-DIV',
+          subtitle: 'Dividends → Lines 3a / 3b.',
+          builder: (_) => _form1099DivSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-B',
+          subtitle: 'Broker proceeds → Line 7 / Schedule D.',
+          builder: (_) => _form1099BSection(bodyOnly: true),
+        ),
+        OrganizerLazySection(
+          title: 'Form 1099-K',
+          subtitle: 'Payment card / marketplace → business income.',
+          builder: (_) => _form1099KSection(bodyOnly: true),
+        ),
         OrganizerSection(
           title: 'Form 1040 income summary',
           subtitle: 'Auto-filled from forms above. Edit only to override.',
@@ -269,13 +303,10 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
     );
   }
 
-  Widget _necSection() {
+  Widget _necSection({bool bodyOnly = false}) {
     const key = 'form1099NEC';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-NEC — Nonemployee compensation',
-      subtitle: 'Box 1 → Schedule C / business income → Form 1040 Line 8 path.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -316,17 +347,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-NEC', key, emptyForm1099Nec),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-NEC — Nonemployee compensation',
+      subtitle: 'Box 1 → Schedule C / business income → Form 1040 Line 8 path.',
+      child: body,
     );
   }
 
-  Widget _form1099RSection() {
+  Widget _form1099RSection({bool bodyOnly = false}) {
     const key = 'form1099R';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-R — Distributions from pensions, annuities, retirement',
-      subtitle: 'Box 1/2a → Form 1040 Lines 4a–4b (IRA) or 5a–5b (pension). Check IRA/SEP/SIMPLE for Line 4.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -373,17 +406,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-R', key, emptyForm1099R),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-R — Distributions from pensions, annuities, retirement',
+      subtitle: 'Box 1/2a → Form 1040 Lines 4a–4b (IRA) or 5a–5b (pension). Check IRA/SEP/SIMPLE for Line 4.',
+      child: body,
     );
   }
 
-  Widget _ssaSection() {
+  Widget _ssaSection({bool bodyOnly = false}) {
     const key = 'formSSA1099';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'SSA-1099 — Social Security Benefit Statement',
-      subtitle: 'Box 5 → Form 1040 Line 6a. Taxable benefits → Line 6b (intake estimate if blank).',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -407,17 +442,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add SSA-1099', key, emptyFormSsa1099),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'SSA-1099 — Social Security Benefit Statement',
+      subtitle: 'Box 5 → Form 1040 Line 6a. Taxable benefits → Line 6b (intake estimate if blank).',
+      child: body,
     );
   }
 
-  Widget _form1099GSection() {
+  Widget _form1099GSection({bool bodyOnly = false}) {
     const key = 'form1099G';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-G — Certain government payments',
-      subtitle: 'Box 1 unemployment → Sch. 1 line 7. Box 2 state/local refund → Sch. 1 line 1 → Form 1040 Line 8.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -444,17 +481,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-G', key, emptyForm1099G),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-G — Certain government payments',
+      subtitle: 'Box 1 unemployment → Sch. 1 line 7. Box 2 state/local refund → Sch. 1 line 1 → Form 1040 Line 8.',
+      child: body,
     );
   }
 
-  Widget _form1099DaSection() {
+  Widget _form1099DaSection({bool bodyOnly = false}) {
     const key = 'form1099DA';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-DA — Digital asset proceeds',
-      subtitle: 'Proceeds − basis → Form 1040 Line 7 / Schedule D. Answer the Form 1040 digital assets question in Filing Info.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -479,17 +518,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-DA', key, emptyForm1099Da),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-DA — Digital asset proceeds',
+      subtitle: 'Proceeds − basis → Form 1040 Line 7 / Schedule D. Answer the Form 1040 digital assets question in Filing Info.',
+      child: body,
     );
   }
 
-  Widget _form1099IntSection() {
+  Widget _form1099IntSection({bool bodyOnly = false}) {
     const key = 'form1099INT';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-INT — Interest income',
-      subtitle: 'Box 1 → Form 1040 Line 2b (also Schedule B).',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -510,17 +551,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-INT', key, emptyForm1099Int),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-INT — Interest income',
+      subtitle: 'Box 1 → Form 1040 Line 2b (also Schedule B).',
+      child: body,
     );
   }
 
-  Widget _form1099DivSection() {
+  Widget _form1099DivSection({bool bodyOnly = false}) {
     const key = 'form1099DIV';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-DIV — Dividends and distributions',
-      subtitle: 'Box 1a → Line 3b. Box 1b → Line 3a.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -541,17 +584,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-DIV', key, emptyForm1099Div),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-DIV — Dividends and distributions',
+      subtitle: 'Box 1a → Line 3b. Box 1b → Line 3a.',
+      child: body,
     );
   }
 
-  Widget _form1099BSection() {
+  Widget _form1099BSection({bool bodyOnly = false}) {
     const key = 'form1099B';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-B — Proceeds from broker transactions',
-      subtitle: 'Gain/loss → Form 1040 Line 7 / Schedule D / Form 8949.',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -580,17 +625,19 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-B', key, emptyForm1099B),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-B — Proceeds from broker transactions',
+      subtitle: 'Gain/loss → Form 1040 Line 7 / Schedule D / Form 8949.',
+      child: body,
     );
   }
 
-  Widget _form1099KSection() {
+  Widget _form1099KSection({bool bodyOnly = false}) {
     const key = 'form1099K';
     final rows = _list(key);
-    return OrganizerSection(
-      title: 'Form 1099-K — Payment card and third party network',
-      subtitle: 'Box 1a gross → business / marketplace income intake (Schedule C).',
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++) ...[
@@ -613,7 +660,12 @@ class OrganizerIncomeFormsStep extends StatelessWidget {
           ],
           _addButton('Add 1099-K', key, emptyForm1099K),
         ],
-      ),
+      );
+    if (bodyOnly) return body;
+    return OrganizerSection(
+      title: 'Form 1099-K — Payment card and third party network',
+      subtitle: 'Box 1a gross → business / marketplace income intake (Schedule C).',
+      child: body,
     );
   }
 }

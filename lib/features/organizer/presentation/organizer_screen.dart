@@ -102,17 +102,25 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       final preferred = tax.selectedYear ?? tax.currentFilingYear;
 
       if (AppConfig.usesLaravelAuth) {
-        await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        // Skip redundant activate/tasks when home already warmed this year.
+        final warm = tax.workspace;
+        final yearHint = preferred ?? tax.currentFilingYear ?? DateTime.now().year - 1;
+        if (warm?.workspaceId == null || warm?.taxYear != yearHint) {
+          await ref.read(taxYearProvider.notifier).refreshWorkspace();
+        }
         final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
         if (workspaceId == null) {
           throw Exception('No tax-year workspace. Select a year and try again.');
         }
-        final year = tax.workspace?.taxYear ?? preferred ?? DateTime.now().year - 1;
-        final defaults = await OrganizerDefaults.load();
-        final org = await ref.read(laravelOrganizerRepositoryProvider).show(
+        final year = ref.read(taxYearProvider).workspace?.taxYear ?? yearHint;
+        // Parallel: defaults JSON + first organizer fetch.
+        final defaultsFuture = OrganizerDefaults.load();
+        final orgFuture = ref.read(laravelOrganizerRepositoryProvider).show(
               workspaceId,
-              prepType: '${defaults['prepType'] ?? 'personal'}',
+              prepType: 'personal',
             );
+        final defaults = await defaultsFuture;
+        final org = await orgFuture;
         if (!mounted) return;
         final hydrated = OrganizerSectionMapper.hydrateFromServer(
           defaults: defaults,
@@ -249,14 +257,17 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     if (!_autoSaveReady || _isLocked || !mounted) return;
     _autoSaveTimer?.cancel();
     _autoSaveIdleTimer?.cancel();
-    if (_autoSaveStatus != _AutoSaveStatus.saving &&
-        _autoSaveStatus != _AutoSaveStatus.pending) {
-      setState(() {
-        _autoSaveStatus = _AutoSaveStatus.pending;
-        _autoSaveError = null;
-      });
+    // Avoid rebuilds on every keystroke — only flip idle → pending once.
+    if (_autoSaveStatus == _AutoSaveStatus.idle) {
+      _autoSaveStatus = _AutoSaveStatus.pending;
+      _autoSaveError = null;
+      if (mounted) setState(() {});
     }
-    _autoSaveTimer = Timer(_autoSaveDebounce, _runAutoSave);
+    final step = (_steps.isNotEmpty && _step >= 0 && _step < _steps.length) ? _steps[_step] : '';
+    final delay = (step == 'State Tax Returns' || step == 'CA 540 State Tax' || step == 'Income (1040)')
+        ? const Duration(milliseconds: 1100)
+        : _autoSaveDebounce;
+    _autoSaveTimer = Timer(delay, _runAutoSave);
   }
 
   Future<void> _runAutoSave() async {
