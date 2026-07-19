@@ -290,10 +290,10 @@ class _AdvisorChatScreenState extends ConsumerState<AdvisorChatScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.language_outlined, color: MkgColors.primary),
                   title: const Text('Open web portal'),
-                  subtitle: Text('${Uri.parse(AppConfig.webRoot).host} messaging & scheduling'),
+                  subtitle: Text('${Uri.parse(AppConfig.portalRoot).host} messaging & scheduling'),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: () => launchUrl(
-                    Uri.parse(AppConfig.webRoot),
+                    Uri.parse(AppConfig.portalRoot),
                     mode: LaunchMode.externalApplication,
                   ),
                 ),

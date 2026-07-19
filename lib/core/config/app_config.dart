@@ -3,7 +3,10 @@
 /// Authoritative staging/production API root:
 /// `https://app.mkgtaxconsultants.com/api/v1`
 ///
-/// Web client portal:
+/// WordPress marketing site (DO):
+/// `https://finance.mkgtaxconsultants.com`
+///
+/// Staff/client web portal (financemkgtaxpro) — separate host:
 /// `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
@@ -18,15 +21,16 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Public web client portal origin (DigitalOcean). Deep links / marketing —
-  /// not part of the authenticated mobile API surface.
+  /// Public marketing site origin (WordPress on [canonicalMarketingHost]).
+  /// Not the authenticated portal SPA and not the Laravel API.
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
-    defaultValue: 'https://mkgtaxconsultants.com',
+    defaultValue: 'https://finance.mkgtaxconsultants.com',
   );
 
   /// Hosted invoices/payments page opened from the mobile billing UI.
-  /// Always defaults to the authoritative portal — never `financemkgtax.com`.
+  /// Defaults to the web portal `/payments` (Stripe return URLs live there) —
+  /// never `financemkgtax.com`.
   static const String _paymentsWebUrlEnv = String.fromEnvironment(
     'PAYMENTS_WEB_URL',
     defaultValue: '',
@@ -45,7 +49,12 @@ class AppConfig {
     'www.financemkgtax.com',
   };
 
+  /// Web portal host (`financemkgtaxpro` on DO) — payments, staff, S2S.
   static const String canonicalPortalHost = 'mkgtaxconsultants.com';
+
+  /// WordPress marketing host on DigitalOcean (site + WP database only).
+  /// Never taxpayer SoT — no tax returns / SSNs / bank / uploads in WP DB.
+  static const String canonicalMarketingHost = 'finance.mkgtaxconsultants.com';
 
   /// Set only for local-development builds against a plain-HTTP dev server
   /// (e.g. an Android emulator hitting `http://10.0.2.2:8000`). Never set
@@ -59,7 +68,11 @@ class AppConfig {
 
   static String get apiRoot => _trim(apiBaseUrl);
 
+  /// Marketing WordPress origin ([canonicalMarketingHost] by default).
   static String get webRoot => rewriteLegacyPortalUri(Uri.parse(_trim(webBaseUrl))).toString();
+
+  /// Web portal origin for staff/client SPA deep links (dashboard, documents, etc.).
+  static String get portalRoot => 'https://$canonicalPortalHost';
 
   /// Authoritative hosted payments URL for "Open hosted payments on web".
   static String get paymentsWebUrl {
@@ -67,7 +80,7 @@ class AppConfig {
     if (configured.isNotEmpty) {
       return rewriteLegacyPortalUri(Uri.parse(_trim(configured))).toString();
     }
-    return 'https://$canonicalPortalHost/payments';
+    return '$portalRoot/payments';
   }
 
   /// Rewrites legacy `financemkgtax.com` portal hosts to `mkgtaxconsultants.com`.
@@ -140,29 +153,24 @@ class AppConfig {
       );
     }
 
-    final path = _trim(uri.path);
+    final path = uri.path.replaceAll(RegExp(r'/+$'), '');
     if (!path.endsWith('/api/v1')) {
       throw AppConfigError(
-        'API_BASE_URL must end with /api/v1 (got path "$path" in "$trimmed").',
+        'API_BASE_URL must end with /api/v1 (got "$trimmed").',
       );
     }
-
-    final occurrences = RegExp(r'/api/v1').allMatches(path).length;
-    if (occurrences > 1) {
-      throw AppConfigError('API_BASE_URL contains a duplicated /api/v1 path segment: "$trimmed".');
+    if (path.contains('/api/v1/api/v1')) {
+      throw AppConfigError(
+        'API_BASE_URL has a duplicated /api/v1 segment: "$trimmed".',
+      );
     }
   }
 
-  static String _trim(String url) =>
-      url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  static String _trim(String value) => value.trim().replaceAll(RegExp(r'/+$'), '');
 }
 
-/// Thrown by [AppConfig.validate] when the build-time API configuration is
-/// missing or malformed. Callers should catch this in `main()` and show a
-/// dedicated configuration-error screen instead of running the normal app.
-class AppConfigError extends Error {
+class AppConfigError implements Exception {
   AppConfigError(this.message);
-
   final String message;
 
   @override

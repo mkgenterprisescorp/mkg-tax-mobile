@@ -103,4 +103,3 @@ List<RolloutRegion> get lockedRolloutRegions => [
       for (final region in rolloutRegions)
         if (!enabledRegionIds.contains(region.id)) region,
     ];
-}

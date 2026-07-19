@@ -149,7 +149,7 @@ class _FormsListScreenState extends ConsumerState<FormsListScreen> {
                   children: [
                     StatusChip(label: caps.edition.label, color: MkgColors.accent),
                     StatusChip(label: caps.role, color: Colors.white),
-                    StatusChip(label: Uri.parse(AppConfig.webRoot).host, color: Colors.white),
+                    StatusChip(label: Uri.parse(AppConfig.portalRoot).host, color: Colors.white),
                     StatusChip(
                       label: verified ? 'Identity verified' : 'Verify identity',
                       color: verified ? MkgColors.accent : Colors.white70,
