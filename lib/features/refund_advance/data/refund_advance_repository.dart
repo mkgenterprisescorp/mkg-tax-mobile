@@ -131,11 +131,17 @@ class RefundAdvanceRepository {
 
   Future<Map<String, dynamic>?> form1040Preview(String workspaceId) async {
     await _ensureLaravelToken();
-    if (_api.bearerToken == null) return null;
+    if (_api.bearerToken == null) {
+      throw StateError('Please sign in again to open your tax organizer.');
+    }
     final res = await _api.get<Map<String, dynamic>>(
       '/api/v1/tax-year-workspaces/$workspaceId/organizer/form-1040-preview',
     );
-    if (!PlatformApi.ok(res)) return null;
+    final code = res.statusCode ?? 500;
+    if (code >= 400) {
+      // Caller may fall back to a local organizer-based preview.
+      return null;
+    }
     return PlatformApi.unwrapMap(res);
   }
 }
