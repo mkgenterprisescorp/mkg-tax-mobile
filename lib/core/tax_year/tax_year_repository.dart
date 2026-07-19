@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/auth_repository.dart';
 import '../../features/entities/data/entities_repository.dart';
 import '../api/portal_repository.dart';
 import '../config/app_config.dart';
 import '../network/api_error_mapper.dart';
 import '../network/laravel_api_client.dart';
+import 'return_number.dart';
 
 class TaxYearInfo {
   const TaxYearInfo({
@@ -52,6 +54,7 @@ class TaxYearWorkspace {
     this.taxReturnId,
     this.workspaceId,
     this.entityId,
+    this.returnNumber,
   });
 
   final int taxYear;
@@ -66,6 +69,8 @@ class TaxYearWorkspace {
   /// Laravel `/api/v1` tax-year workspace UUID.
   final String? workspaceId;
   final String? entityId;
+  /// Human desk code `{LAST4}-{MM}-{DD}-{SEQ}` (e.g. GOVA-07-19-01).
+  final String? returnNumber;
 
   factory TaxYearWorkspace.fromJson(Map<String, dynamic> json) {
     final states = (json['state_workspaces'] as List?) ?? (json['state_returns'] as List?);
@@ -88,6 +93,7 @@ class TaxYearWorkspace {
       taxReturnId: json['tax_return_id'] ?? json['taxReturnId'] ?? json['id'],
       workspaceId: (json['id'] ?? json['workspace_id'])?.toString(),
       entityId: (json['mobile_entity_id'] ?? json['entity_id'])?.toString(),
+      returnNumber: ReturnNumber.fromWorkspaceJson(json),
     );
   }
 
@@ -111,6 +117,7 @@ class TaxYearWorkspace {
       organizerCompletionPercentage: pct,
       documentsCount: documentsCount,
       taxReturnId: row['id'],
+      returnNumber: ReturnNumber.fromWorkspaceJson(row),
     );
   }
 }
@@ -471,7 +478,11 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     // Cookie-portal fallback: derive progress from tax_returns for the selected year.
     try {
       final portal = ref.read(portalRepositoryProvider);
-      final row = await portal.getOrCreateReturnForYear(year);
+      String? lastName;
+      try {
+        lastName = (await ref.read(authRepositoryProvider).currentUser())?.lastName;
+      } catch (_) {}
+      final row = await portal.getOrCreateReturnForYear(year, lastName: lastName);
       var docsCount = 0;
       try {
         if (row['id'] != null) {

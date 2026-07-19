@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
 import '../network/api_error_mapper.dart';
+import '../tax_year/return_number.dart';
 
 /// Live mkgtaxconsultants.com client APIs (cookie session).
 class PortalRepository {
@@ -72,15 +73,27 @@ class PortalRepository {
     int? taxYear,
     String filingStatus = 'single',
     Map<String, dynamic>? data,
+    String? lastName,
+    Iterable<String> existingReturnNumbers = const [],
   }) async {
     final year = taxYear ?? DateTime.now().year - 1;
+    final payload = Map<String, dynamic>.from(
+      data ?? {'filingYear': year, 'source': 'mkg-tax-mobile'},
+    );
+    if ((payload['returnNumber'] ?? '').toString().trim().isEmpty) {
+      payload['returnNumber'] = ReturnNumber.next(
+        lastName: lastName ?? '',
+        date: DateTime.now(),
+        existingCodes: existingReturnNumbers,
+      );
+    }
     final res = await _api.post<dynamic>(
       '/api/tax-returns',
       data: {
         'year': year,
         'status': 'draft',
         'filingStatus': filingStatus,
-        'data': data ?? {'filingYear': year, 'source': 'mkg-tax-mobile'},
+        'data': payload,
       },
     );
     if (res.statusCode == 200 || res.statusCode == 201) {
@@ -89,13 +102,36 @@ class PortalRepository {
     throw PortalException(_message(res.statusCode, 'Failed to create tax return'));
   }
 
-  /// Find return for [year] or create a draft.
-  Future<Map<String, dynamic>> getOrCreateReturnForYear(int year) async {
+  /// Find return for [year] or create a draft. Auto-assigns `data.returnNumber`
+  /// as `{LAST4}-{MM}-{DD}-{SEQ}` when missing.
+  Future<Map<String, dynamic>> getOrCreateReturnForYear(
+    int year, {
+    String? lastName,
+  }) async {
     final all = await listTaxReturns();
+    final existingCodes = <String>[
+      for (final row in all) ?ReturnNumber.fromWorkspaceJson(row),
+    ];
     for (final row in all) {
-      if ((row['year'] as num?)?.toInt() == year) return row;
+      if ((row['year'] as num?)?.toInt() != year) continue;
+      final code = ReturnNumber.fromWorkspaceJson(row);
+      if (code != null) return row;
+      final id = row['id'];
+      if (id == null) return row;
+      final data = Map<String, dynamic>.from((row['data'] as Map?) ?? {});
+      final assigned = ReturnNumber.next(
+        lastName: lastName ?? '${data['lastName'] ?? ''}',
+        date: DateTime.now(),
+        existingCodes: existingCodes,
+      );
+      data['returnNumber'] = assigned;
+      return updateTaxReturn(id, {'data': data});
     }
-    return createTaxReturn(taxYear: year);
+    return createTaxReturn(
+      taxYear: year,
+      lastName: lastName,
+      existingReturnNumbers: existingCodes,
+    );
   }
 
   Future<List<int>> downloadDocumentBytes(dynamic documentId) async {
