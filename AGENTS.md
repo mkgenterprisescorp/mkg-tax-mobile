@@ -4,7 +4,8 @@
 
 ### Auth / API / website hosts
 - **Web e-file portal:** `https://mkgtaxconsultants.com` (`financemkgtaxpro` + DO Postgres) — IRS XML / MeF only.
-- **Product moat (this app + WP):** WordPress front `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL`) + Laravel/Neon backend for **clients, communications, CRM, POS, billing**. Registrar GoDaddy; `finance`/`app` DNS on DO.
+- **Product moat (this app + WP portal):** WordPress on `https://finance.mkgtaxconsultants.com` (`WEB_BASE_URL`) must provide **login + manage app users, notifications, chats/comms** (staff/client portal UI) backed by Laravel/Neon for CRM/POS/billing. Registrar GoDaddy; `finance`/`app` DNS on DO.
+- **Install gap:** WP hosting + portal UI on `finance.` still need DO install — see `mkg-tax-marketing-wp` `docs/MOBILE_MOAT_INSTALL.md`. Laravel `app.` exists.
 - **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum).
 - **Payments deep links / Stripe return:** portal `https://mkgtaxconsultants.com/payments` (`portalRoot`) unless product moves checkout fully into the moat API.
 - **WP MySQL** = CMS/UI only — CRM/billing SoT is **Neon**. No e-file packages or SSN/bank vaults in WordPress.
