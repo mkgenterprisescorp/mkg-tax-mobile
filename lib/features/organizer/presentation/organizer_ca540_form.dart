@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/app_roles.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/ca540_estimate_math.dart';
+import '../data/computed_field_policy.dart';
+import '../data/federal_agi_math.dart';
 import '../data/us_states.dart';
+import 'organizer_computed_money_field.dart';
 import 'organizer_fields.dart';
 
 /// Complete California Form 540 typed entry (web Organizer step 5 parity).
-class OrganizerCa540Form extends StatelessWidget {
+class OrganizerCa540Form extends ConsumerWidget {
   const OrganizerCa540Form({
     super.key,
     required this.ca540,
     required this.filingStatus,
     required this.homeState,
     required this.onChanged,
+    this.organizerData = const {},
   });
 
   final Map<String, dynamic> ca540;
   final String filingStatus;
   final String homeState;
   final ValueChanged<Map<String, dynamic>> onChanged;
+  /// Root organizer answers — used to auto-calculate Federal AGI / CA withholding.
+  final Map<String, dynamic> organizerData;
 
   void _patch(String key, dynamic value) {
     onChanged(Map<String, dynamic>.from(ca540)..[key] = value);
@@ -91,7 +100,21 @@ class OrganizerCa540Form extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPro = capabilitiesFor(ref.watch(authProvider).user?.role).isProfessional;
+    final synced = syncFederalAgi({...organizerData, 'ca540': ca540});
+    final computedAgi = estimateFederalAgi(synced);
+    final computedCaWh = () {
+      num caWh = 0;
+      for (final w2 in ((synced['w2Forms'] as List?) ?? const [])) {
+        if (w2 is! Map) continue;
+        final state = '${w2['box15_state'] ?? ''}'.toUpperCase();
+        if (state.isEmpty || state == 'CA') {
+          caWh += _n(w2['box17_stateTax']);
+        }
+      }
+      return caWh;
+    }();
     final summary = summarizeCa540(ca540: ca540, filingStatus: filingStatus);
     final deductionType = '${ca540['deductionType'] ?? 'standard'}';
     final health = ca540['healthCareCoverage'] == true;
@@ -171,10 +194,28 @@ class OrganizerCa540Form extends StatelessWidget {
                 value: ca540['stateWages'] ?? ca540['caWages'],
                 onChanged: (v) => _patchAll({'stateWages': v, 'caWages': v}),
               ),
-              OrganizerMoneyField(
-                label: 'Line 13 — Federal AGI',
-                value: ca540['federalAGI'],
-                onChanged: (v) => _patch('federalAGI', v),
+              OrganizerComputedMoneyField(
+                policy: ComputedFieldPolicy.federalAgi,
+                computedValue: computedAgi,
+                storedValue: ca540['federalAGI'],
+                isOverridden: ComputedFieldPolicy.isOverridden(ca540, 'federalAGI'),
+                isProfessional: isPro,
+                onApplyComputed: () => _patch('federalAGI', computedAgi),
+                onManualValue: (v) => _patchAll(
+                  ComputedFieldPolicy.markOverridden(
+                    {...ca540, 'federalAGI': v},
+                    'federalAGI',
+                    byProfessional: isPro,
+                  ),
+                ),
+                onMarkOverridden: () => _patchAll(
+                  ComputedFieldPolicy.markOverridden(ca540, 'federalAGI', byProfessional: isPro),
+                ),
+                onClearOverride: () {
+                  final cleared = ComputedFieldPolicy.clearOverride(ca540, 'federalAGI');
+                  cleared['federalAGI'] = computedAgi;
+                  onChanged(cleared);
+                },
               ),
               OrganizerMoneyField(
                 label: 'Line 14 — CA subtractions (Schedule CA)',
@@ -310,10 +351,34 @@ class OrganizerCa540Form extends StatelessWidget {
           title: 'Payments (Lines 71–78)',
           child: Column(
             children: [
-              OrganizerMoneyField(
-                label: 'Line 71 — CA tax withheld',
-                value: ca540['caWithholding'] ?? ca540['caTaxWithheld'],
-                onChanged: (v) => _patchAll({'caWithholding': v, 'caTaxWithheld': v}),
+              OrganizerComputedMoneyField(
+                policy: ComputedFieldPolicy.caWithholding,
+                computedValue: computedCaWh > 0
+                    ? computedCaWh
+                    : _n(ca540['caWithholding'] ?? ca540['caTaxWithheld']),
+                storedValue: ca540['caWithholding'] ?? ca540['caTaxWithheld'],
+                isOverridden: ComputedFieldPolicy.isOverridden(ca540, 'caWithholding'),
+                isProfessional: isPro,
+                onApplyComputed: () => _patchAll({
+                  'caWithholding': computedCaWh,
+                  'caTaxWithheld': computedCaWh,
+                }),
+                onManualValue: (v) => _patchAll(
+                  ComputedFieldPolicy.markOverridden(
+                    {...ca540, 'caWithholding': v, 'caTaxWithheld': v},
+                    'caWithholding',
+                    byProfessional: isPro,
+                  ),
+                ),
+                onMarkOverridden: () => _patchAll(
+                  ComputedFieldPolicy.markOverridden(ca540, 'caWithholding', byProfessional: isPro),
+                ),
+                onClearOverride: () {
+                  final cleared = ComputedFieldPolicy.clearOverride(ca540, 'caWithholding');
+                  cleared['caWithholding'] = computedCaWh;
+                  cleared['caTaxWithheld'] = computedCaWh;
+                  onChanged(cleared);
+                },
               ),
               OrganizerMoneyField(
                 label: 'Line 72 — Estimated payments',
