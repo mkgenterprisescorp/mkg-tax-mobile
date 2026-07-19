@@ -35,6 +35,7 @@ import '../../features/returns/presentation/all_returns_screen.dart';
 import '../../features/returns/presentation/tax_returns_workspace_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/tax_center/presentation/tax_center_screen.dart';
+import '../../features/states/presentation/state_tax_resources_screen.dart';
 import '../auth/app_roles.dart';
 
 GoRouter createRouter({
@@ -111,6 +112,7 @@ GoRouter createRouter({
           if (location.startsWith('/payroll-tools')) return true;
           if (location.startsWith('/tax-savings')) return true;
           if (location.startsWith('/things-to-bring')) return true;
+          if (location.startsWith('/refund-tracker') || location.startsWith('/tax-resources')) return true;
           if (location.startsWith('/ca-540') || location.contains('/ca-540')) return true;
           if (location.startsWith('/billing') || location.startsWith('/payments')) return true;
           if (location.startsWith('/financial')) return true;
@@ -177,6 +179,7 @@ GoRouter createRouter({
           GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/refund-tracker', builder: (context, state) => const RefundTrackerScreen()),
+          GoRoute(path: '/tax-resources', builder: (context, state) => const StateTaxResourcesScreen()),
           GoRoute(path: '/all-returns', builder: (context, state) => const AllReturnsScreen()),
           GoRoute(path: '/my-clients', builder: (context, state) => const MyClientsScreen()),
           GoRoute(path: '/iero', builder: (context, state) => const IeroExtractionScreen()),

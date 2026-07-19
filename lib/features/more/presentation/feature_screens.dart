@@ -14,6 +14,7 @@ import '../../home/presentation/main_tabs.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
+import '../../states/data/state_tax_resources.dart';
 import '../../tessa/data/tessa_repository.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../../organizer/data/organizer_profile_prefill.dart';
@@ -952,8 +953,48 @@ class EngagementsScreen extends StatelessWidget {
   }
 }
 
-class RefundTrackerScreen extends StatelessWidget {
+class RefundTrackerScreen extends ConsumerStatefulWidget {
   const RefundTrackerScreen({super.key});
+
+  @override
+  ConsumerState<RefundTrackerScreen> createState() => _RefundTrackerScreenState();
+}
+
+class _RefundTrackerScreenState extends ConsumerState<RefundTrackerScreen> {
+  bool _loading = true;
+  Map<String, dynamic> _federal = const {};
+  List<StateTaxResource> _withRefund = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await ref.read(stateTaxResourcesRepositoryProvider).load();
+      if (!mounted) return;
+      setState(() {
+        _federal = result.federal;
+        _withRefund = [
+          for (final s in result.states)
+            if (s.refundTrackerUrl != null && s.refundTrackerUrl!.isNotEmpty) s,
+        ];
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _open(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -961,37 +1002,51 @@ class RefundTrackerScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         const SectionHeader('Refund tracker'),
-        const Text('Check official IRS and state status (same links as the web portal).'),
+        const Text('Official IRS and state “Where’s My Refund?” pages from the shared tax-resources registry.'),
         const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.account_balance, color: MkgColors.primary),
-            title: const Text('IRS Where\'s My Refund'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => launchUrl(
-              Uri.parse('https://www.irs.gov/refunds'),
-              mode: LaunchMode.externalApplication,
+        if (_loading)
+          const Center(child: CircularProgressIndicator())
+        else ...[
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.account_balance, color: MkgColors.primary),
+              title: const Text('IRS Where\'s My Refund'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => _open(_federal['refund_tracker_url']?.toString() ?? 'https://www.irs.gov/refunds'),
             ),
           ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.map_outlined, color: MkgColors.primary),
-            title: const Text('California FTB refund status'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => launchUrl(
-              Uri.parse('https://www.ftb.ca.gov/about-ftb/newsroom/news-articles/wheres-my-refund.html'),
-              mode: LaunchMode.externalApplication,
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.library_books_outlined, color: MkgColors.primary),
+              title: const Text('All state tax resources'),
+              subtitle: const Text('Agency · forms · portals'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.go('/tax-resources'),
             ),
           ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
-            title: const Text('Refund advance calculator'),
-            onTap: () => context.go('/financial'),
+          const SizedBox(height: 8),
+          const Text('States with a personal income tax refund portal', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          for (final s in _withRefund)
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                  child: Text(s.code, style: const TextStyle(color: MkgColors.primary, fontWeight: FontWeight.w800, fontSize: 11)),
+                ),
+                title: Text('${s.name} refund status'),
+                trailing: const Icon(Icons.open_in_new),
+                onTap: () => _open(s.refundTrackerUrl),
+              ),
+            ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.payments_outlined, color: MkgColors.primary),
+              title: const Text('Refund advance calculator'),
+              onTap: () => context.go('/financial'),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

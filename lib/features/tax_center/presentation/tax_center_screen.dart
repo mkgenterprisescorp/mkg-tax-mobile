@@ -98,11 +98,19 @@ class TaxCenterScreen extends ConsumerWidget {
       ),
       _TaxSection(
         title: 'Refund Tracker',
-        cue: 'IRS & FTB status',
+        cue: 'IRS & all-state status',
         icon: Icons.track_changes_outlined,
         path: '/refund-tracker',
         accent: MkgColors.green,
         progressLabel: 'Check',
+      ),
+      _TaxSection(
+        title: 'Tax Resources',
+        cue: 'Agency · forms · portals',
+        icon: Icons.library_books_outlined,
+        path: '/tax-resources',
+        accent: MkgColors.primary,
+        progressLabel: 'Open',
       ),
       _TaxSection(
         title: 'Tax Consulting',
