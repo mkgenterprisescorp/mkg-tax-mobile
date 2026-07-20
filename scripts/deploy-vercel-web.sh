@@ -89,12 +89,16 @@ else
   APP_ENV="${APP_ENV:-production}"
 fi
 
-for banned in DATABASE_URL NEON_DATABASE_URL PGPASSWORD IRS_MEF_PRIVATE_KEY \
+# Cloud Agent / host shells often inject DATABASE_URL for unrelated Neon work.
+# Unset banned vars for this process so they cannot leak into the browser build.
+# Flutter only receives explicit --dart-define values below (public URLs only).
+for banned in DATABASE_URL DB_URL NEON_DATABASE_URL NEON_SMOKE_DATABASE_URL \
+  PORTAL_DATABASE_URL FINANCEMKGTAXPRO_DATABASE_URL PGPASSWORD IRS_MEF_PRIVATE_KEY \
   SSN_ENCRYPTION_KEY TAXPAYER_ENCRYPTION_KEY STRIPE_SECRET_KEY SENDGRID_API_KEY \
-  JWT_PRIVATE_KEY APP_KEY; do
+  JWT_PRIVATE_KEY APP_KEY DIGITALOCEAN_ACCESS_TOKEN; do
   if [[ -n "${!banned:-}" ]]; then
-    echo "deploy-vercel-web: refusing — prohibited env is set: $banned" >&2
-    exit 1
+    echo "deploy-vercel-web: unsetting prohibited env for frontend build: $banned" >&2
+    unset "$banned"
   fi
 done
 
