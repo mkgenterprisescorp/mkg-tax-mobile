@@ -225,8 +225,13 @@ uploaded privately to an approved error platform.
 
 ```bash
 bash scripts/verify-vercel-scope.sh .
-bash scripts/vercel-ignore-build.sh; echo "exit=$?"   # 0=skip 1=build
+bash scripts/vercel-ignore-build.sh; echo "exit=$?"   # 0=skip always (prebuilt-only)
+bash scripts/smoke-vercel-web.sh                      # production alias
 ```
+
+**Production alias (verified 2026-07-20):** https://mkg-tax-mobile.vercel.app  
+Double-checked (measure ×2: scope + analyze + 119 tests + live smoke), then
+redeployed via `scripts/deploy-vercel-web.sh` — READY + smoke PASSED.
 
 CI: `docs/deployment/web-ci.workflow.yml.example` (Flutter analyze/test +
 scope verification). Copy to `.github/workflows/web-ci.yml` with a

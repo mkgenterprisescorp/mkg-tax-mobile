@@ -144,13 +144,14 @@ if ! command -v vercel >/dev/null 2>&1; then
 fi
 
 echo "deploy-vercel-web: vercel deploy --prebuilt ${PROD_FLAG[*]:-}"
-# Newer Vercel CLI may print JSON; prefer --format=url when available.
+# Pin --cwd to repo root so the sibling folder named deploy/ is not mistaken
+# for the Vercel project directory.
 set +e
-DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes --format=url 2>/tmp/vercel-deploy-stderr.log)"
+DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt --cwd "$ROOT" "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes --format=url 2>/tmp/vercel-deploy-stderr.log)"
 deploy_rc=$?
 set -e
 if [[ "$deploy_rc" -ne 0 || -z "$DEPLOY_RAW" ]]; then
-  DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes)"
+  DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt --cwd "$ROOT" "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes)"
 fi
 DEPLOY_URL="$(
   DEPLOY_RAW="$DEPLOY_RAW" python3 - <<'PY'
