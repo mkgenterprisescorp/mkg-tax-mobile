@@ -1,19 +1,25 @@
-/// Public compile-time config. Never put secrets or Neon URLs here.
+/// Public compile-time config for the Flutter client (including Flutter Web on
+/// Vercel project `mkg-tax-client-web`). Never put secrets or Neon URLs here.
 ///
-/// Authoritative staging/production API root:
-/// `https://app.mkgtaxconsultants.com/api/v1`
+/// These `--dart-define` values are the Flutter equivalent of Vite `VITE_*` /
+/// Next.js `NEXT_PUBLIC_*` — they are baked into the **browser bundle**.
 ///
-/// WordPress marketing site (DO):
-/// `https://finance.mkgtaxconsultants.com`
+/// Approved public dart-defines: [apiBaseUrl], [webBaseUrl],
+/// [laravelApiBaseUrl], and optional APP_NAME / APP_ENV via build scripts.
 ///
-/// Staff/client web portal (financemkgtaxpro) — separate host:
-/// `https://mkgtaxconsultants.com`
+/// Production API: `https://api.finance.mkgtaxconsultants.com/api/v1`  
+/// Preview/staging API: `https://staging-api.finance.mkgtaxconsultants.com/api/v1`  
+/// Marketing: `https://finance.mkgtaxconsultants.com`  
+/// Portal: `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
 /// omits `--dart-define=API_BASE_URL=...` must fail loudly at startup (see
 /// [AppConfig.validate]) rather than silently talk to some other host.
 ///
 /// Flutter must never connect directly to Neon PostgreSQL or `/internal/*`.
+/// Prohibited on Vercel: database URLs, Neon credentials, Postgres env vars,
+/// IRS MeF material, taxpayer encryption keys, and payment-provider secrets —
+/// see `docs/deployment/vercel-scope.md`.
 class AppConfig {
   /// API root. No default — see [validate].
   static const String apiBaseUrl = String.fromEnvironment(
