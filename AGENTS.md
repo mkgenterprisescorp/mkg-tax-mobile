@@ -11,6 +11,11 @@
 - Architecture SoT (backend): `mkg-tax-backend-2` `docs/architecture/multi-agent-tessa.md`
 - Flutter summary: `docs/tessa-multi-agent.md` — `/tessa` only; engines authoritative; `/chat` is Advisor Chat (do not redirect to Tessa).
 
+### Flutter performance
+- Playbook: `docs/performance/flutter-performance-playbook.md` — DevTools-first, lazy load, Riverpod, network/assets, skeleton UI, isolates.
+- Local/CI guardian: `bash scripts/performance-guardian.sh` · workflow example `docs/deployment/performance-guardian.workflow.yml.example`.
+- Targets: cold start <2.5s, organizer step <200ms, stable 60 FPS; engines stay on Laravel.
+
 ### Profile / KYC submit (Sanctum)
 - Profile screen **must not** call portal `/api/user/kyc-submit` on Sanctum builds (404 → “The requested item is unavailable.”).
 - Use `AuthRepository.submitProfileForReview` → `GET` then versioned `PATCH /api/v1/profile` (retry once on 409). SSN is not accepted on this bridge — collect via Organizer/Documents.
