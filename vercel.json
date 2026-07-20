@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "echo 'Flutter Web: prefer GitHub Actions prebuilt deploy. See docs/deployment/vercel-scope.md'",
+  "installCommand": "echo 'mkg-tax-client-web: Flutter is built by GitHub Actions only. See docs/deployment/vercel-scope.md'",
   "buildCommand": "bash scripts/build-vercel-web.sh",
   "outputDirectory": "build/web",
   "ignoreCommand": "bash scripts/vercel-ignore-build.sh",

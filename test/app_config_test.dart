@@ -87,6 +87,15 @@ void main() {
       expect(AppConfig.paymentsWebUrl.contains('finance.mkgtaxconsultants.com'), isFalse);
     });
 
+    test('appName and appEnv have safe public defaults', () {
+      expect(AppConfig.appName, 'MKG Tax Consultants');
+      expect(AppConfig.appEnv, 'development');
+      expect(AppConfig.isDevelopment, isTrue);
+      expect(AppConfig.isProduction, isFalse);
+      expect(AppConfig.isPreview, isFalse);
+      expect(AppConfig.authModeLabel, 'Secure client sign-in');
+    });
+
     test('webBaseUrl defaults to finance.mkgtaxconsultants.com WordPress marketing', () {
       expect(AppConfig.canonicalMarketingHost, 'finance.mkgtaxconsultants.com');
       expect(AppConfig.webRoot, contains('finance.mkgtaxconsultants.com'));

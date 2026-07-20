@@ -5,12 +5,12 @@
 /// Next.js `NEXT_PUBLIC_*` — they are baked into the **browser bundle**.
 ///
 /// Approved public dart-defines: [apiBaseUrl], [webBaseUrl],
-/// [laravelApiBaseUrl], and optional APP_NAME / APP_ENV via build scripts.
+/// [laravelApiBaseUrl], [appName], [appEnv].
 ///
-/// Production API: `https://api.finance.mkgtaxconsultants.com/api/v1`  
-/// Preview/staging API: `https://staging-api.finance.mkgtaxconsultants.com/api/v1`  
-/// Marketing: `https://finance.mkgtaxconsultants.com`  
-/// Portal: `https://mkgtaxconsultants.com`
+/// Verified staging/preview API (DNS live): `https://app.mkgtaxconsultants.com/api/v1`  
+/// Intended production API (DNS not live yet — do not wire until it resolves):
+/// `https://api.finance.mkgtaxconsultants.com/api/v1`  
+/// Portal / support: `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
 /// omits `--dart-define=API_BASE_URL=...` must fail loudly at startup (see
@@ -25,6 +25,19 @@ class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
+  );
+
+  /// Public product / brand name (browser-safe).
+  static const String appName = String.fromEnvironment(
+    'APP_NAME',
+    defaultValue: 'MKG Tax Consultants',
+  );
+
+  /// Build environment label: `production` | `preview` | `development`.
+  /// Used for non-secret UI/diagnostics only — never gates security alone.
+  static const String appEnv = String.fromEnvironment(
+    'APP_ENV',
+    defaultValue: 'development',
   );
 
   /// Public marketing site origin (WordPress on [canonicalMarketingHost]).
@@ -122,8 +135,17 @@ class AppConfig {
 
   static bool get usesPortalCookieAuth => !usesLaravelAuth;
 
+  static bool get isProduction => appEnv.trim().toLowerCase() == 'production';
+
+  static bool get isPreview => appEnv.trim().toLowerCase() == 'preview';
+
+  static bool get isDevelopment =>
+      appEnv.trim().isEmpty || appEnv.trim().toLowerCase() == 'development';
+
   /// Short, non-secret label for a diagnostics/about screen.
   /// Client-facing — never includes implementation hostnames or stack names.
+  static String get authModeLabel => 'Secure client sign-in';
+
   /// Validates [apiBaseUrl] and throws [AppConfigError] — with a message
   /// naming exactly what's wrong — if it is missing or malformed. Call this
   /// once, early in `main()`, before running the real app widget tree. A

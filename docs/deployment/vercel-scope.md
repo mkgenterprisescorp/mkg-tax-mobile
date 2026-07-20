@@ -52,9 +52,30 @@ file a running Vercel service. Scope is enforced by:
 |---|---|
 | Root Directory | `.` (repo root — **not** `ios/`) |
 | Framework preset | Other |
-| Build Command | Prefer GitHub Actions + `vercel deploy --prebuilt`; else `bash scripts/build-vercel-web.sh` |
+| Build / deploy | **GitHub Actions + `vercel deploy --prebuilt` only** (automatic path). `scripts/build-vercel-web.sh` is a gated fallback (`ALLOW_VERCEL_NATIVE_FLUTTER_BUILD=1`) — Vercel Git must not cold-build Flutter. |
 | Output Directory | `build/web` |
 | Ignore Build Step | `bash scripts/vercel-ignore-build.sh` |
+
+### Automatic deploy path (required)
+
+1. Install workflow from `docs/deployment/vercel-web-deploy.workflow.yml.example`
+   → `.github/workflows/vercel-web-deploy.yml`.
+2. CI runs `flutter analyze` / `test` / `build web`, assembles `.vercel/output`,
+   then `vercel deploy --prebuilt` (preview on PR, `--prod` on `main`).
+3. Leave Vercel Git “Build” disabled or accept that `buildCommand` fails closed
+   unless the gated fallback flag is set after Flutter is installed.
+
+## DNS / API host verification (2026-07-20)
+
+| Host | DNS | Notes |
+|---|---|---|
+| `app.mkgtaxconsultants.com` | **Live** | `GET /api/v1/health` → 200 (`mkg-tax-backend-2`) — **use for Preview** |
+| `api.finance.mkgtaxconsultants.com` | **No DNS** | Intended production API — **do not wire until it resolves** |
+| `staging-api.finance.mkgtaxconsultants.com` | **No DNS** | Intended dedicated preview API — **do not wire** |
+| `finance.mkgtaxconsultants.com` | **No DNS** (from this agent) | Marketing host — use portal/marketing hosts that resolve |
+
+Do **not** set Preview env vars to non-resolving `*.finance.mkgtaxconsultants.com`
+API hosts. That would break every preview deployment.
 
 ## In scope for Vercel
 
@@ -87,16 +108,18 @@ Recommended exclude path called out for legacy mobile: **`ios/`**.
 Flutter compiles public config via `--dart-define` (equivalent intent to
 `VITE_*` / `NEXT_PUBLIC_*`). These values **become part of the browser bundle**.
 
-| Dart-define | Production | Preview | Development |
+| Dart-define | Production (when DNS live) | Preview (verified now) | Development |
 |---|---|---|---|
-| `API_BASE_URL` | `https://api.finance.mkgtaxconsultants.com/api/v1` | `https://staging-api.finance.mkgtaxconsultants.com/api/v1` | `http://localhost:8000/api/v1` (+ `ALLOW_INSECURE_LOCAL_DEV=true`) |
-| `LARAVEL_API_BASE_URL` | `https://api.finance.mkgtaxconsultants.com` | staging API origin | `http://localhost:8000` |
-| `WEB_BASE_URL` | `https://finance.mkgtaxconsultants.com` | staging marketing | local as needed |
+| `API_BASE_URL` | `https://api.finance.mkgtaxconsultants.com/api/v1` *(pending DNS)* | `https://app.mkgtaxconsultants.com/api/v1` | `http://localhost:8000/api/v1` (+ `ALLOW_INSECURE_LOCAL_DEV=true`) |
+| `LARAVEL_API_BASE_URL` | `https://api.finance.mkgtaxconsultants.com` *(pending)* | `https://app.mkgtaxconsultants.com` | `http://localhost:8000` |
+| `WEB_BASE_URL` | `https://finance.mkgtaxconsultants.com` | same | local as needed |
 | `APP_NAME` | `MKG Tax Consultants` | same | same |
 | `APP_ENV` | `production` | `preview` | `development` |
 
-Do **not** point preview deployments at the production tax database or
-production IRS MeF service. Preview API access uses staging only.
+Until `api.finance.mkgtaxconsultants.com` resolves, production builds that must
+ship should also target the verified Laravel host (`app.mkgtaxconsultants.com`)
+or wait on DNS. Never point preview at production IRS MeF or a production-only
+DB. Never wire Preview to `staging-api.finance…` while it has no DNS.
 
 Vite/Next `VITE_*` / `NEXT_PUBLIC_*` names apply only after a monorepo migration
 to a JS web app under `apps/web`. They are **not** used by the current Flutter
@@ -197,7 +220,14 @@ repo). Legacy iOS: `docs/deployment/legacy-ios-build.workflow.yml.example`
 2. Connect GitHub App to **only** `mkgenterprisescorp/mkg-tax-mobile` (selected repos).
 3. Set Root Directory `.`, Framework Other, Output `build/web`, Ignore Build Step
    `bash scripts/vercel-ignore-build.sh`.
-4. Prefer GitHub Actions prebuilt deploy; set `VERCEL_TOKEN` / `ORG_ID` / `PROJECT_ID` as Actions secrets.
-5. Set public Production / Preview / Development dart-define-equivalent env vars only.
-6. Confirm Neon integration is **not** installed on this project.
-7. Configure Laravel CORS for the Vercel production (and staging) origins.
+4. **Disable Vercel Git auto-build** (or leave gated `buildCommand` which fails
+   closed). Deploy only via GitHub Actions `--prebuilt`.
+5. Set Actions secrets `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`.
+6. Preview public env: `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1`
+   (verified). Do **not** set `staging-api.finance…` until DNS exists.
+7. Production public env: wait for `api.finance.mkgtaxconsultants.com` DNS, or
+   temporarily use `app.mkgtaxconsultants.com` with explicit owner approval.
+8. Confirm Neon integration is **not** installed on this project.
+9. Configure Laravel CORS for the Vercel production (and preview) origins.
+10. Copy workflow examples from `docs/deployment/*.workflow.yml.example` into
+    `.github/workflows/` with a `workflow`-scoped token.

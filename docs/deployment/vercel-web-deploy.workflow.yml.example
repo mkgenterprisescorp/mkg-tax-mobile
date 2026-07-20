@@ -52,11 +52,14 @@ concurrency:
 env:
   # Pin to docs/toolchain-versions.md (kept in lockstep with the APK workflow).
   FLUTTER_VERSION: "3.44.6"
-  # Public, non-secret endpoints. Override per environment with repo/env
-  # Actions *variables* (Settings > Secrets and variables > Actions > Variables).
-  API_BASE_URL: ${{ vars.API_BASE_URL || 'https://api.finance.mkgtaxconsultants.com/api/v1' }}
-  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL || 'https://api.finance.mkgtaxconsultants.com' }}
+  # Preview / non-prod defaults: verified live staging API only.
+  # api.finance… and staging-api.finance… have no DNS yet — do not default to them.
+  # Override Production via vars.API_BASE_URL when finance API DNS is live.
+  API_BASE_URL: ${{ vars.API_BASE_URL || 'https://app.mkgtaxconsultants.com/api/v1' }}
+  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL || 'https://app.mkgtaxconsultants.com' }}
   WEB_BASE_URL: ${{ vars.WEB_BASE_URL || 'https://finance.mkgtaxconsultants.com' }}
+  APP_NAME: ${{ vars.APP_NAME || 'MKG Tax Consultants' }}
+  APP_ENV: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 'production' || 'preview' }}
 
 jobs:
   deploy-web:
@@ -89,7 +92,9 @@ jobs:
           flutter build web --release \
             --dart-define=API_BASE_URL="${API_BASE_URL}" \
             --dart-define=LARAVEL_API_BASE_URL="${LARAVEL_API_BASE_URL}" \
-            --dart-define=WEB_BASE_URL="${WEB_BASE_URL}"
+            --dart-define=WEB_BASE_URL="${WEB_BASE_URL}" \
+            --dart-define=APP_NAME="${APP_NAME}" \
+            --dart-define=APP_ENV="${APP_ENV}"
 
       - name: Assemble Vercel prebuilt output
         # Vercel Build Output API v3: static assets + routing/headers config.

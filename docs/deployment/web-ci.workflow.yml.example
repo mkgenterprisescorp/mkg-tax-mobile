@@ -44,9 +44,9 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.44.6"
-  # Preview/staging public API only — never production Neon / MeF.
-  API_BASE_URL: ${{ vars.API_BASE_URL_PREVIEW || 'https://staging-api.finance.mkgtaxconsultants.com/api/v1' }}
-  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL_PREVIEW || 'https://staging-api.finance.mkgtaxconsultants.com' }}
+  # Verified live staging API. Do NOT default to staging-api.finance… (no DNS).
+  API_BASE_URL: ${{ vars.API_BASE_URL_PREVIEW || 'https://app.mkgtaxconsultants.com/api/v1' }}
+  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL_PREVIEW || 'https://app.mkgtaxconsultants.com' }}
   WEB_BASE_URL: ${{ vars.WEB_BASE_URL || 'https://finance.mkgtaxconsultants.com' }}
 
 jobs:
@@ -82,6 +82,7 @@ jobs:
             --dart-define=API_BASE_URL="${API_BASE_URL}" \
             --dart-define=LARAVEL_API_BASE_URL="${LARAVEL_API_BASE_URL}" \
             --dart-define=WEB_BASE_URL="${WEB_BASE_URL}" \
+            --dart-define=APP_NAME=MKG Tax Consultants \
             --dart-define=APP_ENV=preview
 
       - name: Re-scan build output for prohibited strings
