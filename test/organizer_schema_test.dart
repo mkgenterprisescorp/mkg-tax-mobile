@@ -130,10 +130,11 @@ void main() {
     expect(stepsForPrepType('form1120'), [
       'Filing Info',
       'Form 1120 - C-Corporation',
+      'State Tax Returns',
       'Direct Deposit',
       'Review & Sign',
     ]);
-    expect(stepsForPrepType('form990EZ').length, 4);
+    expect(stepsForPrepType('form990EZ').length, 5);
   });
 
   test('deep merge preserves nested scheduleC fields', () {

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/api_error_mapper.dart';
 import '../../../core/network/laravel_api_client.dart';
 import '../../../core/platform/platform_api.dart';
 
@@ -311,11 +312,11 @@ class TessaRepository {
             summary: 'No executor for $type — ask Tessa in chat for guidance.',
           );
       }
-    } catch (e) {
+    } catch (error) {
       return TessaActionResult(
         type: type.isEmpty ? 'action' : type,
         ok: false,
-        summary: 'Automation error: $e',
+        summary: ApiErrorMapper.map(error),
       );
     }
   }
