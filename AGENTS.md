@@ -2,6 +2,15 @@
 
 ## Cursor Cloud specific instructions
 
+### Shared API contract (next improvement)
+- Laravel OpenAPI SoT: sibling `mkg-tax-backend-2` → `openapi/openapi.yaml` + `docs/architecture/openapi-client-generation.md`.
+- Flutter consumer plan: `docs/api-client-strategy.md`. Keep hand-written Dio until generated Dart covers auth + tax-returns + organizer.
+- Vercel Flutter web is prototype / companion / fallback / pre-release API checker — same Sanctum account + Neon records as native. See `docs/deployment/vercel-scope.md`.
+
+### Tessa multi-agent platform
+- Architecture SoT (backend): `mkg-tax-backend-2` `docs/architecture/multi-agent-tessa.md`
+- Flutter summary: `docs/tessa-multi-agent.md` — `/tessa` only; engines authoritative; `/chat` is Advisor Chat (do not redirect to Tessa).
+
 ### Profile / KYC submit (Sanctum)
 - Profile screen **must not** call portal `/api/user/kyc-submit` on Sanctum builds (404 → “The requested item is unavailable.”).
 - Use `AuthRepository.submitProfileForReview` → `GET` then versioned `PATCH /api/v1/profile` (retry once on 409). SSN is not accepted on this bridge — collect via Organizer/Documents.

@@ -29,7 +29,7 @@ class BookkeepingCloseSettings {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
-        return decoded.map((e) => '$e').where(checklistIds.contains).toSet();
+        return decoded.map((item) => '$item').where(checklistIds.contains).toSet();
       }
     } catch (_) {}
     return {};

@@ -200,8 +200,8 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         final plan = analysis?['form_plan'];
         if (plan is Map && plan['jurisdictions'] is List) {
           _jurisdictions = (plan['jurisdictions'] as List)
-              .map((e) => '$e'.toUpperCase())
-              .where((e) => e.length == 2)
+              .map((code) => '$code'.toUpperCase())
+              .where((code) => code.length == 2)
               .toList();
           if (_jurisdictions.isEmpty) _jurisdictions = const ['CA'];
         }
@@ -263,8 +263,8 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         }
         if (result.formPlan['jurisdictions'] is List) {
           final j = (result.formPlan['jurisdictions'] as List)
-              .map((e) => '$e'.toUpperCase())
-              .where((e) => e.length == 2)
+              .map((code) => '$code'.toUpperCase())
+              .where((code) => code.length == 2)
               .toList();
           if (j.isNotEmpty) _jurisdictions = j;
         }

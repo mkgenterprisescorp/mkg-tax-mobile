@@ -1,9 +1,10 @@
 # Vercel deployment scope — MKG Tax client web
 
-**Vercel project name:** `mkg-tax-client-web`  
+**Vercel project name:** `mkg-tax-mobile` (alias target; docs historically said `mkg-tax-client-web`)  
 **GitHub:** `mkgenterprisescorp/mkg-tax-mobile`  
 **Production branch:** `main`  
-**Vercel team:** MKG organizational team (not a personal account)
+**Vercel team:** `mkgtaxconsultants` (`team_5uxQCVdAhb1FImpmmkm9rAa5` → set as `VERCEL_ORG_ID`)  
+**Production alias:** `https://mkg-tax-mobile.vercel.app`
 
 Vercel deploys **only** the taxpayer-facing web frontend. It must not deploy,
 execute, expose, or directly modify federal/state tax engines, Laravel, IRS MeF,
@@ -27,7 +28,7 @@ actual Flutter root until a deliberate monorepo migration is approved.
 
 ```text
 GitHub: mkgenterprisescorp/mkg-tax-mobile
-├── Flutter web frontend (lib/, web/, assets/)  →  Vercel (mkg-tax-client-web)
+├── Flutter web frontend (lib/, web/, assets/)  →  Vercel (mkg-tax-mobile, prebuilt only)
 ├── Flutter/native mobile (ios/, android/)      →  separate CI (outside Vercel)
 ├── (future) federal / state engines            →  Laravel on DigitalOcean
 ├── (future) database migrations                →  Neon via backend CI/CD
@@ -43,6 +44,25 @@ Browser
 Flutter never connects to Neon. Do **not** install the Neon–Vercel integration
 for this frontend project.
 
+### Stable deploy steps (required)
+
+1. Set secrets (Cursor Cloud / GitHub Actions): `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+   `VERCEL_PROJECT_ID`. Org ID value: `team_5uxQCVdAhb1FImpmmkm9rAa5`
+   (also committed in `deploy/vercel/project.json`).
+2. Disable Vercel Git auto-deploy (`gitProviderOptions.createDeployments=disabled`)
+   — already applied on the live project; `scripts/vercel-ignore-build.sh` always
+   skips as belt-and-suspenders.
+3. Build + deploy + smoke:
+
+```bash
+export VERCEL_TOKEN=…          # required
+export VERCEL_ORG_ID=team_5uxQCVdAhb1FImpmmkm9rAa5
+export VERCEL_PROJECT_ID=…     # or rely on deploy/vercel/project.json
+bash scripts/deploy-vercel-web.sh           # prod + smoke
+bash scripts/deploy-vercel-web.sh --preview # preview
+bash scripts/smoke-vercel-web.sh            # re-check production alias
+```
+
 ## Important distinction
 
 Connecting GitHub to Vercel grants **read** access. That does **not** make every
@@ -52,7 +72,7 @@ file a running Vercel service. Scope is enforced by:
 |---|---|
 | Root Directory | `.` (repo root — **not** `ios/`) |
 | Framework preset | Other |
-| Build / deploy | **GitHub Actions + `vercel deploy --prebuilt` only** (automatic path). `scripts/build-vercel-web.sh` is a gated fallback (`ALLOW_VERCEL_NATIVE_FLUTTER_BUILD=1`) — Vercel Git must not cold-build Flutter. |
+| Build / deploy | **`scripts/deploy-vercel-web.sh` or GitHub Actions + `vercel deploy --prebuilt` only**. `scripts/build-vercel-web.sh` is a gated fallback (`ALLOW_VERCEL_NATIVE_FLUTTER_BUILD=1`) — Vercel Git must not cold-build Flutter (auto-deploy disabled). |
 | Output Directory | `build/web` |
 | Ignore Build Step | `bash scripts/vercel-ignore-build.sh` |
 
@@ -188,7 +208,7 @@ Recommended allowlist origins:
 
 - `https://finance.mkgtaxconsultants.com`
 - `https://www.finance.mkgtaxconsultants.com`
-- `https://mkg-tax-client-web.vercel.app`
+- `https://mkg-tax-mobile.vercel.app`
 
 Preview URLs must not automatically receive production API access — use staging
 API, Vercel Deployment Protection, and/or an explicit preview-origin allowlist.
@@ -205,8 +225,13 @@ uploaded privately to an approved error platform.
 
 ```bash
 bash scripts/verify-vercel-scope.sh .
-bash scripts/vercel-ignore-build.sh; echo "exit=$?"   # 0=skip 1=build
+bash scripts/vercel-ignore-build.sh; echo "exit=$?"   # 0=skip always (prebuilt-only)
+bash scripts/smoke-vercel-web.sh                      # production alias
 ```
+
+**Production alias (verified 2026-07-20):** https://mkg-tax-mobile.vercel.app  
+Double-checked (measure ×2: scope + analyze + 119 tests + live smoke), then
+redeployed via `scripts/deploy-vercel-web.sh` — READY + smoke PASSED.
 
 CI: `docs/deployment/web-ci.workflow.yml.example` (Flutter analyze/test +
 scope verification). Copy to `.github/workflows/web-ci.yml` with a
@@ -214,20 +239,37 @@ scope verification). Copy to `.github/workflows/web-ci.yml` with a
 repo). Legacy iOS: `docs/deployment/legacy-ios-build.workflow.yml.example`
 → `.github/workflows/legacy-ios-build.yml`.
 
-## Manual dashboard steps (not performed by Cursor)
+## Overall impact (why Vercel exists alongside Flutter)
 
-1. Create Vercel project `mkg-tax-client-web` under the **MKG org team**.
+Vercel does **not** replace the mobile app. With a shared Laravel OpenAPI
+contract (TypeScript + Dart clients — see
+[api-client-strategy.md](../api-client-strategy.md)), it becomes the mobile
+app’s:
+
+- Rapid prototyping environment (approve flows before native rebuilds)
+- Browser-based companion / client fallback (same account + Neon records)
+- Workflow-testing and API compatibility checker before store releases
+
+Native compilation, signing, camera, liveness, push, and biometrics stay on
+Flutter / Xcode / Play pipelines — not Vercel.
+
+## Manual dashboard / secrets steps
+
+1. Vercel project **`mkg-tax-mobile`** under team **`mkgtaxconsultants`** (live).
 2. Connect GitHub App to **only** `mkgenterprisescorp/mkg-tax-mobile` (selected repos).
-3. Set Root Directory `.`, Framework Other, Output `build/web`, Ignore Build Step
+3. Root Directory `.`, Framework Other, Output `build/web`, Ignore Build Step
    `bash scripts/vercel-ignore-build.sh`.
-4. **Disable Vercel Git auto-build** (or leave gated `buildCommand` which fails
-   closed). Deploy only via GitHub Actions `--prebuilt`.
-5. Set Actions secrets `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`.
-6. Preview public env: `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1`
+4. **Disable Vercel Git auto-deploy** (`createDeployments=disabled`). Deploy only
+   via `scripts/deploy-vercel-web.sh` / Actions `--prebuilt`.
+5. Set Cursor Cloud + Actions secrets:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID=team_5uxQCVdAhb1FImpmmkm9rAa5`
+   - `VERCEL_PROJECT_ID` (matches `deploy/vercel/project.json`)
+6. Preview/public dart-defines: `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1`
    (verified). Do **not** set `staging-api.finance…` until DNS exists.
-7. Production public env: wait for `api.finance.mkgtaxconsultants.com` DNS, or
-   temporarily use `app.mkgtaxconsultants.com` with explicit owner approval.
+7. Production API host: wait for `api.finance.mkgtaxconsultants.com` DNS, or
+   temporarily keep `app.mkgtaxconsultants.com`.
 8. Confirm Neon integration is **not** installed on this project.
-9. Configure Laravel CORS for the Vercel production (and preview) origins.
+9. Configure Laravel CORS for `https://mkg-tax-mobile.vercel.app` (and previews).
 10. Copy workflow examples from `docs/deployment/*.workflow.yml.example` into
     `.github/workflows/` with a `workflow`-scoped token.

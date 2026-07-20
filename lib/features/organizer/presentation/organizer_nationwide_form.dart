@@ -261,7 +261,7 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
     }
     if (type == 'enum') {
       final options = (field['options'] as List? ?? const [])
-          .map((e) => ('$e', '$e'))
+          .map((option) => ('$option', '$option'))
           .toList();
       if (options.isEmpty) {
         return OrganizerTextField(

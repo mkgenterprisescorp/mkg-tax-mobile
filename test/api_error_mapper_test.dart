@@ -31,8 +31,12 @@ void main() {
       expect(ApiErrorMapper.map(_badResponse(422)), contains('validated'));
     });
 
-    test('429 maps to a too-many-attempts login message', () {
-      expect(ApiErrorMapper.map(_badResponse(429)), ApiErrorMapper.loginTooManyAttemptsMessage);
+    test('429 maps to a rate-limit message (login uses dedicated copy)', () {
+      expect(ApiErrorMapper.map(_badResponse(429)), 'Too many requests — wait a moment and try again.');
+      expect(
+        ApiErrorMapper.mapLogin(_badResponse(429)),
+        ApiErrorMapper.loginTooManyAttemptsMessage,
+      );
     });
 
     test('500 maps to a server-unavailable login message', () {
