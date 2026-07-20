@@ -1,0 +1,138 @@
+name: Vercel Flutter Web Deploy
+
+# INSTALL: copy this file to `.github/workflows/vercel-web-deploy.yml`.
+# It ships as a `.example` because the automation token in this environment
+# lacks the GitHub `workflow` scope needed to push files under
+# `.github/workflows/` (same convention as staging-web.workflow.yml.example).
+# A maintainer with a `workflow`-scoped token or the GitHub UI must add it.
+#
+# Build the Flutter web frontend in GitHub Actions and ship the prebuilt
+# artifact to Vercel. Vercel has no native Flutter framework preset, so we
+# never let Vercel build: CI produces `build/web`, assembles the Vercel
+# Build Output API structure, and deploys with `vercel deploy --prebuilt`.
+#
+# Path-filtered so unrelated changes (legacy iOS app, Android runner, backend
+# tax engines, docs) do NOT redeploy the web frontend. Only shared Flutter
+# code and web/build config trigger a deploy.
+#
+# Public config only. `API_BASE_URL` is a public staging/production endpoint,
+# not a secret; it is baked into the build via --dart-define. The only true
+# secrets are the Vercel deploy credentials.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "deploy/vercel/**"
+      - ".github/workflows/vercel-web-deploy.yml"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "deploy/vercel/**"
+      - ".github/workflows/vercel-web-deploy.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: vercel-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin to docs/toolchain-versions.md (kept in lockstep with the APK workflow).
+  FLUTTER_VERSION: "3.44.6"
+  # Public, non-secret endpoints. Override per environment with repo/env
+  # Actions *variables* (Settings > Secrets and variables > Actions > Variables).
+  API_BASE_URL: ${{ vars.API_BASE_URL || 'https://api.finance.mkgtaxconsultants.com/api/v1' }}
+  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL || 'https://api.finance.mkgtaxconsultants.com' }}
+  WEB_BASE_URL: ${{ vars.WEB_BASE_URL || 'https://finance.mkgtaxconsultants.com' }}
+
+jobs:
+  deploy-web:
+    name: Build & deploy Flutter web to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test
+
+      - name: Build Flutter web (release)
+        # No secrets here — the dart-defines below are public endpoints.
+        run: |
+          flutter config --enable-web
+          flutter build web --release \
+            --dart-define=API_BASE_URL="${API_BASE_URL}" \
+            --dart-define=LARAVEL_API_BASE_URL="${LARAVEL_API_BASE_URL}" \
+            --dart-define=WEB_BASE_URL="${WEB_BASE_URL}"
+
+      - name: Assemble Vercel prebuilt output
+        # Vercel Build Output API v3: static assets + routing/headers config.
+        # `vercel deploy --prebuilt` uploads this as-is, without building.
+        run: |
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -r build/web/. .vercel/output/static/
+          cp deploy/vercel/config.json .vercel/output/config.json
+          echo "Prebuilt output assembled:"
+          ls -la .vercel/output
+          ls -la .vercel/output/static | head
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (preview)
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "Preview deployment: $url"
+          echo "deploy_url=$url" >> "$GITHUB_OUTPUT"
+        id: preview
+
+      - name: Deploy to Vercel (production)
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "Production deployment: $url"
+          echo "deploy_url=$url" >> "$GITHUB_OUTPUT"
+        id: production
+
+      - name: Summarize deployment
+        run: |
+          {
+            echo "### Vercel Flutter Web Deploy"
+            echo ""
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- API_BASE_URL: \`${API_BASE_URL}\`"
+            echo "- Preview URL: ${{ steps.preview.outputs.deploy_url }}"
+            echo "- Production URL: ${{ steps.production.outputs.deploy_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
