@@ -18,7 +18,8 @@ check() {
   local expect_re="$2"
   local code body
   body="$(mktemp)"
-  code="$(curl -sS -o "$body" -w '%{http_code}' --max-time 30 -L "$URL$path" || echo "000")"
+  # Do not follow SSO login redirects for protected preview URLs.
+  code="$(curl -sS -o "$body" -w '%{http_code}' --max-time 30 --max-redirs 0 "$URL$path" || echo "000")"
   if [[ "$code" != "200" ]]; then
     echo "smoke-vercel-web: FAIL $path → HTTP $code"
     fail=1
@@ -34,10 +35,24 @@ check() {
   rm -f "$body"
 }
 
-# Flutter web shell + SPA index
+check_asset() {
+  local path="$1"
+  local code
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 --max-redirs 0 "$URL$path" || echo "000")"
+  if [[ "$code" != "200" ]]; then
+    echo "smoke-vercel-web: FAIL $path → HTTP $code"
+    fail=1
+  else
+    echo "smoke-vercel-web: OK   $path → HTTP $code"
+  fi
+}
+
+# Flutter web shell at / (canonical). /index.html is not required — Vercel
+# Build Output may serve the document only via / + filesystem index.
 check "/" "flutter|main\\.dart\\.js|flutter_bootstrap"
-check "/index.html" "flutter|main\\.dart\\.js|flutter_bootstrap"
-check "/manifest.json" "name|short_name|MKG|Tax"
+check_asset "/manifest.json"
+check_asset "/main.dart.js"
+check_asset "/flutter.js"
 
 # API the browser will call (public health; not hosted on Vercel)
 API_BASE="${API_BASE_URL:-https://app.mkgtaxconsultants.com/api/v1}"

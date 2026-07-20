@@ -144,17 +144,56 @@ if ! command -v vercel >/dev/null 2>&1; then
 fi
 
 echo "deploy-vercel-web: vercel deploy --prebuilt ${PROD_FLAG[*]:-}"
-DEPLOY_URL="$(npx --yes vercel@latest deploy --prebuilt "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes)"
+# Newer Vercel CLI may print JSON; prefer --format=url when available.
+set +e
+DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes --format=url 2>/tmp/vercel-deploy-stderr.log)"
+deploy_rc=$?
+set -e
+if [[ "$deploy_rc" -ne 0 || -z "$DEPLOY_RAW" ]]; then
+  DEPLOY_RAW="$(npx --yes vercel@latest deploy --prebuilt "${PROD_FLAG[@]}" --token="$VERCEL_TOKEN" --yes)"
+fi
+DEPLOY_URL="$(
+  DEPLOY_RAW="$DEPLOY_RAW" python3 - <<'PY'
+import json, os, re
+raw = os.environ["DEPLOY_RAW"].strip()
+url = None
+if raw.startswith("http"):
+    url = raw.split()[0]
+else:
+    try:
+        data = json.loads(raw)
+        url = (data.get("deployment") or {}).get("url") or data.get("url")
+    except Exception:
+        m = re.search(r"https://[^\s\"']+", raw)
+        url = m.group(0) if m else None
+if not url:
+    raise SystemExit("deploy-vercel-web: could not parse deployment URL from CLI output")
+if not url.startswith("http"):
+    url = "https://" + url
+print(url)
+PY
+)"
 echo "deploy-vercel-web: deployed → $DEPLOY_URL"
 
-# Prefer stable production alias when deploying prod.
+# Prefer stable production alias when deploying prod (preview URLs may use SSO).
 SMOKE_URL="$DEPLOY_URL"
 if [[ "$PREVIEW" -eq 0 ]]; then
   SMOKE_URL="${PRODUCTION_ALIAS:-https://mkg-tax-mobile.vercel.app}"
 fi
 
 if [[ "${SKIP_SMOKE:-}" != "1" ]]; then
-  bash "$ROOT/scripts/smoke-vercel-web.sh" "$SMOKE_URL"
+  # Alias DNS/edge can lag a few seconds after READY.
+  for attempt in 1 2 3 4 5; do
+    if bash "$ROOT/scripts/smoke-vercel-web.sh" "$SMOKE_URL"; then
+      break
+    fi
+    if [[ "$attempt" -eq 5 ]]; then
+      echo "deploy-vercel-web: smoke failed after retries" >&2
+      exit 1
+    fi
+    echo "deploy-vercel-web: smoke not ready (attempt $attempt); retrying in 5s…"
+    sleep 5
+  done
 fi
 
 echo "deploy-vercel-web: OK"
