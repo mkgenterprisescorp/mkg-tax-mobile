@@ -50,6 +50,8 @@ class _FakePortalRepository extends PortalRepository {
 
   Object? throwOnGet;
   int getCalls = 0;
+  final Map<int, Completer<void>> yearGates = {};
+  final List<int> yearsRequested = [];
 
   @override
   Future<Map<String, dynamic>> getOrCreateReturnForYear(
@@ -57,6 +59,9 @@ class _FakePortalRepository extends PortalRepository {
     String? lastName,
   }) async {
     getCalls++;
+    yearsRequested.add(year);
+    final gate = yearGates[year];
+    if (gate != null) await gate.future;
     final err = throwOnGet;
     if (err != null) throw err;
     return {
@@ -231,6 +236,72 @@ void main() {
         DateTime.now().year - 1,
       );
     });
+
+    test('forceCatalog caller chains after an in-flight soft bootstrap', () async {
+      final notifier = container.read(taxYearProvider.notifier);
+      await notifier.bootstrap(forceCatalog: true);
+      final listAfterWarm = fakeRepo.listCalls;
+      final year = container.read(taxYearProvider).selectedYear!;
+      expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
+
+      // Hold soft bootstrap inside refreshWorkspace (portal) so force can chain.
+      fakePortal.yearGates[year] = Completer<void>();
+      final soft = notifier.bootstrap();
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.debugBootstrapInFlight, isTrue);
+      expect(fakeRepo.listCalls, listAfterWarm);
+
+      final forced = notifier.bootstrap(forceCatalog: true);
+      expect(identical(soft, forced), isFalse);
+
+      fakePortal.yearGates[year]!.complete();
+      await soft;
+      await forced;
+      expect(fakeRepo.listCalls, listAfterWarm + 1);
+      expect(notifier.debugBootstrapInFlight, isFalse);
+    });
+  });
+
+  group('workspace refresh stale discard', () {
+    late _FakeTaxYearRepository fakeRepo;
+    late _FakePortalRepository fakePortal;
+    late ProviderContainer container;
+
+    setUp(() {
+      fakeRepo = _FakeTaxYearRepository();
+      fakePortal = _FakePortalRepository();
+      container = ProviderContainer(
+        overrides: [
+          taxYearRepositoryProvider.overrideWithValue(fakeRepo),
+          portalRepositoryProvider.overrideWithValue(fakePortal),
+          apiClientProvider.overrideWithValue(ApiClient.memory()),
+        ],
+      );
+      addTearDown(container.dispose);
+    });
+
+    test('slower prior year activate cannot overwrite newer selected year', () async {
+      final notifier = container.read(taxYearProvider.notifier);
+      await notifier.bootstrap(forceCatalog: true);
+
+      fakePortal.yearGates[2024] = Completer<void>();
+      // Start refresh for 2024 but hold the portal response.
+      final first = notifier.selectYear(2024);
+      await Future<void>.delayed(Duration.zero);
+      expect(fakePortal.yearsRequested, contains(2024));
+
+      // Newer selection for 2025 completes while 2024 is still awaiting.
+      await notifier.selectYear(2025);
+      expect(container.read(taxYearProvider).selectedYear, 2025);
+      expect(container.read(taxYearProvider).workspace?.taxYear, 2025);
+
+      // Release the stale 2024 response — must not clobber 2025.
+      fakePortal.yearGates[2024]!.complete();
+      await first;
+      expect(container.read(taxYearProvider).selectedYear, 2025);
+      expect(container.read(taxYearProvider).workspace?.taxYear, 2025);
+      expect(container.read(taxYearProvider).workspace?.taxReturnId, 'ret-2025');
+    });
   });
 
   group('organizer snapshot scope', () {
@@ -324,6 +395,63 @@ void main() {
       expect(afterSilent.scopedOrganizerSnapshot?['tax_year_workspace_id'], 'ws-a');
       expect(afterSilent.organizerSnapshotScope?.entityId, 'ent-1');
       expect(afterSilent.organizerSnapshotScope?.taxYear, 2025);
+    });
+
+    test('silent autosave merge updates warm snapshot section answers', () {
+      final fakeRepo = _FakeTaxYearRepository();
+      final fakePortal = _FakePortalRepository();
+      final container = ProviderContainer(
+        overrides: [
+          taxYearRepositoryProvider.overrideWithValue(fakeRepo),
+          portalRepositoryProvider.overrideWithValue(fakePortal),
+          apiClientProvider.overrideWithValue(ApiClient.memory()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(taxYearProvider.notifier);
+      notifier.state = TaxYearState(
+        selectedYear: 2025,
+        currentFilingYear: 2025,
+        workspace: TaxYearWorkspace(
+          taxYear: 2025,
+          federalReturnStatus: 'Not Started',
+          organizerStatus: 'In Progress',
+          organizerCompletionPercentage: 10,
+          workspaceId: 'ws-a',
+          entityId: 'ent-1',
+        ),
+        organizerSnapshot: {
+          'id': 'org-1',
+          'tax_year_workspace_id': 'ws-a',
+          'prep_type': 'personal',
+          'sections': {
+            'answers': {
+              'filing_info': {
+                'answers': {'filingStatus': 'single'},
+              },
+            },
+          },
+        },
+        organizerSnapshotScope: const OrganizerSnapshotScope(
+          workspaceId: 'ws-a',
+          entityId: 'ent-1',
+          taxYear: 2025,
+        ),
+      );
+
+      notifier.mergeOrganizerSnapshotSectionAnswers(
+        {
+          'filing_info': {'filingStatus': 'married_joint', 'filingYear': 2025},
+        },
+        prepType: 'personal',
+      );
+
+      final snap = container.read(taxYearProvider).scopedOrganizerSnapshot;
+      expect(snap, isNotNull);
+      final answers = ((snap!['sections'] as Map)['answers'] as Map)['filing_info'] as Map;
+      expect((answers['answers'] as Map)['filingStatus'], 'married_joint');
+      expect(container.read(taxYearProvider).organizerSnapshotScope?.taxYear, 2025);
     });
 
     test('clearOrganizerSnapshot on notifier drops cached activate JSON', () {

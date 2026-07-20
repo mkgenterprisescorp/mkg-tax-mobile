@@ -381,13 +381,24 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
-      // Keep activate-embedded snapshot on silent autosave so re-open stays warm.
-      // Explicit Save / Submit still drops it so the next open re-fetches authoritative JSON.
-      if (!silent) {
-        try {
-          ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
-        } catch (_) {}
-      }
+      // Silent autosave: keep a warm snapshot but merge the sections we just
+      // persisted so reopen does not hydrate pre-edit activate JSON.
+      // Explicit Save / Submit still drops the snapshot for a full refetch.
+      try {
+        final taxNotifier = ref.read(taxYearProvider.notifier);
+        if (silent) {
+          final merged = <String, Map<String, dynamic>>{
+            for (final key in dirtySnapshot)
+              key: OrganizerSectionMapper.answersForSection(key, _data),
+          };
+          taxNotifier.mergeOrganizerSnapshotSectionAnswers(
+            merged,
+            prepType: '${_data['prepType'] ?? 'personal'}',
+          );
+        } else {
+          taxNotifier.clearOrganizerSnapshot();
+        }
+      } catch (_) {}
       setState(() {
         _status = status;
         _saving = false;
