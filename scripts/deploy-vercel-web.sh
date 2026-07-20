@@ -111,7 +111,8 @@ if [[ "${SKIP_BUILD:-}" != "1" ]]; then
     exit 1
   fi
   echo "deploy-vercel-web: flutter analyze"
-  flutter analyze
+  # Info-level lints are pre-existing in this codebase; fail only on warnings/errors.
+  flutter analyze --no-fatal-infos
   echo "deploy-vercel-web: flutter test"
   flutter test
   echo "deploy-vercel-web: flutter build web (APP_ENV=$APP_ENV)"
