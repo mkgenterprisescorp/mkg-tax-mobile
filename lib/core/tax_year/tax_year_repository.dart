@@ -459,18 +459,44 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
 
   TaxYearRepository get _repo => ref.read(taxYearRepositoryProvider);
 
-  Future<void> bootstrap() async {
-    state = state.copyWith(loading: true, error: null);
+  Future<void>? _bootstrapInFlight;
+
+  /// Soft bootstrap: keep painted Home content when catalog/workspace already warm.
+  /// Coalesces concurrent callers (Home remount + pull-to-refresh).
+  Future<void> bootstrap({bool forceCatalog = false}) {
+    final existing = _bootstrapInFlight;
+    if (existing != null) return existing;
+    final run = _bootstrapBody(forceCatalog: forceCatalog);
+    _bootstrapInFlight = run.whenComplete(() {
+      if (identical(_bootstrapInFlight, run)) {
+        _bootstrapInFlight = null;
+      }
+    });
+    return _bootstrapInFlight!;
+  }
+
+  Future<void> _bootstrapBody({required bool forceCatalog}) async {
+    final hasWarmCatalog = state.years.isNotEmpty && state.currentFilingYear != null;
+    // Only flash full-screen loading when we have nothing to show yet.
+    if (!hasWarmCatalog) {
+      state = state.copyWith(loading: true, error: null);
+    } else {
+      state = state.copyWith(error: null);
+    }
     try {
-      final catalog = await _repo.listTaxYears();
-      final selected = state.selectedYear ?? catalog.current;
-      state = state.copyWith(
-        years: catalog.years,
-        currentFilingYear: catalog.current,
-        selectedYear: selected,
-        source: catalog.source,
-        loading: false,
-      );
+      if (forceCatalog || !hasWarmCatalog) {
+        final catalog = await _repo.listTaxYears();
+        final selected = state.selectedYear ?? catalog.current;
+        state = state.copyWith(
+          years: catalog.years,
+          currentFilingYear: catalog.current,
+          selectedYear: selected,
+          source: catalog.source,
+          loading: false,
+        );
+      } else if (state.loading) {
+        state = state.copyWith(loading: false);
+      }
       await refreshWorkspace();
     } catch (e) {
       state = state.copyWith(loading: false, error: ApiErrorMapper.map(e));

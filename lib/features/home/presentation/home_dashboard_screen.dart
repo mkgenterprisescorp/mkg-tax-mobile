@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,8 +25,9 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Prefetch organizer defaults JSON so Organizer open skips asset I/O.
-      OrganizerDefaults.load();
+      // Defer Organizer defaults until after first frame — Home does not need
+      // the ~35KB JSON for first paint; Organizer loads it on open (cached).
+      unawaited(Future<void>.delayed(Duration.zero, OrganizerDefaults.load));
       ref.read(taxYearProvider.notifier).bootstrap();
     });
   }
@@ -32,14 +35,21 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final tax = ref.watch(taxYearProvider);
+    // Fine-grained watches — avoid rebuilding the whole dashboard on every
+    // taxYear field churn (e.g. organizerSnapshot updates).
+    final loading = ref.watch(taxYearProvider.select((s) => s.loading));
+    final selectedYear = ref.watch(taxYearProvider.select((s) => s.selectedYear));
+    final currentFilingYear =
+        ref.watch(taxYearProvider.select((s) => s.currentFilingYear));
+    final workspace = ref.watch(taxYearProvider.select((s) => s.workspace));
+    final tasks = ref.watch(taxYearProvider.select((s) => s.tasks));
     final caps = capabilitiesFor(auth.user?.role);
     final name = auth.user?.firstName.isNotEmpty == true ? auth.user!.firstName : 'there';
-    final year = tax.selectedYear ?? tax.currentFilingYear ?? (DateTime.now().year - 1);
-    final ws = tax.workspace;
+    final year = selectedYear ?? currentFilingYear ?? (DateTime.now().year - 1);
+    final ws = workspace;
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(taxYearProvider.notifier).bootstrap(),
+      onRefresh: () => ref.read(taxYearProvider.notifier).bootstrap(forceCatalog: true),
       child: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
@@ -72,7 +82,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               ],
             ),
           ),
-          if (tax.loading)
+          if (loading && ws == null)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Center(child: CircularProgressIndicator()),
@@ -197,12 +207,12 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                 ],
               ),
             ),
-            if (tax.tasks.isNotEmpty) ...[
+            if (tasks.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
                 child: Text('Outstanding tasks', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               ),
-              ...tax.tasks.take(3).map((t) {
+              ...tasks.take(3).map((t) {
                 final href = (t['href'] ?? 'tax-center').toString();
                 final path = switch (href) {
                   'organizer' => '/organizer',

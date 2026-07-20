@@ -381,11 +381,13 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
-      // Drop activate-embedded snapshot so the next Organizer open re-fetches.
-      // Never let snapshot bookkeeping fail a successful save.
-      try {
-        ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
-      } catch (_) {}
+      // Keep activate-embedded snapshot on silent autosave so re-open stays warm.
+      // Explicit Save / Submit still drops it so the next open re-fetches authoritative JSON.
+      if (!silent) {
+        try {
+          ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
+        } catch (_) {}
+      }
       setState(() {
         _status = status;
         _saving = false;
@@ -464,11 +466,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(taxYearProvider, (prev, next) {
-      if (prev?.selectedYear != next.selectedYear &&
-          next.selectedYear != null &&
-          next.selectedYear != _year &&
-          !_loading) {
+    // Listen only to selectedYear — avoids reloading Organizer on unrelated
+    // taxYear churn (tasks, organizerSnapshot, loading flags).
+    ref.listen(taxYearProvider.select((s) => s.selectedYear), (prev, next) {
+      if (prev != next && next != null && next != _year && !_loading) {
         _load();
       }
     });
@@ -727,9 +728,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   }
 
   Widget _filingYearDropdown() {
-    final catalogYears = ref.watch(taxYearProvider).years;
+    final catalogYears = ref.watch(taxYearProvider.select((s) => s.years));
     final currentFiling =
-        ref.watch(taxYearProvider).currentFilingYear ?? DateTime.now().year - 1;
+        ref.watch(taxYearProvider.select((s) => s.currentFilingYear)) ??
+            DateTime.now().year - 1;
     final yearItems = catalogYears.isNotEmpty
         ? <(int, String)>[
             for (final y in catalogYears)
