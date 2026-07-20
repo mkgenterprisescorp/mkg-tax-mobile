@@ -1,24 +1,43 @@
-/// Public compile-time config. Never put secrets or Neon URLs here.
+/// Public compile-time config for the Flutter client (including Flutter Web on
+/// Vercel project `mkg-tax-client-web`). Never put secrets or Neon URLs here.
 ///
-/// Authoritative staging/production API root:
-/// `https://app.mkgtaxconsultants.com/api/v1`
+/// These `--dart-define` values are the Flutter equivalent of Vite `VITE_*` /
+/// Next.js `NEXT_PUBLIC_*` — they are baked into the **browser bundle**.
 ///
-/// WordPress marketing site (DO):
-/// `https://finance.mkgtaxconsultants.com`
+/// Approved public dart-defines: [apiBaseUrl], [webBaseUrl],
+/// [laravelApiBaseUrl], [appName], [appEnv].
 ///
-/// Staff/client web portal (financemkgtaxpro) — separate host:
-/// `https://mkgtaxconsultants.com`
+/// Verified staging/preview API (DNS live): `https://app.mkgtaxconsultants.com/api/v1`  
+/// Intended production API (DNS not live yet — do not wire until it resolves):
+/// `https://api.finance.mkgtaxconsultants.com/api/v1`  
+/// Portal / support: `https://mkgtaxconsultants.com`
 ///
 /// There is deliberately no default value for [apiBaseUrl] — a build that
 /// omits `--dart-define=API_BASE_URL=...` must fail loudly at startup (see
 /// [AppConfig.validate]) rather than silently talk to some other host.
 ///
 /// Flutter must never connect directly to Neon PostgreSQL or `/internal/*`.
+/// Prohibited on Vercel: database URLs, Neon credentials, Postgres env vars,
+/// IRS MeF material, taxpayer encryption keys, and payment-provider secrets —
+/// see `docs/deployment/vercel-scope.md`.
 class AppConfig {
   /// API root. No default — see [validate].
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
+  );
+
+  /// Public product / brand name (browser-safe).
+  static const String appName = String.fromEnvironment(
+    'APP_NAME',
+    defaultValue: 'MKG Tax Consultants',
+  );
+
+  /// Build environment label: `production` | `preview` | `development`.
+  /// Used for non-secret UI/diagnostics only — never gates security alone.
+  static const String appEnv = String.fromEnvironment(
+    'APP_ENV',
+    defaultValue: 'development',
   );
 
   /// Public marketing site origin (WordPress on [canonicalMarketingHost]).
@@ -116,8 +135,17 @@ class AppConfig {
 
   static bool get usesPortalCookieAuth => !usesLaravelAuth;
 
+  static bool get isProduction => appEnv.trim().toLowerCase() == 'production';
+
+  static bool get isPreview => appEnv.trim().toLowerCase() == 'preview';
+
+  static bool get isDevelopment =>
+      appEnv.trim().isEmpty || appEnv.trim().toLowerCase() == 'development';
+
   /// Short, non-secret label for a diagnostics/about screen.
   /// Client-facing — never includes implementation hostnames or stack names.
+  static String get authModeLabel => 'Secure client sign-in';
+
   /// Validates [apiBaseUrl] and throws [AppConfigError] — with a message
   /// naming exactly what's wrong — if it is missing or malformed. Call this
   /// once, early in `main()`, before running the real app widget tree. A

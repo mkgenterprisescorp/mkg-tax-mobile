@@ -1,0 +1,51 @@
+name: Legacy iOS Build
+
+# INSTALL: copy this file to `.github/workflows/legacy-ios-build.yml`.
+# Ships as a `.example` because the automation token lacks the GitHub
+# `workflow` scope required to push under `.github/workflows/`.
+#
+
+# OUTSIDE VERCEL. Legacy iOS remains in GitHub for maintenance/migration only.
+# This workflow must never run on Vercel. Apple credentials stay in the
+# approved iOS CI secret store — never in Vercel env vars.
+#
+# Path filters intentionally include ios/ (and future apps/legacy-ios/) so
+# iOS-only changes do not go through the web/Vercel pipeline.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "apps/legacy-ios/**"
+      - "packages/shared-models/**"
+      - ".github/workflows/legacy-ios-build.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - "apps/legacy-ios/**"
+      - "packages/shared-models/**"
+      - ".github/workflows/legacy-ios-build.yml"
+  workflow_dispatch: {}
+
+jobs:
+  legacy-ios-placeholder:
+    name: Legacy iOS (macOS runner required)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scope check — refuse Vercel / secret leakage markers
+        run: |
+          echo "Legacy iOS CI placeholder."
+          echo "Vercel must not: run Xcode, build IPA, sign, access profiles, or submit to TestFlight."
+          if [[ -n "${DATABASE_URL:-}" || -n "${NEON_DATABASE_URL:-}" ]]; then
+            echo "Refuse: database credentials must not be present in iOS CI env for this job."
+            exit 1
+          fi
+
+      - name: Document next steps
+        run: |
+          echo "Wire Xcode build / TestFlight here with Apple secrets from the approved iOS CI store."
+          echo "Do not call vercel, do not touch tax engines, do not connect to Neon from the app binary."
+          ls ios

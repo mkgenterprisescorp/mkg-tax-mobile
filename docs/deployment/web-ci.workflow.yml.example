@@ -1,0 +1,94 @@
+name: Web CI
+
+# INSTALL: copy this file to `.github/workflows/web-ci.yml`.
+# Ships as a `.example` because the automation token lacks the GitHub
+# `workflow` scope required to push under `.github/workflows/`.
+#
+
+# Validates the taxpayer-facing Flutter Web surface before any Vercel deploy.
+# Path-filtered so ios/, android/, backend, tax-engines, and docs do not run this job.
+
+on:
+  pull_request:
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "vercel.json"
+      - "deploy/vercel/**"
+      - "scripts/build-vercel-web.sh"
+      - "scripts/vercel-ignore-build.sh"
+      - "scripts/verify-vercel-scope.sh"
+      - ".github/workflows/web-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "vercel.json"
+      - "deploy/vercel/**"
+      - "scripts/build-vercel-web.sh"
+      - "scripts/vercel-ignore-build.sh"
+      - "scripts/verify-vercel-scope.sh"
+      - ".github/workflows/web-ci.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.6"
+  # Verified live staging API. Do NOT default to staging-api.finance… (no DNS).
+  API_BASE_URL: ${{ vars.API_BASE_URL_PREVIEW || 'https://app.mkgtaxconsultants.com/api/v1' }}
+  LARAVEL_API_BASE_URL: ${{ vars.LARAVEL_API_BASE_URL_PREVIEW || 'https://app.mkgtaxconsultants.com' }}
+  WEB_BASE_URL: ${{ vars.WEB_BASE_URL || 'https://finance.mkgtaxconsultants.com' }}
+
+jobs:
+  validate-web:
+    name: Validate Flutter Web (Vercel scope)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Vercel scope (secrets / DB clients)
+        run: bash scripts/verify-vercel-scope.sh .
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test
+
+      - name: Production web build (public dart-defines only)
+        run: |
+          flutter config --enable-web
+          flutter build web --release \
+            --dart-define=API_BASE_URL="${API_BASE_URL}" \
+            --dart-define=LARAVEL_API_BASE_URL="${LARAVEL_API_BASE_URL}" \
+            --dart-define=WEB_BASE_URL="${WEB_BASE_URL}" \
+            --dart-define=APP_NAME=MKG Tax Consultants \
+            --dart-define=APP_ENV=preview
+
+      - name: Re-scan build output for prohibited strings
+        run: |
+          if grep -RIn -E 'DATABASE_URL|NEON_DATABASE_URL|PGPASSWORD|postgresql://|postgres://|IRS_MEF_PRIVATE_KEY|SSN_ENCRYPTION_KEY' build/web ; then
+            echo "Prohibited secret pattern found in build/web"
+            exit 1
+          fi
+          echo "build/web secret scan passed"

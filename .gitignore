@@ -62,3 +62,7 @@ android/key.properties
 .env
 .env.*
 !.env.example
+
+# Vercel CLI working directory (project link + generated prebuilt output).
+# The canonical Build Output config lives at deploy/vercel/config.json.
+.vercel/
