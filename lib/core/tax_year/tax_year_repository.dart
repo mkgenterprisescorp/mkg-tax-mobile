@@ -539,24 +539,30 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
 
   /// Soft bootstrap: keep painted Home content when catalog/workspace already warm.
   /// Coalesces concurrent callers (Home remount + pull-to-refresh).
+  ///
+  /// Stores the body [Future] itself (not a `whenComplete` wrapper) and clears
+  /// that exact instance on both success and failure so a later bootstrap can run.
   Future<void> bootstrap({bool forceCatalog = false}) {
     final existing = _bootstrapInFlight;
     if (existing != null) return existing;
 
-    late final Future<void> operation;
-    operation = _bootstrapBody(forceCatalog: forceCatalog).whenComplete(() {
-      if (identical(_bootstrapInFlight, operation)) {
+    final pending = _bootstrapBody(forceCatalog: forceCatalog);
+    _bootstrapInFlight = pending;
+    pending.whenComplete(() {
+      if (identical(_bootstrapInFlight, pending)) {
         _bootstrapInFlight = null;
       }
     });
-
-    _bootstrapInFlight = operation;
-    return operation;
+    return pending;
   }
 
   /// True while a [bootstrap] Future is coalesced — for tests.
   @visibleForTesting
   bool get debugBootstrapInFlight => _bootstrapInFlight != null;
+
+  /// The exact in-flight [Future] currently stored — for tests.
+  @visibleForTesting
+  Future<void>? get debugBootstrapInFlightFuture => _bootstrapInFlight;
 
   Future<void> _bootstrapBody({required bool forceCatalog}) async {
     final hasWarmCatalog = isTaxYearCatalogWarm(state);

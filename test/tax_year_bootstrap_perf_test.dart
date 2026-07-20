@@ -135,14 +135,18 @@ void main() {
       final notifier = container.read(taxYearProvider.notifier);
       final first = notifier.bootstrap(forceCatalog: true);
       expect(notifier.debugBootstrapInFlight, isTrue);
+      // Stored Future must be the exact instance returned to callers.
+      expect(identical(first, notifier.debugBootstrapInFlightFuture), isTrue);
       await first;
       expect(notifier.debugBootstrapInFlight, isFalse);
+      expect(notifier.debugBootstrapInFlightFuture, isNull);
       expect(fakeRepo.listCalls, 1);
       expect(container.read(taxYearProvider).error, isNull);
       expect(container.read(taxYearProvider).catalogLoadedAt, isNotNull);
 
       final second = notifier.bootstrap(forceCatalog: true);
       expect(identical(first, second), isFalse);
+      expect(identical(second, notifier.debugBootstrapInFlightFuture), isTrue);
       await second;
       expect(notifier.debugBootstrapInFlight, isFalse);
       expect(fakeRepo.listCalls, 2);
@@ -152,13 +156,19 @@ void main() {
       fakeRepo.throwOnList = StateError('catalog unavailable');
       final notifier = container.read(taxYearProvider.notifier);
 
-      await notifier.bootstrap(forceCatalog: true);
+      final failed = notifier.bootstrap(forceCatalog: true);
+      expect(identical(failed, notifier.debugBootstrapInFlightFuture), isTrue);
+      await failed;
       expect(notifier.debugBootstrapInFlight, isFalse);
+      expect(notifier.debugBootstrapInFlightFuture, isNull);
       expect(container.read(taxYearProvider).error, isNotNull);
       expect(fakeRepo.listCalls, 1);
 
       fakeRepo.throwOnList = null;
-      await notifier.bootstrap(forceCatalog: true);
+      final recovered = notifier.bootstrap(forceCatalog: true);
+      expect(identical(failed, recovered), isFalse);
+      expect(identical(recovered, notifier.debugBootstrapInFlightFuture), isTrue);
+      await recovered;
       expect(notifier.debugBootstrapInFlight, isFalse);
       expect(fakeRepo.listCalls, 2);
       expect(container.read(taxYearProvider).error, isNull);
@@ -171,12 +181,14 @@ void main() {
       final a = notifier.bootstrap(forceCatalog: true);
       final b = notifier.bootstrap(forceCatalog: true);
       expect(identical(a, b), isTrue);
+      expect(identical(a, notifier.debugBootstrapInFlightFuture), isTrue);
       expect(fakeRepo.listCalls, 1);
       expect(notifier.debugBootstrapInFlight, isTrue);
 
       fakeRepo.gate!.complete();
       await a;
       expect(notifier.debugBootstrapInFlight, isFalse);
+      expect(notifier.debugBootstrapInFlightFuture, isNull);
 
       final c = notifier.bootstrap(forceCatalog: true);
       expect(identical(a, c), isFalse);
