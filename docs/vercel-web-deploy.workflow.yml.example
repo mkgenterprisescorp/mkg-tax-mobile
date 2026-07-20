@@ -11,9 +11,11 @@ name: Vercel Flutter Web Deploy
 # never let Vercel build: CI produces `build/web`, assembles the Vercel
 # Build Output API structure, and deploys with `vercel deploy --prebuilt`.
 #
-# Path-filtered so unrelated changes (legacy iOS app, Android runner, backend
-# tax engines, docs) do NOT redeploy the web frontend. Only shared Flutter
-# code and web/build config trigger a deploy.
+# Path-filtered so unrelated changes do NOT redeploy the web frontend.
+# Legacy iOS (`ios/`) stays in the repo for maintenance/migration but is
+# intentionally omitted from these paths — connecting GitHub to Vercel does
+# not make ios/ a Vercel service; Root Directory / Build / Output / Ignore
+# Build Step (and this path filter) determine what is built and published.
 #
 # Public config only. `API_BASE_URL` is a public staging/production endpoint,
 # not a secret; it is baked into the build via --dart-define. The only true
@@ -29,6 +31,7 @@ on:
       - "pubspec.yaml"
       - "pubspec.lock"
       - "deploy/vercel/**"
+      - "vercel.json"
       - ".github/workflows/vercel-web-deploy.yml"
   pull_request:
     paths:
@@ -38,6 +41,7 @@ on:
       - "pubspec.yaml"
       - "pubspec.lock"
       - "deploy/vercel/**"
+      - "vercel.json"
       - ".github/workflows/vercel-web-deploy.yml"
   workflow_dispatch: {}
 

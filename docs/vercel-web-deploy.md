@@ -8,11 +8,57 @@ state engines, IRS MeF integration, audit/authorization, tax records, and the
 legacy iOS/Android deploys stay on their existing hosts. Vercel is used purely
 to accelerate the web interface and its preview workflow.
 
+## Important distinction: GitHub connection ≠ every file is a Vercel service
+
+Connecting this GitHub repository to Vercel gives Vercel permission to **read**
+the repository. That does **not** mean every file becomes a running Vercel
+service.
+
+What Vercel builds and publishes is controlled by the project settings:
+
+| Setting | Value for this app | Effect |
+|---|---|---|
+| **Root Directory** | `.` (repo root) | Flutter needs `pubspec.yaml`, `lib/`, `web/`, and `assets/` together. Do **not** set Root Directory to `ios/` or `android/`. |
+| **Build Command** | Prefer GitHub Actions + `vercel deploy --prebuilt` (see below). If using Vercel Git builds: custom Flutter install + `flutter build web --release …` | Only the web target is compiled. |
+| **Output Directory** | `build/web` | Only the Flutter web static bundle is published. |
+| **Ignore Build Step** | `bash deploy/vercel/ignore-build.sh` (also set via `ignoreCommand` in `vercel.json`) | Skips a deployment when no web-affecting files changed. |
+
+Vercel supports selecting a project root directory and restricting deployments to
+that application. In this repo the Flutter app *is* the repo root, so root is
+`.`, and restriction comes from **Build Command + Output Directory + Ignore
+Build Step** — not from moving `ios/` out of the tree.
+
+### Legacy iOS app (`ios/`)
+
+The legacy iOS runner remains in the repository for **maintenance and
+migration**. It must **not** be part of the Vercel build:
+
+| Path | In git? | Triggers Vercel deploy? | Published by Vercel? |
+|---|---|---|---|
+| `ios/` | Yes (maintenance / migration) | **No** | **No** |
+| `android/` | Yes | **No** | **No** |
+| `lib/`, `web/`, `assets/`, `pubspec.*` | Yes | **Yes** | Via `build/web` only |
+
+Recommended ignore / exclude path for Vercel: **`ios/`** (plus `android/` and
+other non-web trees — see `deploy/vercel/ignore-build.sh`).
+
+Concrete controls:
+
+1. **GitHub Actions path filter** (preferred deploy path) — workflow paths omit
+   `ios/**` entirely.
+2. **Vercel Ignored Build Step** — `deploy/vercel/ignore-build.sh` watches only
+   web-affecting paths; a commit that only touches `ios/` exits `0` and skips
+   the deployment.
+3. **Output Directory = `build/web`** — even if the full repo is checked out,
+   only the Flutter web artifact is published. Xcode projects under `ios/` are
+   never compiled or served.
+
 ## Target architecture
 
 ```text
 Vercel
 └── Taxpayer-facing Flutter Web UI (this repo, build/web → prebuilt static)
+    # ios/ stays in git for maintenance/migration — never built or published here
 
 DigitalOcean App Platform
 └── Laravel API
@@ -27,7 +73,7 @@ GitHub Actions
 ├── Web validation + Vercel deploy (this workflow)
 ├── Backend deployment
 ├── Android deployment
-└── Legacy iOS build and migration
+└── Legacy iOS build and migration   # owns ios/; not Vercel
 
 Neon
 └── Authoritative PostgreSQL database
@@ -58,7 +104,14 @@ run the build. Instead:
 
 Workflow (ships as an example — see install note below):
 [`docs/vercel-web-deploy.workflow.yml.example`](vercel-web-deploy.workflow.yml.example)
-Routing/headers source of truth: [`deploy/vercel/config.json`](../deploy/vercel/config.json)
+
+Canonical files:
+
+| File | Role |
+|---|---|
+| [`deploy/vercel/config.json`](../deploy/vercel/config.json) | Build Output API v3 routing/headers for `--prebuilt` deploys |
+| [`vercel.json`](../vercel.json) | Project ignore-build + SPA rewrites/headers for Vercel Git / dashboard |
+| [`deploy/vercel/ignore-build.sh`](../deploy/vercel/ignore-build.sh) | Ignored Build Step — skips when only non-web paths (e.g. `ios/`) change |
 
 > **Install the workflow:** copy the example to
 > `.github/workflows/vercel-web-deploy.yml` and commit it with a
@@ -67,14 +120,16 @@ Routing/headers source of truth: [`deploy/vercel/config.json`](../deploy/vercel/
 > scope required to push files under `.github/workflows/` — the same reason
 > `docs/staging-web.workflow.yml.example` exists.
 
-`config.json` provides SPA fallback so `go_router` deep links resolve to
-`index.html`, long-cache headers for hashed assets, and `no-store` for
-`index.html`/service worker so clients always pick up new deploys.
+`config.json` / `vercel.json` provide SPA fallback so `go_router` deep links
+resolve to `index.html`, long-cache headers for hashed assets, and `no-store`
+for `index.html` so clients always pick up new deploys.
 
 ## Triggers & preventing unrelated deployments
 
-The workflow is **path-filtered** so unrelated changes never redeploy the web
-frontend. It runs only when web-affecting files change:
+Two layers keep unrelated changes (especially **`ios/`**) from redeploying the
+web frontend:
+
+### 1. GitHub Actions path filter (preferred)
 
 ```yaml
 paths:
@@ -84,17 +139,23 @@ paths:
   - "pubspec.yaml"
   - "pubspec.lock"
   - "deploy/vercel/**"
+  - "vercel.json"
   - ".github/workflows/vercel-web-deploy.yml"
 ```
 
-Deliberately excluded: `ios/**`, `android/**`, backend/tax-engine changes, and
-docs. A change to the federal engine or the legacy iOS app does **not** trigger
-a web redeploy. (Note: the original recommendation listed `ios/**` as a trigger;
-that is intentionally omitted here because the same recommendation requires that
-legacy-iOS changes must not redeploy the web frontend. iOS builds have their own
-workflow.)
+Deliberately excluded: **`ios/**`**, `android/**`, backend/tax-engine changes,
+and docs. A change to the federal engine or the legacy iOS app does **not**
+trigger a web redeploy. (An earlier draft listed `ios/**` as a trigger; that
+conflicts with “legacy iOS must not redeploy web,” so `ios/**` is omitted —
+iOS has its own build/migration workflow.)
 
-Deploy targets:
+### 2. Vercel Ignored Build Step (Git integration / dashboard)
+
+`deploy/vercel/ignore-build.sh` (wired via `vercel.json` → `ignoreCommand`)
+exits `0` (skip) when none of the web-affecting paths changed since `HEAD^`.
+Recommended path that must never count as a web change: **`ios/`**.
+
+Deploy targets (Actions path):
 
 - **Pull request** → Vercel **preview** deployment (`vercel deploy --prebuilt`).
 - **Push to `main`** → Vercel **production** deployment (`--prod`).
@@ -130,18 +191,27 @@ Set as GitHub Actions **Secrets**:
 The Vercel CLI reads `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` from the environment,
 so no `vercel link` step is needed in CI.
 
-## Alternative: Vercel Git integration + ignored build step
+### Vercel project settings checklist
+
+When linking the GitHub repo in the Vercel dashboard:
+
+1. **Root Directory** = `.` (repo root — not `ios/`).
+2. **Framework Preset** = Other / None (Flutter is not a native preset).
+3. **Output Directory** = `build/web`.
+4. **Ignored Build Step** = `bash deploy/vercel/ignore-build.sh` (or rely on
+   `ignoreCommand` in `vercel.json`).
+5. Prefer deploying with GitHub Actions + `--prebuilt` so Vercel never needs a
+   Flutter SDK install. If you do use Vercel Git builds, set a custom
+   Install/Build command that downloads Flutter and runs
+   `flutter build web --release` with the dart-defines above.
+
+## Alternative: Vercel Git integration only
 
 If you connect the repo to Vercel directly (instead of deploying from GitHub
 Actions), Vercel still cannot build Flutter with a native preset. You would
 need a custom `installCommand` that downloads the Flutter SDK and a
-`buildCommand` of `flutter build web ...`, plus an **Ignored Build Step** so
-Vercel skips builds when web files are unaffected, e.g.:
-
-```bash
-# Deploy only when web-affecting files changed since the previous commit.
-git diff --quiet HEAD^ HEAD -- lib web assets pubspec.yaml pubspec.lock && exit 0 || exit 1
-```
+`buildCommand` of `flutter build web ...`, plus the **Ignored Build Step**
+above so Vercel skips builds when only `ios/` (or other non-web paths) change.
 
 The GitHub Actions prebuilt path above is preferred: it reuses the same pinned
 Flutter toolchain as the APK/DO builds, runs tests before deploying, and keeps
@@ -163,4 +233,7 @@ cp deploy/vercel/config.json .vercel/output/config.json
 
 # With VERCEL_TOKEN/ORG/PROJECT set, deploy a preview:
 vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+# Exercise the ignore-build script (exit 0 = skip, 1 = build):
+bash deploy/vercel/ignore-build.sh; echo "exit=$?"
 ```
