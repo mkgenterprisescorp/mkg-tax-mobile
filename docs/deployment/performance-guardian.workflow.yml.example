@@ -1,0 +1,92 @@
+name: Performance Guardian
+
+# INSTALL: copy to `.github/workflows/performance-guardian.yml` with a
+# `workflow`-scoped token (same convention as other workflow examples).
+#
+# Keeps the Flutter client responsive as federal forms, 50-state engines,
+# business returns, and Tessa grow. See docs/performance/flutter-performance-playbook.md
+
+on:
+  pull_request:
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "scripts/performance-guardian.sh"
+      - ".github/workflows/performance-guardian.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "assets/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "scripts/performance-guardian.sh"
+      - ".github/workflows/performance-guardian.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: perf-guardian-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.6"
+  MAX_ASSET_BYTES: "2097152"
+  # Flutter web + CanvasKit is typically ~45–55 MiB; gate regressions above 60 MiB.
+  MAX_WEB_BUNDLE_BYTES: "62914560"
+
+jobs:
+  performance-guardian:
+    name: Analyze · test · asset/bundle health
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Performance Guardian script
+        run: bash scripts/performance-guardian.sh
+
+      - name: Build web (size baseline)
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: |
+          flutter config --enable-web
+          flutter build web --release \
+            --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+            --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com \
+            --dart-define=WEB_BASE_URL=https://mkgtaxconsultants.com \
+            --dart-define=APP_NAME=MKG Tax Consultants \
+            --dart-define=APP_ENV=preview
+          total=$(du -sb build/web | awk '{print $1}')
+          echo "build/web bytes=$total (max ${{ env.MAX_WEB_BUNDLE_BYTES }})"
+          du -sh build/web
+          if [ "$total" -gt "${{ env.MAX_WEB_BUNDLE_BYTES }}" ]; then
+            echo "FAIL: web bundle exceeds threshold"
+            exit 1
+          fi
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "### Performance Guardian"
+            echo ""
+            echo "- Flutter: \`${{ env.FLUTTER_VERSION }}\`"
+            echo "- Asset max: \`${{ env.MAX_ASSET_BYTES }}\` bytes"
+            echo "- Web bundle soft max: \`${{ env.MAX_WEB_BUNDLE_BYTES }}\` bytes"
+            echo "- Playbook: docs/performance/flutter-performance-playbook.md"
+          } >> "$GITHUB_STEP_SUMMARY"
