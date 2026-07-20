@@ -1,0 +1,7 @@
+{
+  "orgId": "team_5uxQCVdAhb1FImpmmkm9rAa5",
+  "projectId": "prj_pc85W61WOP555bbyrcc9ALZ2WAe4",
+  "projectName": "mkg-tax-mobile",
+  "teamSlug": "mkgtaxconsultants",
+  "notes": "orgId is the MKG Vercel team (VERCEL_ORG_ID). projectId mirrors Cursor/CI secret VERCEL_PROJECT_ID. scripts/deploy-vercel-web.sh prefers env overrides."
+}
