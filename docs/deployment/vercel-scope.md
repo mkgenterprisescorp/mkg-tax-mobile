@@ -239,6 +239,20 @@ scope verification). Copy to `.github/workflows/web-ci.yml` with a
 repo). Legacy iOS: `docs/deployment/legacy-ios-build.workflow.yml.example`
 → `.github/workflows/legacy-ios-build.yml`.
 
+## Overall impact (why Vercel exists alongside Flutter)
+
+Vercel does **not** replace the mobile app. With a shared Laravel OpenAPI
+contract (TypeScript + Dart clients — see
+[api-client-strategy.md](../api-client-strategy.md)), it becomes the mobile
+app’s:
+
+- Rapid prototyping environment (approve flows before native rebuilds)
+- Browser-based companion / client fallback (same account + Neon records)
+- Workflow-testing and API compatibility checker before store releases
+
+Native compilation, signing, camera, liveness, push, and biometrics stay on
+Flutter / Xcode / Play pipelines — not Vercel.
+
 ## Manual dashboard / secrets steps
 
 1. Vercel project **`mkg-tax-mobile`** under team **`mkgtaxconsultants`** (live).
