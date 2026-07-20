@@ -43,6 +43,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         ref.watch(taxYearProvider.select((s) => s.currentFilingYear));
     final workspace = ref.watch(taxYearProvider.select((s) => s.workspace));
     final tasks = ref.watch(taxYearProvider.select((s) => s.tasks));
+    final error = ref.watch(taxYearProvider.select((s) => s.error));
     final caps = capabilitiesFor(auth.user?.role);
     final name = auth.user?.firstName.isNotEmpty == true ? auth.user!.firstName : 'there';
     final year = selectedYear ?? currentFilingYear ?? (DateTime.now().year - 1);
@@ -82,6 +83,16 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               ],
             ),
           ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: MkgErrorBanner(
+                message: error,
+                onRetry: () => ref
+                    .read(taxYearProvider.notifier)
+                    .bootstrap(forceCatalog: true),
+              ),
+            ),
           if (loading && ws == null)
             const Padding(
               padding: EdgeInsets.all(24),

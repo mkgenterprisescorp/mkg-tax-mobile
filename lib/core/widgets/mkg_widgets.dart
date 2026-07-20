@@ -190,6 +190,51 @@ class MkgCard extends StatelessWidget {
   }
 }
 
+/// Non-blocking soft-refresh error strip (keeps warm Home content visible).
+class MkgErrorBanner extends StatelessWidget {
+  const MkgErrorBanner({
+    super.key,
+    required this.message,
+    this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: MkgColors.red.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: MkgColors.red, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: MkgColors.dark,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            if (onRetry != null)
+              TextButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Shared dual-brand mark used on splash and auth headers.
 class DualBrandHeader extends StatelessWidget {
   const DualBrandHeader({

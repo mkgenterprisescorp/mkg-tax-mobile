@@ -131,7 +131,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         final year = taxAfter.workspace?.taxYear ?? yearHint;
         // Activate already embeds organizer (~20KB, same as GET .../organizer).
         // Reuse it to avoid a second 3–5s round-trip on cold open.
-        final snap = taxAfter.organizerSnapshot;
+        final snap = taxAfter.scopedOrganizerSnapshot;
         final snapMatchesWorkspace = snap != null &&
             '${snap['tax_year_workspace_id'] ?? ''}' == workspaceId;
         final defaultsFuture = OrganizerDefaults.load();

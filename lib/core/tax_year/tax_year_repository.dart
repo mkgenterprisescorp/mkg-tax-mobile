@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/auth_repository.dart';
@@ -400,14 +401,66 @@ class WorkspaceActivation {
   final bool tasksEmbedded;
 }
 
+/// Scope keys that must match the active workspace before reusing [organizerSnapshot].
+class OrganizerSnapshotScope {
+  const OrganizerSnapshotScope({
+    this.workspaceId,
+    this.entityId,
+    this.taxYear,
+  });
+
+  final String? workspaceId;
+  final String? entityId;
+  final int? taxYear;
+
+  bool matches(TaxYearWorkspace? workspace) {
+    if (workspace == null) return false;
+    if ((workspaceId ?? '').isNotEmpty &&
+        workspaceId != workspace.workspaceId) {
+      return false;
+    }
+    if ((entityId ?? '').isNotEmpty &&
+        (workspace.entityId ?? '').isNotEmpty &&
+        entityId != workspace.entityId) {
+      return false;
+    }
+    if (taxYear != null && taxYear != workspace.taxYear) return false;
+    return true;
+  }
+}
+
+/// Default soft-cache TTL for the tax-year catalog (also invalidated on season rollover).
+const Duration kTaxYearCatalogTtl = Duration(hours: 12);
+
+/// Whether [state] may skip `GET /tax-years` on a normal remount.
+bool isTaxYearCatalogWarm(
+  TaxYearState state, {
+  DateTime? now,
+  Duration ttl = kTaxYearCatalogTtl,
+}) {
+  final clock = now ?? DateTime.now();
+  final expectedLocalFilingYear = clock.year - 1;
+  final catalogMatchesCurrentSeason =
+      state.currentFilingYear == expectedLocalFilingYear;
+  final loadedAt = state.catalogLoadedAt;
+  final withinTtl =
+      loadedAt != null && clock.difference(loadedAt) < ttl;
+  return state.years.isNotEmpty &&
+      state.currentFilingYear != null &&
+      catalogMatchesCurrentSeason &&
+      withinTtl;
+}
+
 class TaxYearState {
   const TaxYearState({
     this.years = const [],
     this.selectedYear,
     this.currentFilingYear,
+    this.catalogLoadedAt,
     this.workspace,
     this.tasks = const [],
     this.organizerSnapshot,
+    this.organizerSnapshotScope,
     this.loading = false,
     this.source = 'unknown',
     this.error,
@@ -416,36 +469,59 @@ class TaxYearState {
   final List<TaxYearInfo> years;
   final int? selectedYear;
   final int? currentFilingYear;
+  /// Wall-clock when [years] / [currentFilingYear] were last fetched.
+  final DateTime? catalogLoadedAt;
   final TaxYearWorkspace? workspace;
   final List<Map<String, dynamic>> tasks;
   /// Organizer JSON from the last activate (same shape as GET .../organizer).
   final Map<String, dynamic>? organizerSnapshot;
+  /// Taxpayer / return / year keys for [organizerSnapshot].
+  final OrganizerSnapshotScope? organizerSnapshotScope;
   final bool loading;
   final String source;
   final String? error;
+
+  /// Snapshot only when scope keys still match the active workspace.
+  Map<String, dynamic>? get scopedOrganizerSnapshot {
+    final snap = organizerSnapshot;
+    final scope = organizerSnapshotScope;
+    if (snap == null || scope == null) return null;
+    if (!scope.matches(workspace)) return null;
+    return snap;
+  }
 
   TaxYearState copyWith({
     List<TaxYearInfo>? years,
     int? selectedYear,
     int? currentFilingYear,
+    DateTime? catalogLoadedAt,
     TaxYearWorkspace? workspace,
     List<Map<String, dynamic>>? tasks,
     Map<String, dynamic>? organizerSnapshot,
+    OrganizerSnapshotScope? organizerSnapshotScope,
     bool? loading,
     String? source,
     String? error,
     bool clearWorkspace = false,
     bool clearOrganizerSnapshot = false,
+    bool clearCatalogLoadedAt = false,
   }) {
+    final dropSnapshot = clearOrganizerSnapshot || clearWorkspace;
     return TaxYearState(
       years: years ?? this.years,
       selectedYear: selectedYear ?? this.selectedYear,
       currentFilingYear: currentFilingYear ?? this.currentFilingYear,
+      catalogLoadedAt: clearCatalogLoadedAt
+          ? null
+          : (catalogLoadedAt ?? this.catalogLoadedAt),
       workspace: clearWorkspace ? null : (workspace ?? this.workspace),
       tasks: tasks ?? this.tasks,
-      organizerSnapshot: clearOrganizerSnapshot || clearWorkspace
+      organizerSnapshot: dropSnapshot
           ? null
           : (organizerSnapshot ?? this.organizerSnapshot),
+      organizerSnapshotScope: dropSnapshot
+          ? null
+          : (organizerSnapshotScope ?? this.organizerSnapshotScope),
       loading: loading ?? this.loading,
       source: source ?? this.source,
       error: error,
@@ -466,17 +542,24 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   Future<void> bootstrap({bool forceCatalog = false}) {
     final existing = _bootstrapInFlight;
     if (existing != null) return existing;
-    final run = _bootstrapBody(forceCatalog: forceCatalog);
-    _bootstrapInFlight = run.whenComplete(() {
-      if (identical(_bootstrapInFlight, run)) {
+
+    late final Future<void> operation;
+    operation = _bootstrapBody(forceCatalog: forceCatalog).whenComplete(() {
+      if (identical(_bootstrapInFlight, operation)) {
         _bootstrapInFlight = null;
       }
     });
-    return _bootstrapInFlight!;
+
+    _bootstrapInFlight = operation;
+    return operation;
   }
 
+  /// True while a [bootstrap] Future is coalesced — for tests.
+  @visibleForTesting
+  bool get debugBootstrapInFlight => _bootstrapInFlight != null;
+
   Future<void> _bootstrapBody({required bool forceCatalog}) async {
-    final hasWarmCatalog = state.years.isNotEmpty && state.currentFilingYear != null;
+    final hasWarmCatalog = isTaxYearCatalogWarm(state);
     // Only flash full-screen loading when we have nothing to show yet.
     if (!hasWarmCatalog) {
       state = state.copyWith(loading: true, error: null);
@@ -490,6 +573,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         state = state.copyWith(
           years: catalog.years,
           currentFilingYear: catalog.current,
+          catalogLoadedAt: DateTime.now(),
           selectedYear: selected,
           source: catalog.source,
           loading: false,
@@ -555,6 +639,11 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
           workspace: packed.workspace,
           tasks: tasks,
           organizerSnapshot: packed.organizer,
+          organizerSnapshotScope: OrganizerSnapshotScope(
+            workspaceId: packed.workspace.workspaceId,
+            entityId: packed.workspace.entityId ?? entityId,
+            taxYear: packed.workspace.taxYear,
+          ),
           source: 'laravel',
           error: null,
         );
