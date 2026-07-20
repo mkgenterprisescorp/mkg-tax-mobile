@@ -41,10 +41,14 @@ prefer the custom domain for all staging builds and documentation.
 |---|---|
 | DO app name (spec) | `mkg-tax-mobile-web` |
 | Spec file | `.do/app.yaml` |
-| Container | `Dockerfile` (Flutter 3.44.6 → nginx on `:8080`) |
+| Container | `Dockerfile` (official Flutter git tag `3.44.6` → nginx on `:8080`) |
 | Health | `GET /health` |
 | API dart-defines | Same staging URLs as APK (`app.mkgtaxconsultants.com`) |
-| CI artifact | `.github/workflows/staging-web.yml` (manual) |
+| CI artifact | `docs/deployment/vercel-web-deploy.workflow.yml.example` (Vercel prebuilt) |
+
+**Note:** Do not use `ghcr.io/cirruslabs/flutter` — Cirrus stopped publishing
+images (May 2026). The Dockerfile clones `https://github.com/flutter/flutter`
+at the pinned tag instead.
 
 This is a **new** App Platform app for the Flutter client. Do **not** deploy
 Flutter web onto `financemkgtax-app` (React portal) or the Laravel API app.
