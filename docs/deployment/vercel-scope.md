@@ -229,9 +229,11 @@ bash scripts/vercel-ignore-build.sh; echo "exit=$?"   # 0=skip always (prebuilt-
 bash scripts/smoke-vercel-web.sh                      # production alias
 ```
 
-**Production alias (verified 2026-07-20):** https://mkg-tax-mobile.vercel.app  
-Double-checked (measure ×2: scope + analyze + 119 tests + live smoke), then
-redeployed via `scripts/deploy-vercel-web.sh` — READY + smoke PASSED.
+**Production alias (verified 2026-07-20, post-#55 main):** https://mkg-tax-mobile.vercel.app  
+Measure ×2 on `main` (scope + analyze infos-only + **119 tests** + live smoke) —
+both PASSED with no errors — then `scripts/deploy-vercel-web.sh` production
+prebuilt: deployment `mkg-tax-mobile-e6nm6k2ro-mkgtaxconsultants.vercel.app`
+READY, aliased, smoke PASSED (`main.dart.js` ~3.8MB).
 
 CI: `docs/deployment/web-ci.workflow.yml.example` (Flutter analyze/test +
 scope verification). Copy to `.github/workflows/web-ci.yml` with a
