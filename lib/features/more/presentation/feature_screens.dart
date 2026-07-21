@@ -29,6 +29,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   List<Map<String, dynamic>> _items = const [];
   Map<String, dynamic>? _policy;
+  Map<String, dynamic>? _catalog;
   bool _loading = true;
 
   @override
@@ -42,13 +43,42 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       setState(() => _loading = false);
       return;
     }
-    final result = await ref.read(notificationsRepositoryProvider).list();
+    final tax = ref.read(taxYearProvider);
+    final workspaceId = tax.workspace?.workspaceId;
+    var hasDocuments = false;
+    String? prepType;
+    if (workspaceId != null && workspaceId.isNotEmpty) {
+      final docs = await ref.read(taxYearRepositoryProvider).listDocuments(workspaceId);
+      hasDocuments = docs.isNotEmpty;
+      final organizer = tax.organizerSnapshot ??
+          await ref.read(taxYearRepositoryProvider).getOrganizer(workspaceId);
+      final raw = organizer?['prepType'] ?? organizer?['prep_type'];
+      if (raw != null) prepType = raw.toString();
+    }
+    final llcCorp = prepType == 'form1065' ||
+        prepType == 'form1120S' ||
+        prepType == 'form1120';
+    final result = await ref.read(notificationsRepositoryProvider).list(
+          hasDocuments: hasDocuments,
+          prepType: prepType,
+          llcCorpStarted: llcCorp,
+          taxYear: tax.selectedYear ?? tax.currentFilingYear,
+        );
     if (!mounted) return;
     setState(() {
       _items = result.items;
       _policy = result.policy;
+      _catalog = result.catalog;
       _loading = false;
     });
+  }
+
+  void _openHref(String? href) {
+    if (href == null || href.isEmpty) return;
+    if (href.startsWith('/')) {
+      context.go(href);
+      return;
+    }
   }
 
   @override
@@ -62,7 +92,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const SectionHeader('Notifications'),
+        const SectionHeader('Workflow & notifications'),
         if (_policy != null)
           Card(
             child: ListTile(
@@ -70,19 +100,44 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               subtitle: Text((_policy!['note'] ?? 'Push previews omit PII.').toString()),
             ),
           ),
+        if (_catalog != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.schedule_outlined),
+              title: const Text('Deadline notice schedule'),
+              subtitle: Text(
+                'Apr 15 / Oct 15 reminders · LLC/Corp notices at '
+                '${((_catalog!['llc_corp_deadline_notices'] as Map?)?['offsets'] as List?)?.map((e) => (e as Map)['key']).join(', ') ?? '3w–8h'}',
+              ),
+            ),
+          ),
         if (_items.isEmpty)
           const Card(
             child: ListTile(
-              title: Text('No notifications'),
-              subtitle: Text('Staff updates will appear here without PII in push previews.'),
+              title: Text('No active workflow triggers'),
+              subtitle: Text(
+                'Document prompts, filing reminders, and LLC/Corp deadline notices appear here when relevant.',
+              ),
             ),
           )
         else
           for (final item in _items)
             Card(
               child: ListTile(
+                leading: Icon(
+                  (item['workflow'] == 'new_user_document_prompt')
+                      ? Icons.upload_file_outlined
+                      : (item['workflow'] == 'llc_corp_deadline_notice')
+                          ? Icons.business_outlined
+                          : Icons.event_outlined,
+                ),
                 title: Text((item['title'] ?? 'Update').toString()),
                 subtitle: Text((item['body'] ?? '').toString()),
+                trailing: Text(
+                  (item['cta'] ?? 'Open').toString(),
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
+                ),
+                onTap: () => _openHref(item['href']?.toString()),
               ),
             ),
       ],
