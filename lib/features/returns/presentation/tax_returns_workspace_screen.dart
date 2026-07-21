@@ -10,6 +10,7 @@ import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../../organizer/data/us_states.dart';
 import '../../states/data/states_repository.dart';
+import '../data/state_return_picker_catalog.dart';
 
 /// Tax-year workspace: federal + state returns, statuses, prior-year filing.
 class TaxReturnsWorkspaceScreen extends ConsumerStatefulWidget {
@@ -45,13 +46,28 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
   Future<void> _loadStates() async {
     final tax = ref.read(taxYearProvider);
     final year = tax.selectedYear ?? tax.currentFilingYear ?? DateTime.now().year - 1;
-    final details = await ref.read(statesRepositoryProvider).catalogDetails(taxYear: year);
+    List<Map<String, dynamic>> details = const [];
+    try {
+      details = await ref.read(statesRepositoryProvider).catalogDetails(taxYear: year);
+    } catch (_) {
+      details = const [];
+    }
     if (!mounted) return;
     setState(() {
       _stateDetails = details
-          .where((e) => (e['code']?.toString() ?? '').trim().isNotEmpty)
+          .where((e) {
+            final code = (e['code'] ?? e['state_code'] ?? '').toString().trim();
+            return code.isNotEmpty;
+          })
+          .map((e) {
+            final code = (e['code'] ?? e['state_code']).toString().trim().toUpperCase();
+            return <String, dynamic>{
+              ...e,
+              'code': code,
+            };
+          })
           .toList(growable: false);
-      final codes = _sortedStateDetails.map((e) => e['code']!.toString()).toSet();
+      final codes = _stateCodes.toSet();
       if (!codes.contains(_selectedState) && codes.isNotEmpty) {
         _selectedState = codes.contains('CA') ? 'CA' : codes.first;
       }
@@ -59,7 +75,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
   }
 
   String? get _stateSupportMessage {
-    final match = _stateDetails.where((e) => e['code']?.toString() == _selectedState);
+    final match = _pickerRows.where((e) => e.code == _selectedState);
     if (match.isEmpty) {
       if (statesWithIncomeTax.contains(_selectedState) && _selectedState != 'CA') {
         return 'This state has a personal income tax. Mobile collects organizer intake for professional review.';
@@ -67,41 +83,27 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
       return null;
     }
     final row = match.first;
-    final support = row['tax_filing_support']?.toString();
+    final support = row.taxFilingSupport;
     if (support == 'organizer_supported') return null;
+    final api = _stateDetails.where((e) => e['code']?.toString() == _selectedState);
     if (support == 'organizer_intake' || support == 'unsupported' || support == 'no_income_tax') {
-      return row['unsupported_message']?.toString();
+      final msg = api.isEmpty ? null : api.first['unsupported_message']?.toString();
+      if (msg != null && msg.isNotEmpty) return msg;
+      if (support == 'no_income_tax') {
+        return 'This jurisdiction has no broad personal income tax. Business / franchise intake may still apply.';
+      }
+      return 'This state uses nationwide organizer intake for professional review.';
     }
     return null;
   }
 
-  List<Map<String, dynamic>> get _sortedStateDetails {
-    final details = _stateDetails.isEmpty
-        ? [
-            for (final opt in incomeTaxStateOptions)
-              {
-                'code': opt.$1,
-                'display_name': opt.$2,
-                'has_personal_income_tax': true,
-                'tax_filing_support': opt.$1 == 'CA' ? 'organizer_supported' : 'organizer_intake',
-              },
-          ]
-        : List<Map<String, dynamic>>.from(_stateDetails);
-    details.sort((a, b) {
-      final ac = a['code']?.toString() ?? '';
-      final bc = b['code']?.toString() ?? '';
-      final ai = statesWithIncomeTax.contains(ac);
-      final bi = statesWithIncomeTax.contains(bc);
-      if (ai != bi) return ai ? -1 : 1;
-      return ac.compareTo(bc);
-    });
-    return details;
-  }
+  List<StateReturnPickerSection> get _pickerSections =>
+      buildStateReturnPickerSections(enrichment: _stateDetails);
 
-  List<String> get _stateCodes => [
-        for (final s in _sortedStateDetails)
-          if ((s['code']?.toString() ?? '').isNotEmpty) s['code']!.toString(),
-      ];
+  List<StateReturnPickerRow> get _pickerRows =>
+      buildStateReturnPickerRows(enrichment: _stateDetails);
+
+  List<String> get _stateCodes => [for (final row in _pickerRows) row.code];
 
   Future<String?> _ensureWorkspaceId() async {
     var tax = ref.read(taxYearProvider);
@@ -205,62 +207,114 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
   }
 
   Future<void> _pickState() async {
-    final codes = _stateCodes;
-    if (codes.isEmpty) return;
+    final sections = _pickerSections;
+    final total = sections.fold<int>(0, (sum, s) => sum + s.rows.length);
     final chosen = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        final height = MediaQuery.sizeOf(ctx).height * 0.7;
-        return SizedBox(
-          height: height,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Text(
-                  'Select a state return',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: codes.length,
-                  itemBuilder: (context, index) {
-                    final code = codes[index];
-                    final detail = _sortedStateDetails.firstWhere(
-                      (e) => e['code']?.toString() == code,
-                      orElse: () => {'code': code, 'display_name': displayNameForState(code)},
-                    );
-                    final name = detail['display_name']?.toString() ?? displayNameForState(code);
-                    final income = detail['has_personal_income_tax'] == true ||
-                        statesWithIncomeTax.contains(code);
-                    final selected = code == _selectedState;
-                    return ListTile(
-                      selected: selected,
-                      leading: CircleAvatar(
-                        backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
-                        child: Text(
-                          code,
-                          style: const TextStyle(
-                            color: MkgColors.primary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.78,
+          minChildSize: 0.45,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            if (total == 0) {
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                children: [
+                  const Text(
+                    'Select a state return',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No states are available right now. Pull to refresh or try again.',
+                    style: TextStyle(color: MkgColors.textGrey),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _loadStates();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              );
+            }
+            return ListView.builder(
+              controller: scrollController,
+              padding: const EdgeInsets.only(bottom: 24),
+              itemCount: 1 + sections.fold<int>(0, (sum, s) => sum + 1 + s.rows.length),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Select a state return',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'All 50 states + DC · Regions 1–6 nationwide intake',
+                          style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                var cursor = 1;
+                for (final section in sections) {
+                  if (index == cursor) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Text(
+                        'Region ${section.region.id} · ${section.region.name}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: MkgColors.primary,
                         ),
                       ),
-                      title: Text('$code · $name'),
-                      subtitle: Text(income ? 'Personal income tax' : 'No personal income tax'),
-                      trailing: selected ? const Icon(Icons.check, color: MkgColors.primary) : null,
-                      onTap: () => Navigator.pop(ctx, code),
                     );
-                  },
-                ),
-              ),
-            ],
-          ),
+                  }
+                  cursor += 1;
+                  for (final row in section.rows) {
+                    if (index == cursor) {
+                      final selected = row.code == _selectedState;
+                      return ListTile(
+                        selected: selected,
+                        leading: CircleAvatar(
+                          backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                          child: Text(
+                            row.code,
+                            style: const TextStyle(
+                              color: MkgColors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        title: Text('${row.code} · ${row.displayName}'),
+                        subtitle: Text(row.subtitle),
+                        trailing: selected
+                            ? const Icon(Icons.check, color: MkgColors.primary)
+                            : null,
+                        onTap: () => Navigator.pop(ctx, row.code),
+                      );
+                    }
+                    cursor += 1;
+                  }
+                }
+                return const SizedBox.shrink();
+              },
+            );
+          },
         );
       },
     );
@@ -347,7 +401,7 @@ class _TaxReturnsWorkspaceScreenState extends ConsumerState<TaxReturnsWorkspaceS
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'Income-tax states are listed first (42 jurisdictions). California has deep Form 540 support; other income-tax states use organizer intake for professional review.',
+                'All 50 states + DC across Regions 1–6. California has deep Form 540 support; other jurisdictions use nationwide organizer intake for professional review.',
                 style: TextStyle(color: MkgColors.textGrey, fontSize: 12, height: 1.35),
               ),
               const SizedBox(height: 12),
