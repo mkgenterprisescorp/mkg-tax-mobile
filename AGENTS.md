@@ -101,7 +101,8 @@
 ### Documents
 - `/documents` is year-scoped: `getOrCreateReturnForYear` → list/upload with document type picker.
 - Cookie download tries `/api/documents/:id/download` then secure-download; OTP may still require web vault.
-- **Smart intake** (`/documents/smart-intake`): upload → `POST /api/v1/documents/{id}/extract` → verify UI → apply to organizer. SSN fields are never silent-autofilled. No OpenAI/Adobe/Stripe secrets in the APK.
+- **Smart intake** (`/documents/smart-intake`): upload → `POST /api/v1/documents/{id}/extract` → verify UI → apply to organizer. SSN fields are never silent-autofilled. No OpenAI/Adobe/Stripe/**Gemini** secrets in the APK.
+- Gemini Document Processor (optional Laravel provider) is documented in sibling `mkg-tax-backend-2` `docs/architecture/gemini-intelligence-layer.md`. Flutter remains camera/upload/review only; extraction is server-side.
 
 ### Billing / Stripe
 - `/billing` shows fee schedule (`GET /api/v1/billing/fee-schedule`) + invoices; pay via **hosted Stripe Checkout** URL from Laravel (`fee-checkout` / `invoices/{id}/checkout`). Do **not** add `flutter_stripe` PaymentSheet unless product explicitly overrides hosted checkout.
