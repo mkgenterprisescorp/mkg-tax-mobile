@@ -6,6 +6,7 @@
 - Laravel OpenAPI SoT: sibling `mkg-tax-backend-2` → `openapi/openapi.yaml` + `docs/architecture/openapi-client-generation.md`.
 - Flutter consumer plan: `docs/api-client-strategy.md`. Keep hand-written Dio until generated Dart covers auth + tax-returns + organizer.
 - Vercel Flutter web is prototype / companion / fallback / pre-release API checker — same Sanctum account + Neon records as native. See `docs/deployment/vercel-scope.md`.
+- **Faster web iteration:** `bash scripts/dev-vercel-preview.sh` (preview) or `bash scripts/deploy-vercel-web.sh` (prod). Requires `VERCEL_TOKEN` (+ optional `VERCEL_ORG_ID=team_5uxQCVdAhb1FImpmmkm9rAa5`, `VERCEL_PROJECT_ID`). Prebuilt only — do not cold-build Flutter on Vercel Git. Production alias: `https://mkg-tax-mobile.vercel.app`. Laravel CORS must allowlist that origin.
 
 ### Tessa multi-agent platform
 - Architecture SoT (backend): `mkg-tax-backend-2` `docs/architecture/multi-agent-tessa.md`
