@@ -153,7 +153,7 @@ class OrganizerSectionMapper {
     }
 
     final filing = sectionAnswers('filing_info');
-    mergeRoot(filing, const ['prepType', 'filingStatus', 'filingYear']);
+    mergeRoot(filing, const ['prepType', 'filingStatus', 'filingYear', 'includeScheduleC']);
 
     final personal = sectionAnswers('personal_info');
     mergeRoot(personal, const [
@@ -378,6 +378,7 @@ class OrganizerSectionMapper {
           'prepType': prep,
           'filingStatus': data['filingStatus'] ?? 'single',
           'filingYear': data['filingYear'],
+          'includeScheduleC': data['includeScheduleC'] == true,
         };
       case 'personal_info':
         return {

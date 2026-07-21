@@ -285,6 +285,69 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     _scheduleAutoSave();
   }
 
+  /// Apply a preparation / business-filing type and persist it.
+  ///
+  /// Ensures Schedule C / entity form scaffolds exist, marks filing_info dirty,
+  /// autosaves, and returns to the hub so the walkthrough tiles refresh.
+  Future<void> _applyPrepType(String prep) async {
+    Map<String, dynamic> defaults = const {};
+    try {
+      defaults = await OrganizerDefaults.load();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      final next = Map<String, dynamic>.from(_data)..['prepType'] = prep;
+      if (prep != 'personal') {
+        next['includeScheduleC'] = false;
+      }
+      if (prep == 'business') {
+        final scDefault = defaults['scheduleC'];
+        final existing = next['scheduleC'];
+        if (scDefault is Map && (existing is! Map || existing.isEmpty)) {
+          next['scheduleC'] = Map<String, dynamic>.from(scDefault);
+        } else if (existing is! Map) {
+          next['scheduleC'] = <String, dynamic>{};
+        }
+      }
+      if (businessEntityTypes.contains(prep)) {
+        final formDefault = defaults[prep];
+        final existing = next[prep];
+        if (formDefault is Map) {
+          if (existing is! Map || existing.isEmpty) {
+            next[prep] = Map<String, dynamic>.from(formDefault);
+          } else {
+            next[prep] = deepMergeOrganizer(
+              Map<String, dynamic>.from(formDefault),
+              Map<String, dynamic>.from(existing),
+            );
+          }
+        } else if (existing is! Map) {
+          next[prep] = <String, dynamic>{};
+        }
+      }
+      _data = next;
+      _step = 0;
+      _showHub = true;
+    });
+    _dirtySectionKeys.add('filing_info');
+    if (prep == 'business' || showScheduleCStep(_data)) {
+      _dirtySectionKeys.add('schedule_c');
+    }
+    if (businessEntityTypes.contains(prep)) {
+      _dirtySectionKeys.add('entity_form');
+    }
+    _scheduleAutoSave();
+    if (!mounted) return;
+    final label = prepTypeOptions
+        .where((e) => e.$1 == prep)
+        .map((e) => e.$2)
+        .cast<String?>()
+        .firstWhere((_) => true, orElse: () => prep);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Filing type set to $label. Open the new section tiles below.')),
+    );
+  }
+
   void _setNested(String nestKey, Map<String, dynamic> value) {
     setState(() => _data = Map<String, dynamic>.from(_data)..[nestKey] = value);
     _markCurrentSectionDirty();
@@ -760,23 +823,90 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   }
 
   Widget _filingInfoStep() {
+    final selected = '${_data['prepType'] ?? 'personal'}';
+    final includeScheduleC = _data['includeScheduleC'] == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OrganizerSection(
-          title: 'Filing type',
-          subtitle: 'Matches mkgtaxconsultants.com prepType — personal, Schedule C business, or entity returns.',
-          child: OrganizerDropdown<String>(
-            label: 'Preparation type',
-            value: '${_data['prepType'] ?? 'personal'}',
-            items: prepTypeOptions,
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() {
-                _data = Map<String, dynamic>.from(_data)..['prepType'] = v;
-                _step = 0;
-              });
-            },
+          title: 'Personal tax filing',
+          subtitle: 'Form 1040 individual return (with optional Schedule C).',
+          child: Column(
+            children: [
+              _prepTypeChoiceTile(
+                title: 'Personal Tax Prep (1040)',
+                hint: 'W-2 wages, interest, dividends, credits',
+                selected: selected == 'personal',
+                onTap: () => _applyPrepType('personal'),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Also include Schedule C (sole prop)'),
+                subtitle: const Text(
+                  'Adds the Schedule C walkthrough tile even when filing Form 1040.',
+                ),
+                value: selected == 'personal' && includeScheduleC,
+                onChanged: selected == 'personal' && !_isLocked
+                    ? (value) async {
+                        Map<String, dynamic> defaults = const {};
+                        try {
+                          defaults = await OrganizerDefaults.load();
+                        } catch (_) {}
+                        if (!mounted) return;
+                        setState(() {
+                          final next = Map<String, dynamic>.from(_data)
+                            ..['includeScheduleC'] = value;
+                          if (value) {
+                            final scDefault = defaults['scheduleC'];
+                            final existing = next['scheduleC'];
+                            if (scDefault is Map &&
+                                (existing is! Map || existing.isEmpty)) {
+                              next['scheduleC'] =
+                                  Map<String, dynamic>.from(scDefault);
+                            } else if (existing is! Map) {
+                              next['scheduleC'] = <String, dynamic>{};
+                            }
+                          }
+                          _data = next;
+                        });
+                        _dirtySectionKeys.add('filing_info');
+                        if (value) _dirtySectionKeys.add('schedule_c');
+                        _scheduleAutoSave();
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Business tax filing',
+          subtitle:
+              'Schedule C sole prop, S-Corp, C-Corp, and partnership returns — adds the matching organizer sections.',
+          child: Column(
+            children: [
+              for (final choice in businessTaxFilingChoices)
+                _prepTypeChoiceTile(
+                  title: choice.$2,
+                  hint: choice.$3,
+                  selected: selected == choice.$1,
+                  onTap: () => _applyPrepType(choice.$1),
+                ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Other entity filings',
+          subtitle: 'Trust/estate and nonprofit returns.',
+          child: Column(
+            children: [
+              for (final choice in otherEntityFilingChoices)
+                _prepTypeChoiceTile(
+                  title: choice.$2,
+                  hint: choice.$3,
+                  selected: selected == choice.$1,
+                  onTap: () => _applyPrepType(choice.$1),
+                ),
+            ],
           ),
         ),
         OrganizerDropdown<String>(
@@ -788,11 +918,75 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _filingYearDropdown(),
         const MkgCard(
           child: Text(
-            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. Business entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow.',
+            'Personal & Schedule C use the Form 1040 workflow with Schedules A–F. '
+            'Business entity types (1120, 1120-S, 1065, 990-EZ, etc.) use a shorter entity form flow.',
             style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.4),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _prepTypeChoiceTile({
+    required String title,
+    required String hint,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected ? MkgColors.primary.withValues(alpha: 0.08) : MkgColors.surfaceGrey,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: _isLocked ? null : onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? MkgColors.primary : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: selected ? MkgColors.primary : MkgColors.textGrey,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: selected ? MkgColors.primary : MkgColors.dark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        hint,
+                        style: const TextStyle(
+                          color: MkgColors.textGrey,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

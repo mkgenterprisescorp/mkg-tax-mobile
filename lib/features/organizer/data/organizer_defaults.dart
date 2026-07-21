@@ -43,7 +43,9 @@ IconData iconForOrganizerStep(String step) {
 }
 
 String cueForOrganizerStep(String step) {
-  if (step == 'Filing Info') return 'Choose personal, business, or entity filing';
+  if (step == 'Filing Info') {
+    return 'Personal, Schedule C, 1120 / 1120-S, or other entity filing';
+  }
   if (step == 'Personal Info') return 'Name, SSN, address, dependents';
   if (step == 'Income (1040)') {
     return 'Form 1040 Lines 1–8 / 25: W-2, 1099-NEC/R/DA/G, SSA-1099, INT/DIV/B/K';
@@ -517,9 +519,25 @@ List<String> stepsForPrepType(String prepType) {
 
 bool showScheduleCStep(Map<String, dynamic> data) {
   final prep = '${data['prepType'] ?? 'personal'}';
+  if (prep == 'business') return true;
+  if (data['includeScheduleC'] == true) return true;
   final businessIncome = _asNum(data['businessIncome']);
-  return prep == 'business' || businessIncome > 0;
+  return businessIncome > 0;
 }
+
+/// Short labels for the Filing Info "Business Tax Filing" chooser.
+const businessTaxFilingChoices = <(String, String, String)>[
+  ('business', 'Schedule C', 'Sole prop / gig · Form 1040 Schedule C'),
+  ('form1120S', 'Form 1120-S', 'S-Corporation income tax return'),
+  ('form1120', 'Form 1120', 'C-Corporation income tax return'),
+  ('form1065', 'Form 1065', 'Partnership / multi-member LLC'),
+];
+
+const otherEntityFilingChoices = <(String, String, String)>[
+  ('form1041', 'Form 1041', 'Trust / estate income tax return'),
+  ('form990', 'Form 990', 'Tax-exempt organization'),
+  ('form990EZ', 'Form 990-EZ', 'Smaller tax-exempt organization'),
+];
 
 num _asNum(dynamic v) {
   if (v is num) return v;

@@ -134,7 +134,39 @@ void main() {
       'Direct Deposit',
       'Review & Sign',
     ]);
+    expect(stepsForPrepType('form1120S'), [
+      'Filing Info',
+      'Form 1120-S - S-Corporation',
+      'State Tax Returns',
+      'Direct Deposit',
+      'Review & Sign',
+    ]);
     expect(stepsForPrepType('form990EZ').length, 5);
+  });
+
+  test('showScheduleCStep respects business prep and includeScheduleC', () {
+    expect(showScheduleCStep({'prepType': 'personal'}), isFalse);
+    expect(showScheduleCStep({'prepType': 'business'}), isTrue);
+    expect(
+      showScheduleCStep({'prepType': 'personal', 'includeScheduleC': true}),
+      isTrue,
+    );
+    expect(
+      showScheduleCStep({'prepType': 'personal', 'businessIncome': 500}),
+      isTrue,
+    );
+    expect(showScheduleCStep({'prepType': 'form1120'}), isFalse);
+  });
+
+  test('business tax filing choices cover Schedule C and corps', () {
+    expect(
+      businessTaxFilingChoices.map((e) => e.$1),
+      containsAll(['business', 'form1120', 'form1120S', 'form1065']),
+    );
+    expect(
+      otherEntityFilingChoices.map((e) => e.$1),
+      containsAll(['form1041', 'form990', 'form990EZ']),
+    );
   });
 
   test('deep merge preserves nested scheduleC fields', () {
@@ -233,6 +265,37 @@ void main() {
     expect(OrganizerSectionMapper.sectionKeysForPrep('business'), contains('state_multistate'));
     expect(OrganizerSectionMapper.sectionKeysForPrep('form1065'), contains('entity_form'));
     expect(OrganizerSectionMapper.sectionKeysForPrep('form1065'), contains('state_ca_540'));
+
+    final filingSlice = OrganizerSectionMapper.answersForSection('filing_info', {
+      'prepType': 'personal',
+      'filingStatus': 'single',
+      'filingYear': 2025,
+      'includeScheduleC': true,
+    });
+    expect(filingSlice['includeScheduleC'], isTrue);
+    expect(filingSlice['prepType'], 'personal');
+
+    final withIncludeFlag = OrganizerSectionMapper.hydrateFromServer(
+      defaults: defaults,
+      organizer: {
+        'prep_type': 'personal',
+        'status': 'draft',
+        'sections': {
+          'answers': {
+            'filing_info': {
+              'answers': {
+                'prepType': 'personal',
+                'filingStatus': 'single',
+                'filingYear': 2025,
+                'includeScheduleC': true,
+              },
+            },
+          },
+        },
+      },
+      fallbackYear: 2025,
+    );
+    expect(withIncludeFlag['includeScheduleC'], isTrue);
 
     final creditSlice = OrganizerSectionMapper.answersForSection('credits_deductions', {
       ...hydrated,
