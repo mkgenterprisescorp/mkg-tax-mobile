@@ -99,14 +99,17 @@ class PortalUser {
         : (phoneVerified || emailVerified || '${mailing['line1'] ?? ''}'.trim().isNotEmpty)
             ? 'submitted'
             : (fallback?.kycStatus ?? 'incomplete');
+    final identity = profile['identity_verification'];
+    final identityStatus = identity is Map ? identity['status']?.toString() : null;
+    final resolvedKyc = profile['kyc_status']?.toString() ?? identityStatus ?? kyc;
     return PortalUser.fromJson({
       ...profile,
       'id': profile['external_user_id'] ?? fallback?.id,
-      'firstName': fallback?.firstName,
-      'lastName': fallback?.lastName,
+      'firstName': profile['first_name'] ?? profile['firstName'] ?? fallback?.firstName,
+      'lastName': profile['last_name'] ?? profile['lastName'] ?? fallback?.lastName,
       'name': profile['name'] ?? profile['preferred_name'] ?? fallback?.displayName,
       'approval_status': approval,
-      'kyc_status': kyc,
+      'kyc_status': resolvedKyc,
       'address': mailing['line1'] ?? fallback?.address,
       'city': mailing['city'] ?? fallback?.city,
       'state': mailing['state'] ?? fallback?.state,
@@ -392,6 +395,8 @@ class AuthRepository {
     required String city,
     required String state,
     required String zipCode,
+    String firstName = '',
+    String lastName = '',
   }) async {
     if (AppConfig.usesLaravelAuth) {
       return _submitLaravelProfile(
@@ -401,6 +406,8 @@ class AuthRepository {
         city: city,
         state: state,
         zipCode: zipCode,
+        firstName: firstName,
+        lastName: lastName,
       );
     }
     final res = await _api.post<dynamic>(
@@ -412,6 +419,8 @@ class AuthRepository {
         'city': city,
         'state': state,
         'zipCode': zipCode,
+        if (firstName.trim().isNotEmpty) 'firstName': firstName.trim(),
+        if (lastName.trim().isNotEmpty) 'lastName': lastName.trim(),
       },
     );
     if ((res.statusCode ?? 500) >= 400 || res.data is! Map) {
@@ -429,6 +438,8 @@ class AuthRepository {
     required String city,
     required String state,
     required String zipCode,
+    String firstName = '',
+    String lastName = '',
   }) async {
     final laravel = _laravel;
     if (laravel == null || laravel.bearerToken == null) {
@@ -454,9 +465,13 @@ class AuthRepository {
       throw AuthException('Unable to update your profile right now. Please try again.');
     }
 
+    final preferred = [firstName.trim(), lastName.trim()].where((s) => s.isNotEmpty).join(' ');
     final payload = <String, dynamic>{
       'version': version,
       'phone': phone.trim().isEmpty ? null : phone.trim(),
+      if (firstName.trim().isNotEmpty) 'first_name': firstName.trim(),
+      if (lastName.trim().isNotEmpty) 'last_name': lastName.trim(),
+      if (preferred.isNotEmpty && firstName.trim().isEmpty) 'preferred_name': preferred,
       'mailing_address': {
         'line1': address.trim(),
         'line2': apartment.trim().isEmpty ? null : apartment.trim(),
@@ -501,6 +516,30 @@ class AuthRepository {
     throw AuthException(
       'This information changed on another device or in the client portal. Please review and try again.',
     );
+  }
+
+  /// Portal-hosted Stripe Identity session (no secrets in the app).
+  Future<Map<String, dynamic>> beginIdentityVerification() async {
+    if (!AppConfig.usesLaravelAuth) {
+      throw AuthException('Identity verification requires the Laravel mobile API.');
+    }
+    final laravel = _laravel;
+    if (laravel == null || laravel.bearerToken == null) {
+      throw AuthException(ApiErrorMapper.loginSessionExpiredMessage);
+    }
+    final res = await laravel.post<Map<String, dynamic>>(
+      '/api/v1/identity-verification/session',
+      data: const {},
+    );
+    if ((res.statusCode ?? 500) >= 400) {
+      throw AuthException(
+        _authErrorMessage(res.statusCode, 'Unable to start identity verification. Please try again.'),
+      );
+    }
+    final data = res.data?['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (res.data is Map) return Map<String, dynamic>.from(res.data!);
+    throw AuthException('Unable to start identity verification. Please try again.');
   }
 
   Future<PortalUser> refreshUser() async {
