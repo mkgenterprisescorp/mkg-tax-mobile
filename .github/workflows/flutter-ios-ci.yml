@@ -1,0 +1,112 @@
+# INSTALL: copy this file to `.github/workflows/flutter-ios-ci.yml`.
+# A Personal Access Token without the GitHub `workflow` scope cannot push
+# files under `.github/workflows/`. Owner/admin: copy then commit with a
+# token or account that has the `workflow` scope (or use the GitHub UI).
+#
+name: Flutter iOS CI (unsigned)
+
+# Unsigned compile gate for pull requests and manual runs.
+# Proves the Flutter iOS source builds with Xcode on GitHub-hosted macOS.
+# Does NOT produce a TestFlight-installable IPA and never calls App Store Connect.
+#
+# Source base: main after PR #58 + PR #61 (combined Flutter source).
+# Do not place S2S URLs, Neon URLs, HMAC secrets, DB credentials, or mock
+# passwords in this workflow.
+
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: flutter-ios-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.44.6"
+  # Public staging endpoints only (not secrets).
+  STAGING_API_BASE_URL: "https://app.mkgtaxconsultants.com/api/v1"
+  STAGING_LARAVEL_ORIGIN: "https://app.mkgtaxconsultants.com"
+
+jobs:
+  ios-unsigned:
+    name: Analyze, test, unsigned iOS build
+    runs-on: macos-14
+    timeout-minutes: 60
+    # Fork PRs still get an unsigned build (no secrets in this workflow).
+    # Secrets must never be added here without an explicit fork guard.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Refuse credential leakage markers in job env
+        run: |
+          set -euo pipefail
+          for var in DATABASE_URL NEON_DATABASE_URL HMAC_SECRET IDENTITY_ASSERTION_SECRET \
+                     IOS_DISTRIBUTION_CERTIFICATE_BASE64 APP_STORE_CONNECT_API_KEY_BASE64 \
+                     MOCK_PASSWORD SERVICE_CLIENT_SECRET; do
+            if [ -n "${!var:-}" ]; then
+              echo "::error::Refuse: ${var} must not be present in unsigned iOS CI."
+              exit 1
+            fi
+          done
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Print toolchain versions (no secrets)
+        run: |
+          set -euo pipefail
+          echo "Flutter: $(flutter --version | head -n 1)"
+          echo "Dart: $(dart --version 2>&1)"
+          echo "Xcode: $(xcodebuild -version | tr '\n' ' ')"
+          sw_vers
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze lib test
+
+      - name: flutter test
+        run: flutter test --concurrency=1
+
+      - name: flutter build ios --release --no-codesign
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL="${STAGING_API_BASE_URL}" \
+            --dart-define=LARAVEL_API_BASE_URL="${STAGING_LARAVEL_ORIGIN}" \
+            --dart-define=APP_ENV=preview \
+            --dart-define=APP_NAME="MKG Tax Consultants (Staging)"
+
+      - name: Locate unsigned Runner.app
+        id: app
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "${APP_PATH}" ]; then
+            echo "::error::Unsigned Runner.app not found at ${APP_PATH}"
+            find build/ios -maxdepth 4 -type d -name 'Runner.app' -print || true
+            exit 1
+          fi
+          echo "path=${APP_PATH}" >> "$GITHUB_OUTPUT"
+          # Diagnostic only — not device-installable without signing.
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${APP_PATH}/Info.plist" || true
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP_PATH}/Info.plist" || true
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${APP_PATH}/Info.plist" || true
+          echo "NOTE: This unsigned Runner.app is a compile artifact only. It is not TestFlight-installable."
+
+      - name: Upload unsigned Runner.app (diagnostics)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mkg-tax-mobile-ios-unsigned-runner
+          path: ${{ steps.app.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
