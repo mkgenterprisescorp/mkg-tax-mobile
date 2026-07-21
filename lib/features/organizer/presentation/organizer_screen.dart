@@ -131,7 +131,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         final year = taxAfter.workspace?.taxYear ?? yearHint;
         // Activate already embeds organizer (~20KB, same as GET .../organizer).
         // Reuse it to avoid a second 3–5s round-trip on cold open.
-        final snap = taxAfter.organizerSnapshot;
+        final snap = taxAfter.scopedOrganizerSnapshot;
         final snapMatchesWorkspace = snap != null &&
             '${snap['tax_year_workspace_id'] ?? ''}' == workspaceId;
         final defaultsFuture = OrganizerDefaults.load();
@@ -381,10 +381,23 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (!mounted) return;
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
-      // Drop activate-embedded snapshot so the next Organizer open re-fetches.
-      // Never let snapshot bookkeeping fail a successful save.
+      // Silent autosave: keep a warm snapshot but merge the sections we just
+      // persisted so reopen does not hydrate pre-edit activate JSON.
+      // Explicit Save / Submit still drops the snapshot for a full refetch.
       try {
-        ref.read(taxYearProvider.notifier).clearOrganizerSnapshot();
+        final taxNotifier = ref.read(taxYearProvider.notifier);
+        if (silent) {
+          final merged = <String, Map<String, dynamic>>{
+            for (final key in dirtySnapshot)
+              key: OrganizerSectionMapper.answersForSection(key, _data),
+          };
+          taxNotifier.mergeOrganizerSnapshotSectionAnswers(
+            merged,
+            prepType: '${_data['prepType'] ?? 'personal'}',
+          );
+        } else {
+          taxNotifier.clearOrganizerSnapshot();
+        }
       } catch (_) {}
       setState(() {
         _status = status;
@@ -464,11 +477,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(taxYearProvider, (prev, next) {
-      if (prev?.selectedYear != next.selectedYear &&
-          next.selectedYear != null &&
-          next.selectedYear != _year &&
-          !_loading) {
+    // Listen only to selectedYear — avoids reloading Organizer on unrelated
+    // taxYear churn (tasks, organizerSnapshot, loading flags).
+    ref.listen(taxYearProvider.select((s) => s.selectedYear), (prev, next) {
+      if (prev != next && next != null && next != _year && !_loading) {
         _load();
       }
     });
@@ -727,9 +739,10 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   }
 
   Widget _filingYearDropdown() {
-    final catalogYears = ref.watch(taxYearProvider).years;
+    final catalogYears = ref.watch(taxYearProvider.select((s) => s.years));
     final currentFiling =
-        ref.watch(taxYearProvider).currentFilingYear ?? DateTime.now().year - 1;
+        ref.watch(taxYearProvider.select((s) => s.currentFilingYear)) ??
+            DateTime.now().year - 1;
     final yearItems = catalogYears.isNotEmpty
         ? <(int, String)>[
             for (final y in catalogYears)
