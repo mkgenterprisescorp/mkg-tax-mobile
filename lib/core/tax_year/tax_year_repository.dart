@@ -538,6 +538,10 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   Future<void>? _bootstrapInFlight;
   bool _bootstrapForceCatalog = false;
 
+  /// True while a forceCatalog follow-up is already chained after the current
+  /// soft in-flight bootstrap. Concurrent force callers share that follow-up.
+  bool _bootstrapForceQueued = false;
+
   /// Bumped for every workspace refresh that may await I/O. Stale completions
   /// with an older epoch must not overwrite a newer year/entity/workspace.
   int _workspaceRefreshEpoch = 0;
@@ -548,16 +552,27 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   /// Stores the body [Future] itself (not a `whenComplete` wrapper) and clears
   /// that exact instance on both success and failure so a later bootstrap can run.
   /// A soft in-flight run does not satisfy a later [forceCatalog] caller — that
-  /// caller is chained to run after the soft Future completes.
+  /// caller is chained to run after the soft Future settles (success or failure).
   Future<void> bootstrap({bool forceCatalog = false}) {
     final existing = _bootstrapInFlight;
     if (existing != null) {
       if (!forceCatalog || _bootstrapForceCatalog) {
         return existing;
       }
-      return existing.then((_) => bootstrap(forceCatalog: true));
+      // Soft failures are normally absorbed inside [_bootstrapBody]; still use
+      // catchError so an unexpected rejection cannot block a forced refresh.
+      // Concurrent force callers while soft is in-flight share one follow-up.
+      if (_bootstrapForceQueued) {
+        return existing.catchError((Object _) {}).then((_) => bootstrap(forceCatalog: true));
+      }
+      _bootstrapForceQueued = true;
+      return existing.catchError((Object _) {}).then((_) {
+        _bootstrapForceQueued = false;
+        return bootstrap(forceCatalog: true);
+      });
     }
 
+    _bootstrapForceQueued = false;
     _bootstrapForceCatalog = forceCatalog;
     final pending = _bootstrapBody(forceCatalog: forceCatalog);
     _bootstrapInFlight = pending;

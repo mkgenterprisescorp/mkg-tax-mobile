@@ -49,6 +49,8 @@ class _FakePortalRepository extends PortalRepository {
   _FakePortalRepository() : super(ApiClient.memory());
 
   Object? throwOnGet;
+  /// Thrown after [yearGates] open for that year (one-shot per year).
+  final Map<int, Object> throwForYear = {};
   int getCalls = 0;
   final Map<int, Completer<void>> yearGates = {};
   final List<int> yearsRequested = [];
@@ -62,6 +64,8 @@ class _FakePortalRepository extends PortalRepository {
     yearsRequested.add(year);
     final gate = yearGates[year];
     if (gate != null) await gate.future;
+    final yearErr = throwForYear.remove(year);
+    if (yearErr != null) throw yearErr;
     final err = throwOnGet;
     if (err != null) throw err;
     return {
@@ -260,6 +264,42 @@ void main() {
       expect(fakeRepo.listCalls, listAfterWarm + 1);
       expect(notifier.debugBootstrapInFlight, isFalse);
     });
+
+    test('forceCatalog still runs after an in-flight soft bootstrap fails', () async {
+      final notifier = container.read(taxYearProvider.notifier);
+      await notifier.bootstrap(forceCatalog: true);
+      final listAfterWarm = fakeRepo.listCalls;
+      final year = container.read(taxYearProvider).selectedYear!;
+      expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
+      expect(container.read(taxYearProvider).workspace?.taxYear, year);
+
+      // Soft refresh will fail after the portal gate opens; force must still
+      // execute a catalog refresh once soft settles.
+      fakePortal.yearGates[year] = Completer<void>();
+      fakePortal.throwForYear[year] = Exception('soft bootstrap workspace failed');
+
+      final soft = notifier.bootstrap();
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.debugBootstrapInFlight, isTrue);
+
+      final forcedA = notifier.bootstrap(forceCatalog: true);
+      final forcedB = notifier.bootstrap(forceCatalog: true);
+      expect(identical(soft, forcedA), isFalse);
+
+      fakePortal.yearGates[year]!.complete();
+      await soft;
+      // Soft failure is absorbed into state.error; warm catalog remains.
+      expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
+      expect(container.read(taxYearProvider).error, isNotNull);
+
+      await forcedA;
+      await forcedB;
+      expect(fakeRepo.listCalls, listAfterWarm + 1);
+      expect(notifier.debugBootstrapInFlight, isFalse);
+      // Forced refresh clears the soft error after a successful catalog + workspace load.
+      expect(container.read(taxYearProvider).error, isNull);
+      expect(container.read(taxYearProvider).workspace?.taxYear, year);
+    });
   });
 
   group('workspace refresh stale discard', () {
@@ -301,6 +341,39 @@ void main() {
       expect(container.read(taxYearProvider).selectedYear, 2025);
       expect(container.read(taxYearProvider).workspace?.taxYear, 2025);
       expect(container.read(taxYearProvider).workspace?.taxReturnId, 'ret-2025');
+    });
+
+    test('stale error from older year cannot overwrite newer workspace or error', () async {
+      final notifier = container.read(taxYearProvider.notifier);
+      await notifier.bootstrap(forceCatalog: true);
+
+      fakePortal.yearGates[2024] = Completer<void>();
+      fakePortal.throwForYear[2024] = Exception('stale year activate failed');
+
+      final first = notifier.selectYear(2024);
+      await Future<void>.delayed(Duration.zero);
+      expect(fakePortal.yearsRequested, contains(2024));
+
+      await notifier.selectYear(2025);
+      expect(container.read(taxYearProvider).selectedYear, 2025);
+      expect(container.read(taxYearProvider).workspace?.taxYear, 2025);
+      expect(container.read(taxYearProvider).workspace?.taxReturnId, 'ret-2025');
+      expect(container.read(taxYearProvider).error, isNull);
+      final yearsBefore = List<int>.from(
+        container.read(taxYearProvider).years.map((y) => y.taxYear),
+      );
+
+      // Older request fails after newer year is active — must not clobber.
+      fakePortal.yearGates[2024]!.complete();
+      await first;
+
+      final state = container.read(taxYearProvider);
+      expect(state.selectedYear, 2025);
+      expect(state.workspace?.taxYear, 2025);
+      expect(state.workspace?.taxReturnId, 'ret-2025');
+      expect(state.error, isNull);
+      expect(state.years.map((y) => y.taxYear).toList(), yearsBefore);
+      expect(isTaxYearCatalogWarm(state), isTrue);
     });
   });
 
