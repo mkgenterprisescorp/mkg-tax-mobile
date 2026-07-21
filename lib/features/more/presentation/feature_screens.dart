@@ -18,8 +18,30 @@ import '../../payments/data/invoices_repository.dart';
 import '../../messages/data/messages_repository.dart';
 import '../../states/data/state_tax_resources.dart';
 import '../../tessa/data/tessa_repository.dart';
+import '../../tessa/presentation/tessa_action_labels.dart';
+import '../../tessa/presentation/tessa_estimate_cards.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../../organizer/data/organizer_profile_prefill.dart';
+
+/// Chat row for Tessa. [payload] holds Laravel automation results (display-only).
+class _TessaChatMessage {
+  const _TessaChatMessage({
+    required this.isUser,
+    required this.text,
+    this.actionType,
+    this.payload,
+    this.ok,
+  });
+
+  final bool isUser;
+  final String text;
+  final String? actionType;
+  final Map<String, dynamic>? payload;
+  final bool? ok;
+
+  bool get hasEstimateCard =>
+      !isUser && actionType != null && payload != null && ok == true;
+}
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -192,7 +214,7 @@ class TessaScreen extends ConsumerStatefulWidget {
 
 class _TessaScreenState extends ConsumerState<TessaScreen> {
   final _controller = TextEditingController();
-  final _messages = <(bool isUser, String text)>[];
+  final _messages = <_TessaChatMessage>[];
   List<Map<String, dynamic>> _nextActions = const [];
   dynamic _conversationId;
   String? _workspaceId;
@@ -236,13 +258,13 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
           final role = (m['role'] ?? '').toString();
           final content = (m['content'] ?? '').toString();
           if (content.isEmpty) continue;
-          _messages.add((role == 'user', content));
+          _messages.add(_TessaChatMessage(isUser: role == 'user', text: content));
         }
       }
       if (_messages.isEmpty) {
         if (!mounted) return;
         final l10n = AppLocalizations.of(context);
-        _messages.add((false, l10n.tessaGreeting));
+        _messages.add(_TessaChatMessage(isUser: false, text: l10n.tessaGreeting));
       }
       // Prefetch form-automation nextActions from live workspace when available.
       try {
@@ -277,7 +299,10 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         });
       }
     } catch (e) {
-      _messages.add((false, 'Could not connect to AI assistant: ${ApiErrorMapper.map(e)}'));
+      _messages.add(_TessaChatMessage(
+        isUser: false,
+        text: 'Could not connect to AI assistant: ${ApiErrorMapper.map(e)}',
+      ));
       if (mounted) setState(() => _ready = true);
     }
   }
@@ -298,7 +323,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       return;
     }
     setState(() {
-      _messages.add((true, text));
+      _messages.add(_TessaChatMessage(isUser: true, text: text));
       _controller.clear();
       _sending = true;
     });
@@ -316,7 +341,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
           );
       if (!mounted) return;
       setState(() {
-        _messages.add((false, result.reply));
+        _messages.add(_TessaChatMessage(isUser: false, text: result.reply));
         if (result.nextActions.isNotEmpty) {
           _nextActions = result.nextActions;
         }
@@ -329,14 +354,22 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         }
         if (result.nextActions.isNotEmpty) {
           final labels = result.nextActions
-              .map((a) => '${a['type'] ?? 'action'}')
+              .map(TessaActionLabels.title)
               .take(4)
               .join(' · ');
-          _messages.add((false, 'Suggested automation: $labels — tap a chip to run it.'));
+          _messages.add(_TessaChatMessage(
+            isUser: false,
+            text: 'Suggested automation: $labels — tap a chip to run it.',
+          ));
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _messages.add((false, 'Error: ${ApiErrorMapper.map(e)}')));
+      if (mounted) {
+        setState(() => _messages.add(_TessaChatMessage(
+              isUser: false,
+              text: 'Error: ${ApiErrorMapper.map(e)}',
+            )));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -346,7 +379,10 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
     if (_sending) return;
     setState(() {
       _sending = true;
-      _messages.add((true, 'Run ${_actionLabel(action)}'));
+      _messages.add(_TessaChatMessage(
+        isUser: true,
+        text: TessaActionLabels.userPrompt(action),
+      ));
     });
     try {
       final result = await ref.read(tessaRepositoryProvider).executeNextAction(
@@ -358,11 +394,12 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
           );
       if (!mounted) return;
       setState(() {
-        _messages.add((
-          false,
-          result.ok
-              ? '✓ ${result.summary}'
-              : '✗ ${result.summary}',
+        _messages.add(_TessaChatMessage(
+          isUser: false,
+          text: result.ok ? result.summary : '✗ ${result.summary}',
+          actionType: result.type,
+          payload: result.payload,
+          ok: result.ok,
         ));
         if (result.payload['next_actions'] is List) {
           _nextActions = (result.payload['next_actions'] as List)
@@ -373,18 +410,14 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       });
     } catch (e) {
       if (mounted) {
-        setState(() => _messages.add((false, 'Automation error: ${ApiErrorMapper.map(e)}')));
+        setState(() => _messages.add(_TessaChatMessage(
+              isUser: false,
+              text: 'Automation error: ${ApiErrorMapper.map(e)}',
+            )));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
-  }
-
-  String _actionLabel(Map<String, dynamic> action) {
-    final type = '${action['type'] ?? 'action'}';
-    final form = action['form_id'] ?? action['jurisdiction'] ?? action['primary_form_id'];
-    if (form != null && '$form'.isNotEmpty) return '$type ($form)';
-    return type;
   }
 
   @override
@@ -413,17 +446,30 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
             itemCount: _messages.length,
             itemBuilder: (context, i) {
               final msg = _messages[i];
-              final align = msg.$1 ? Alignment.centerRight : Alignment.centerLeft;
-              final color = msg.$1 ? MkgColors.primary : MkgColors.surfaceGrey;
-              final textColor = msg.$1 ? Colors.white : MkgColors.dark;
+              final align = msg.isUser ? Alignment.centerRight : Alignment.centerLeft;
+              final color = msg.isUser ? MkgColors.primary : MkgColors.surfaceGrey;
+              final textColor = msg.isUser ? Colors.white : MkgColors.dark;
+              final maxW = MediaQuery.of(context).size.width * (msg.hasEstimateCard ? 0.92 : 0.78);
               return Align(
                 alignment: align,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                  constraints: BoxConstraints(maxWidth: maxW),
                   decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-                  child: Text(msg.$2, style: TextStyle(color: textColor)),
+                  child: msg.hasEstimateCard
+                      ? TessaEstimateCards.forAction(
+                          type: msg.actionType!,
+                          payload: msg.payload!,
+                          ok: msg.ok!,
+                          summary: msg.text,
+                        )
+                      : Text(
+                          msg.text,
+                          style: TextStyle(
+                            color: msg.ok == false ? Colors.red.shade800 : textColor,
+                          ),
+                        ),
                 ),
               );
             },
@@ -441,7 +487,10 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
               itemBuilder: (context, i) {
                 final action = _nextActions[i];
                 return ActionChip(
-                  label: Text(_actionLabel(action), style: const TextStyle(fontSize: 12)),
+                  label: Text(
+                    TessaActionLabels.title(action),
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   onPressed: _sending ? null : () => _runAction(action),
                 );
               },

@@ -206,6 +206,30 @@ class TessaRepository {
           );
 
         case 'run_federal_tax_estimate':
+          // Prefer workspace Form 1040 preview (Laravel organizer math) when no
+          // inline organizer map was supplied — avoids empty wages=0 estimates.
+          final hasOrganizer = organizer != null && organizer.isNotEmpty;
+          if (!hasOrganizer && workspaceId != null && workspaceId.isNotEmpty) {
+            final previewRes = await _api.get<Map<String, dynamic>>(
+              '/api/v1/tax-year-workspaces/$workspaceId/organizer/form-1040-preview',
+            );
+            if (PlatformApi.ok(previewRes)) {
+              final preview = PlatformApi.unwrapMap(previewRes) ?? {};
+              final estimate = preview['refund_estimate'] is Map
+                  ? Map<String, dynamic>.from(preview['refund_estimate'] as Map)
+                  : <String, dynamic>{};
+              return TessaActionResult(
+                type: type,
+                ok: true,
+                summary: 'Federal tax estimate returned (estimate-only).',
+                payload: {
+                  ...estimate,
+                  if (preview['form'] != null) 'form': preview['form'],
+                  'refund_estimate': estimate.isEmpty ? preview : estimate,
+                },
+              );
+            }
+          }
           final res = await _api.post<Map<String, dynamic>>(
             '/api/v1/tax-estimates',
             data: {

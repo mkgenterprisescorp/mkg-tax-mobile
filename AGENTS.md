@@ -114,6 +114,9 @@
 ### Advisor Chat + TESSA
 - `/chat` lists portal rooms (`GET /api/chat/rooms`) and supports send (`POST .../messages`).
 - `/tessa` uses Laravel `GET/POST /api/v1/tessa/conversations*` (portal S2S when available; **local keyword fallback** when portal TESSA is down).
+- Quick-action chips use human labels (`TessaActionLabels`) — never show raw `run_*` types or `Run run_…` bubbles.
+- Chip execution renders Laravel payloads in-chat via `TessaEstimateCards` (1040 / federal estimate / CA 540 credits & deductions). Full screens: `/organizer/form-1040`, `/refund-advance/estimate`, `/ca-540`. **No tax math in Flutter.**
+- `run_federal_tax_estimate` prefers workspace `form-1040-preview` when no inline organizer map is supplied.
 
 ### Financial Tools hub (`/tools`, alias `/financial-tools`)
 - Paycheck & W-4: `/payroll-tools` → `POST /api/v1/payroll-calculations`, `POST /api/v1/w4-estimates` (estimate only).
