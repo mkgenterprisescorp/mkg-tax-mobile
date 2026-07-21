@@ -31,6 +31,7 @@
 - Domain cutover notes: financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`.
 - Detail: `docs/architecture/mobile-crm-pos-automation.md`.
 - **Workflow notices SoT:** portal `financemkgtaxpro` schedules new-user **document prompts**, **Apr 15 / Oct 15** filing reminders, and LLC/Corp dense notices (**3w→8h**). Flutter presents / deep-links only — see that doc’s “Filing / document workflow triggers” section.
+- **In-app inbox:** `/notifications` → `GET /api/v1/notifications?has_documents=&prep_type=` (Laravel `WorkflowTriggerBuilder`). Tapping a card deep-links to `/documents` or `/organizer`.
 
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
