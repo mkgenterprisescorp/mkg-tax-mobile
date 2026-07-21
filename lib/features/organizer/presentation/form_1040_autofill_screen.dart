@@ -38,11 +38,24 @@ class _Form1040AutofillScreenState extends ConsumerState<Form1040AutofillScreen>
       _error = null;
     });
     try {
-      final tax = ref.read(taxYearProvider);
+      var tax = ref.read(taxYearProvider);
+      final yearHint = tax.selectedYear ?? tax.currentFilingYear;
+
       if (AppConfig.usesLaravelAuth) {
+        // Cold open / deep-link: ensure catalog + selected year exist.
         if (tax.selectedYear == null || tax.currentFilingYear == null) {
           await ref.read(taxYearProvider.notifier).bootstrap();
-        } else {
+          tax = ref.read(taxYearProvider);
+        }
+        final year = tax.selectedYear ?? tax.currentFilingYear ?? yearHint;
+        final warm = tax.workspace;
+        final needsRefresh = warm?.workspaceId == null ||
+            warm?.taxYear != year ||
+            tax.source != 'laravel';
+        // Match Tax Organizer: reuse a warm Laravel workspace. Always forcing
+        // activate here used to clear a good workspace on a transient failure
+        // and strand this screen on "unable to open your tax organizer".
+        if (needsRefresh) {
           await ref.read(taxYearProvider.notifier).refreshWorkspace(force: true);
         }
       } else {

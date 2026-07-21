@@ -536,9 +536,16 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       } catch (e) {
         // Never fall through to cookie-portal on Sanctum builds — portal rows
         // lack a Laravel workspace UUID and Tax Organizer will hard-fail.
+        // Keep a matching warm Laravel workspace so Autofill Form 1040 /
+        // Organizer can still open after a transient activate failure.
+        final existing = state.workspace;
+        final keepWarm = existing != null &&
+            existing.taxYear == year &&
+            (existing.workspaceId ?? '').isNotEmpty &&
+            state.source == 'laravel';
         state = state.copyWith(
-          clearWorkspace: true,
-          tasks: const [],
+          clearWorkspace: !keepWarm,
+          tasks: keepWarm ? state.tasks : const [],
           error: ApiErrorMapper.map(e),
         );
         return;
