@@ -12,6 +12,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../../address/presentation/address_autofill_fields.dart';
 import '../data/laravel_organizer_repository.dart';
 import '../data/organizer_autofill_settings.dart';
+import '../data/organizer_business_autofill.dart';
 import '../data/organizer_defaults.dart';
 import '../data/organizer_enum_options.dart';
 import '../data/organizer_profile_prefill.dart';
@@ -289,6 +290,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   ///
   /// Ensures Schedule C / entity form scaffolds exist, marks filing_info dirty,
   /// autosaves, and returns to the hub so the walkthrough tiles refresh.
+  /// Entity types also autofill the primary owner from Personal Info and sync
+  /// K-1 → Schedule E Part II when applicable.
   Future<void> _applyPrepType(String prep) async {
     Map<String, dynamic> defaults = const {};
     try {
@@ -296,7 +299,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     } catch (_) {}
     if (!mounted) return;
     setState(() {
-      final next = Map<String, dynamic>.from(_data)..['prepType'] = prep;
+      var next = Map<String, dynamic>.from(_data)..['prepType'] = prep;
       if (prep != 'personal') {
         next['includeScheduleC'] = false;
       }
@@ -309,7 +312,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           next['scheduleC'] = <String, dynamic>{};
         }
       }
-      if (businessEntityTypes.contains(prep)) {
+      if (businessOwnerPrepTypes.contains(prep)) {
+        next = addBusinessWithOwnerAutofill(
+          next,
+          prep,
+          entityDefaults: defaults,
+          switchPrepType: true,
+          overwritePrimaryOwner: false,
+        );
+      } else if (businessEntityTypes.contains(prep)) {
         final formDefault = defaults[prep];
         final existing = next[prep];
         if (formDefault is Map) {
@@ -336,6 +347,9 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     if (businessEntityTypes.contains(prep)) {
       _dirtySectionKeys.add('entity_form');
     }
+    if (k1PassThroughPrepTypes.contains(prep)) {
+      _dirtySectionKeys.add('schedule_e');
+    }
     _scheduleAutoSave();
     if (!mounted) return;
     final label = prepTypeOptions
@@ -346,6 +360,166 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Filing type set to $label. Open the new section tiles below.')),
     );
+  }
+
+  /// "+" Add business: autofill owner onto entity form + K-1 → Schedule E Part II.
+  ///
+  /// Keeps Form 1040 prep type by default so Schedule E stays on the walkthrough.
+  Future<void> _addBusinessInterest(String prep, {bool switchPrepType = false}) async {
+    Map<String, dynamic> defaults = const {};
+    try {
+      defaults = await OrganizerDefaults.load();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _data = addBusinessWithOwnerAutofill(
+        _data,
+        prep,
+        entityDefaults: defaults,
+        switchPrepType: switchPrepType,
+        overwritePrimaryOwner: true,
+      );
+      if (switchPrepType) {
+        _step = 0;
+      }
+      _showHub = true;
+    });
+    _dirtySectionKeys.add('filing_info');
+    if (businessEntityTypes.contains(prep) || businessOwnerPrepTypes.contains(prep)) {
+      _dirtySectionKeys.add('entity_form');
+    }
+    if (k1PassThroughPrepTypes.contains(prep)) {
+      _dirtySectionKeys.add('schedule_e');
+    }
+    _scheduleAutoSave();
+    if (!mounted) return;
+    final label = prepTypeOptions
+        .where((e) => e.$1 == prep)
+        .map((e) => e.$2)
+        .cast<String?>()
+        .firstWhere((_) => true, orElse: () => prep);
+    final k1Note = k1PassThroughPrepTypes.contains(prep)
+        ? ' Owner autofilled; K-1 linked to Schedule E Part II.'
+        : ' Owner autofilled from Personal Info.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label added.$k1Note')),
+    );
+  }
+
+  Future<void> _showAddBusinessSheet() async {
+    if (_isLocked) return;
+    final choice = await showModalBottomSheet<({String prep, bool switchPrep})>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        Widget tile({
+          required IconData icon,
+          required String title,
+          required String subtitle,
+          required String prep,
+          required bool switchPrep,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: MkgColors.primary),
+            title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(subtitle),
+            onTap: () => Navigator.pop(ctx, (prep: prep, switchPrep: switchPrep)),
+          );
+        }
+
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text(
+                  'Add business',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Autofills your Personal Info onto the owner / partner / shareholder '
+                  'and links K-1 amounts into Form 1040 Schedule E Part II.',
+                  style: TextStyle(color: MkgColors.textGrey, fontSize: 13, height: 1.35),
+                ),
+              ),
+              tile(
+                icon: Icons.groups_outlined,
+                title: 'Partnership / LLC (1065) + K-1',
+                subtitle: 'Keep 1040 · owner → K-1 → Schedule E Part II',
+                prep: 'form1065',
+                switchPrep: false,
+              ),
+              tile(
+                icon: Icons.apartment_outlined,
+                title: 'S-Corporation (1120-S) + K-1',
+                subtitle: 'Keep 1040 · shareholder → K-1 → Schedule E Part II',
+                prep: 'form1120S',
+                switchPrep: false,
+              ),
+              tile(
+                icon: Icons.account_balance_outlined,
+                title: 'Trust / Estate (1041) + K-1',
+                subtitle: 'Keep 1040 · beneficiary → K-1 → Schedule E Part II',
+                prep: 'form1041',
+                switchPrep: false,
+              ),
+              tile(
+                icon: Icons.business_outlined,
+                title: 'C-Corporation (1120)',
+                subtitle: 'Autofill officer/owner (no K-1 to Schedule E)',
+                prep: 'form1120',
+                switchPrep: false,
+              ),
+              const Divider(),
+              tile(
+                icon: Icons.swap_horiz_outlined,
+                title: 'Switch organizer to entity return',
+                subtitle: 'Change prep type to 1120-S / 1065 / 1041 / 1120',
+                prep: 'form1120S',
+                switchPrep: true,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (choice == null || !mounted) return;
+    if (choice.switchPrep) {
+      // Let user pick which entity to switch to.
+      final prep = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) {
+          return SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final opt in businessTaxFilingChoices.where((e) => e.$1 != 'business'))
+                  ListTile(
+                    title: Text(opt.$2),
+                    subtitle: Text(opt.$3),
+                    onTap: () => Navigator.pop(ctx, opt.$1),
+                  ),
+                for (final opt in otherEntityFilingChoices.where((e) => e.$1 == 'form1041'))
+                  ListTile(
+                    title: Text(opt.$2),
+                    subtitle: Text(opt.$3),
+                    onTap: () => Navigator.pop(ctx, opt.$1),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+      if (prep == null || !mounted) return;
+      await _addBusinessInterest(prep, switchPrepType: true);
+      return;
+    }
+    await _addBusinessInterest(choice.prep, switchPrepType: false);
   }
 
   void _setNested(String nestKey, Map<String, dynamic> value) {
@@ -687,6 +861,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: MkgColors.dark),
         ),
         const SizedBox(height: 10),
+        if (!locked) ...[
+          OutlinedButton.icon(
+            onPressed: _showAddBusinessSheet,
+            icon: const Icon(Icons.add_business_outlined),
+            label: const Text('Add business / K-1 (autofill owner)'),
+          ),
+          const SizedBox(height: 10),
+        ],
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -909,6 +1091,14 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             ],
           ),
         ),
+        if (!_isLocked) ...[
+          OutlinedButton.icon(
+            onPressed: _showAddBusinessSheet,
+            icon: const Icon(Icons.add),
+            label: const Text('Add business — autofill owner + K-1 → Schedule E Part II'),
+          ),
+          const SizedBox(height: 12),
+        ],
         OrganizerDropdown<String>(
           label: 'Filing status',
           value: '${_data['filingStatus'] ?? 'single'}',
@@ -1552,93 +1742,304 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
     final rentals = List<Map<String, dynamic>>.from(
       ((scheduleE['rentalProperties'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
     );
+    final partII = List<Map<String, dynamic>>.from(
+      ((scheduleE['partII'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+    final k1Forms = List<Map<String, dynamic>>.from(
+      ((_data['federalK1Forms'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
 
-    void syncRentalIncome(List<Map<String, dynamic>> rows) {
-      num net = 0;
-      for (final r in rows) {
-        num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
-        net += n(r['rentReceived']) -
-            n(r['mortgage']) -
-            n(r['insurance']) -
-            n(r['repairs']) -
-            n(r['taxes']) -
-            n(r['utilities']) -
-            n(r['depreciation']) -
-            n(r['advertising']) -
-            n(r['otherExpenses']);
+    void persistScheduleE({
+      List<Map<String, dynamic>>? nextRentals,
+      List<Map<String, dynamic>>? nextPartII,
+      List<Map<String, dynamic>>? nextK1s,
+      bool syncFromK1 = false,
+    }) {
+      var next = Map<String, dynamic>.from(_data);
+      final se = Map<String, dynamic>.from((next['scheduleE'] as Map?) ?? {});
+      if (nextRentals != null) se['rentalProperties'] = nextRentals;
+      if (nextPartII != null) se['partII'] = nextPartII;
+      next['scheduleE'] = se;
+      if (nextK1s != null) next['federalK1Forms'] = nextK1s;
+      if (syncFromK1 || nextK1s != null) {
+        next = syncK1ToScheduleEPartII(next);
+      } else {
+        // Keep rentalIncome in sync for Part I edits.
+        num net = 0;
+        final rows = List<Map<String, dynamic>>.from(
+          ((se['rentalProperties'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+        for (final r in rows) {
+          num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+          net += n(r['rentReceived']) -
+              n(r['mortgage']) -
+              n(r['insurance']) -
+              n(r['repairs']) -
+              n(r['taxes']) -
+              n(r['utilities']) -
+              n(r['depreciation']) -
+              n(r['advertising']) -
+              n(r['otherExpenses']);
+        }
+        for (final row in ((se['partII'] as List?) ?? const [])) {
+          if (row is! Map) continue;
+          num n(dynamic v) => v is num ? v : num.tryParse('$v') ?? 0;
+          net += n(row['ordinaryIncome']) +
+              n(row['netRentalRealEstate']) +
+              n(row['otherNetRentalIncome']) +
+              n(row['guaranteedPayments']);
+        }
+        next['rentalIncome'] = net;
       }
-      _setRoot('rentalIncome', net);
+      setState(() => _data = next);
+      _markCurrentSectionDirty();
+      _scheduleAutoSave();
     }
 
-    return OrganizerSection(
-      title: 'Schedule E — Rental / Royalty',
-      subtitle: 'Add each rental property you own.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < rentals.length; i++) ...[
-            MkgCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OrganizerSection(
+          title: 'Schedule E — Part I (Rental / Royalty)',
+          subtitle: 'Add each rental property you own.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < rentals.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: Text('Property ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w800))),
-                      IconButton(
-                        onPressed: () {
-                          final next = List<Map<String, dynamic>>.from(rentals)..removeAt(i);
-                          _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
-                          syncRentalIncome(next);
-                        },
-                        icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Property ${i + 1}',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(rentals)..removeAt(i);
+                              persistScheduleE(nextRentals: next);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
                       ),
+                      OrganizerTextField(
+                        label: 'Address',
+                        value: '${rentals[i]['address'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(rentals);
+                          next[i] = Map<String, dynamic>.from(next[i])..['address'] = v;
+                          persistScheduleE(nextRentals: next);
+                        },
+                      ),
+                      for (final field in const [
+                        ('rentReceived', 'Rent received'),
+                        ('mortgage', 'Mortgage interest'),
+                        ('insurance', 'Insurance'),
+                        ('repairs', 'Repairs'),
+                        ('taxes', 'Taxes'),
+                        ('utilities', 'Utilities'),
+                        ('depreciation', 'Depreciation'),
+                        ('advertising', 'Advertising'),
+                        ('otherExpenses', 'Other expenses'),
+                      ])
+                        OrganizerMoneyField(
+                          label: field.$2,
+                          value: rentals[i][field.$1],
+                          onChanged: (v) {
+                            final next = List<Map<String, dynamic>>.from(rentals);
+                            next[i] = Map<String, dynamic>.from(next[i])..[field.$1] = v;
+                            persistScheduleE(nextRentals: next);
+                          },
+                        ),
                     ],
                   ),
-                  OrganizerTextField(
-                    label: 'Address',
-                    value: '${rentals[i]['address'] ?? ''}',
-                    onChanged: (v) {
-                      final next = List<Map<String, dynamic>>.from(rentals);
-                      next[i] = Map<String, dynamic>.from(next[i])..['address'] = v;
-                      _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
-                    },
-                  ),
-                  for (final field in const [
-                    ('rentReceived', 'Rent received'),
-                    ('mortgage', 'Mortgage interest'),
-                    ('insurance', 'Insurance'),
-                    ('repairs', 'Repairs'),
-                    ('taxes', 'Taxes'),
-                    ('utilities', 'Utilities'),
-                    ('depreciation', 'Depreciation'),
-                    ('advertising', 'Advertising'),
-                    ('otherExpenses', 'Other expenses'),
-                  ])
-                    OrganizerMoneyField(
-                      label: field.$2,
-                      value: rentals[i][field.$1],
-                      onChanged: (v) {
-                        final next = List<Map<String, dynamic>>.from(rentals);
-                        next[i] = Map<String, dynamic>.from(next[i])..[field.$1] = v;
-                        _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
-                        syncRentalIncome(next);
-                      },
-                    ),
-                ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  persistScheduleE(nextRentals: [...rentals, emptyRentalProperty()]);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add rental property'),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          OutlinedButton.icon(
-            onPressed: () {
-              final next = [...rentals, emptyRentalProperty()];
-              _setNested('scheduleE', {...scheduleE, 'rentalProperties': next});
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add rental property'),
+            ],
           ),
-        ],
-      ),
+        ),
+        OrganizerSection(
+          title: 'Federal K-1 intake',
+          subtitle:
+              'Partner / shareholder / beneficiary K-1 boxes. Use + Add business to autofill owner info from Personal Info.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < k1Forms.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'K-1 ${i + 1} · ${k1Forms[i]['sourceForm'] ?? ''}',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(k1Forms)..removeAt(i);
+                              persistScheduleE(nextK1s: next, syncFromK1: true);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Entity name',
+                        value: '${k1Forms[i]['entityName'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(k1Forms);
+                          next[i] = Map<String, dynamic>.from(next[i])..['entityName'] = v;
+                          persistScheduleE(nextK1s: next, syncFromK1: true);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'EIN',
+                        value: '${k1Forms[i]['ein'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(k1Forms);
+                          next[i] = Map<String, dynamic>.from(next[i])..['ein'] = v;
+                          persistScheduleE(nextK1s: next, syncFromK1: true);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Partner / shareholder name',
+                        value: '${k1Forms[i]['partnerOrShareholderName'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(k1Forms);
+                          next[i] = Map<String, dynamic>.from(next[i])
+                            ..['partnerOrShareholderName'] = v;
+                          persistScheduleE(nextK1s: next, syncFromK1: true);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Partner / shareholder TIN',
+                        value: '${k1Forms[i]['partnerOrShareholderTIN'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(k1Forms);
+                          next[i] = Map<String, dynamic>.from(next[i])
+                            ..['partnerOrShareholderTIN'] = v;
+                          persistScheduleE(nextK1s: next, syncFromK1: true);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Ownership %',
+                        value: '${k1Forms[i]['ownershipPercentage'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(k1Forms);
+                          next[i] = Map<String, dynamic>.from(next[i])
+                            ..['ownershipPercentage'] = num.tryParse(v) ?? 0;
+                          persistScheduleE(nextK1s: next, syncFromK1: true);
+                        },
+                      ),
+                      for (final field in const [
+                        ('ordinaryIncome', 'Ordinary business income (loss)'),
+                        ('netRentalRealEstate', 'Net rental real estate'),
+                        ('otherNetRentalIncome', 'Other net rental income'),
+                        ('guaranteedPayments', 'Guaranteed payments'),
+                        ('section179Deduction', 'Section 179 deduction'),
+                        ('selfEmploymentEarnings', 'Self-employment earnings'),
+                      ])
+                        OrganizerMoneyField(
+                          label: field.$2,
+                          value: k1Forms[i][field.$1],
+                          onChanged: (v) {
+                            final next = List<Map<String, dynamic>>.from(k1Forms);
+                            next[i] = Map<String, dynamic>.from(next[i])..[field.$1] = v;
+                            persistScheduleE(nextK1s: next, syncFromK1: true);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: _showAddBusinessSheet,
+                icon: const Icon(Icons.add),
+                label: const Text('Add business / K-1 (autofill owner)'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton.tonalIcon(
+                onPressed: () => persistScheduleE(syncFromK1: true),
+                icon: const Icon(Icons.sync_alt),
+                label: const Text('Sync K-1 → Schedule E Part II'),
+              ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Schedule E — Part II (Partnerships / S-corps / Trusts)',
+          subtitle:
+              'Automated from federal K-1 intake. Amounts flow to Form 1040 Schedule E Part II.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (partII.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No Part II interests yet. Add a business / K-1 above.',
+                    style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
+                  ),
+                ),
+              for (var i = 0; i < partII.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${partII[i]['entityName'] ?? '(unnamed)'} · ${partII[i]['entityType'] ?? ''}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'EIN: ${partII[i]['ein'] ?? '—'}',
+                        style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Ordinary income: ${partII[i]['ordinaryIncome'] ?? 0}'),
+                      Text('Net rental real estate: ${partII[i]['netRentalRealEstate'] ?? 0}'),
+                      Text('Other net rental: ${partII[i]['otherNetRentalIncome'] ?? 0}'),
+                      Text('Guaranteed payments: ${partII[i]['guaranteedPayments'] ?? 0}'),
+                      if ('${partII[i]['sourceK1Id'] ?? ''}'.trim().isEmpty) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(partII)..removeAt(i);
+                              persistScheduleE(nextPartII: next);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1878,11 +2279,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       for (final s in enumSpecs)
         s.$1: normalizeEnumValue(form[s.$1], s.$3, fallback: s.$4),
     };
+    final owners = List<Map<String, dynamic>>.from(
+      ((form['owners'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
     // Prefer identity-ish keys first for usability.
     final keys = form.keys.toList();
+    final skipKeys = {...enumKeys, 'owners', 'beneficiaries'};
     final identityKeys = <String>[];
     for (final k in keys) {
-      if (enumKeys.contains(k)) continue;
+      if (skipKeys.contains(k)) continue;
       final lower = k.toLowerCase();
       if (lower.startsWith('schedule')) continue;
       final isId = lower.contains('name') ||
@@ -1905,14 +2310,39 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
       if (isId) identityKeys.add(k);
       if (identityKeys.length >= 18) break;
     }
-    final rest = keys.where((k) => !identityKeys.contains(k) && !enumKeys.contains(k)).toList();
+    final rest = keys
+        .where((k) => !identityKeys.contains(k) && !skipKeys.contains(k))
+        .toList();
 
     void persist(Map<String, dynamic> m) {
       final next = Map<String, dynamic>.from(m);
       for (final e in enumValues.entries) {
         next[e.key] = e.value;
       }
+      next['owners'] = owners;
       _setNested(prep, next);
+    }
+
+    void persistOwners(List<Map<String, dynamic>> nextOwners) {
+      final next = Map<String, dynamic>.from(form);
+      for (final e in enumValues.entries) {
+        next[e.key] = e.value;
+      }
+      next['owners'] = nextOwners;
+      if (prep == 'form1065') next['numberOfPartners'] = nextOwners.length;
+      if (prep == 'form1120S') next['numberOfShareholders'] = nextOwners.length;
+      _setNested(prep, next);
+      if (k1PassThroughPrepTypes.contains(prep)) {
+        setState(() {
+          var data = Map<String, dynamic>.from(_data)..[prep] = next;
+          data = upsertFederalK1ForEntity(data, prep);
+          data = syncK1ToScheduleEPartII(data);
+          _data = data;
+        });
+        _dirtySectionKeys.add('schedule_e');
+        _dirtySectionKeys.add('entity_form');
+        _scheduleAutoSave();
+      }
     }
 
     return Column(
@@ -1929,15 +2359,137 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                   items: s.$3,
                   onChanged: (v) {
                     final next = Map<String, dynamic>.from(form)..[s.$1] = v ?? s.$4;
+                    next['owners'] = owners;
                     _setNested(prep, next);
                   },
                 ),
               NestedMapEditor(
                 data: form,
-                onlyKeys: identityKeys.isEmpty ? keys.where((k) => !enumKeys.contains(k)).take(12).toList() : identityKeys,
-                excludeKeys: enumKeys,
+                onlyKeys: identityKeys.isEmpty
+                    ? keys.where((k) => !skipKeys.contains(k)).take(12).toList()
+                    : identityKeys,
+                excludeKeys: skipKeys,
                 onChanged: persist,
               ),
+            ],
+          ),
+        ),
+        OrganizerSection(
+          title: 'Owners / partners / shareholders',
+          subtitle:
+              'Tap + to autofill from Personal Info. Pass-through K-1 identity syncs to Schedule E Part II.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < owners.length; i++) ...[
+                MkgCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${owners[i]['isPrimary'] == true ? 'Primary · ' : ''}'
+                              '${owners[i]['role'] ?? 'owner'} ${i + 1}',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final next = List<Map<String, dynamic>>.from(owners)..removeAt(i);
+                              persistOwners(next);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: MkgColors.red),
+                          ),
+                        ],
+                      ),
+                      OrganizerTextField(
+                        label: 'Name',
+                        value: '${owners[i]['name'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(owners);
+                          next[i] = Map<String, dynamic>.from(next[i])..['name'] = v;
+                          persistOwners(next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'TIN / SSN',
+                        value: '${owners[i]['tin'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(owners);
+                          next[i] = Map<String, dynamic>.from(next[i])..['tin'] = v;
+                          persistOwners(next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Address',
+                        value: '${owners[i]['address'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(owners);
+                          next[i] = Map<String, dynamic>.from(next[i])..['address'] = v;
+                          persistOwners(next);
+                        },
+                      ),
+                      OrganizerTextField(
+                        label: 'Ownership %',
+                        value: '${owners[i]['ownershipPercentage'] ?? ''}',
+                        onChanged: (v) {
+                          final next = List<Map<String, dynamic>>.from(owners);
+                          next[i] = Map<String, dynamic>.from(next[i])
+                            ..['ownershipPercentage'] = num.tryParse(v) ?? 0;
+                          persistOwners(next);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () {
+                  final seeded = ownerFromPersonalInfo(
+                    _data,
+                    role: ownerRoleForPrep(prep),
+                    isPrimary: owners.isEmpty,
+                  );
+                  persistOwners([...owners, seeded]);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add owner (autofill from Personal Info)'),
+              ),
+              if (owners.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    setState(() {
+                      var next = Map<String, dynamic>.from(_data);
+                      final formNext = autofillPrimaryOwnerOnEntityForm(
+                        next,
+                        form,
+                        prep,
+                        overwritePrimary: true,
+                      );
+                      next[prep] = formNext;
+                      if (k1PassThroughPrepTypes.contains(prep)) {
+                        next = upsertFederalK1ForEntity(next, prep);
+                        next = syncK1ToScheduleEPartII(next);
+                        _dirtySectionKeys.add('schedule_e');
+                      }
+                      _data = next;
+                    });
+                    _dirtySectionKeys.add('entity_form');
+                    _scheduleAutoSave();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Primary owner refreshed from Personal Info.'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('Refresh primary owner from Personal Info'),
+                ),
+              ],
             ],
           ),
         ),
@@ -1946,7 +2498,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           child: NestedMapEditor(
             data: form,
             onlyKeys: rest,
-            excludeKeys: enumKeys,
+            excludeKeys: skipKeys,
             onChanged: persist,
           ),
         ),

@@ -248,6 +248,9 @@ class OrganizerSectionMapper {
         se['scheduleE'] is Map ? Map<String, dynamic>.from(se['scheduleE'] as Map) : se,
       );
       if (se['rentalIncome'] != null) base['rentalIncome'] = se['rentalIncome'];
+      if (se['federalK1Forms'] is List) {
+        base['federalK1Forms'] = List<dynamic>.from(se['federalK1Forms'] as List);
+      }
     }
 
     final sf = sectionAnswers('schedule_f');
@@ -455,8 +458,9 @@ class OrganizerSectionMapper {
         };
       case 'schedule_e':
         return {
-          'scheduleE': data['scheduleE'] ?? {'rentalProperties': []},
+          'scheduleE': data['scheduleE'] ?? {'rentalProperties': [], 'partII': []},
           'rentalIncome': data['rentalIncome'],
+          'federalK1Forms': data['federalK1Forms'] ?? const [],
         };
       case 'schedule_f':
         return {

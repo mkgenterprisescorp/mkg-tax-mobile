@@ -53,7 +53,7 @@ String cueForOrganizerStep(String step) {
   if (step == 'Schedule B') return 'Interest and dividend payers';
   if (step == 'Schedule C') return 'Sole prop / gig profit & loss';
   if (step == 'Schedule D') return 'Capital gains and transactions';
-  if (step == 'Schedule E') return 'Rental and royalty properties';
+  if (step == 'Schedule E') return 'Rentals (Part I) + K-1 / Part II';
   if (step == 'Schedule F') return 'Farm income and expenses';
   if (step == 'Credits & Deductions') {
     return 'Form 1040 Lines 10–31: Sch. 1/A/SE/8812/2/3, Forms 8889/8863/5695/8995/8839';
@@ -126,8 +126,10 @@ bool isOrganizerStepComplete(String step, Map<String, dynamic> data) {
         txs.isNotEmpty;
   }
   if (step == 'Schedule E') {
-    final rentals = (m('scheduleE')['rentalProperties'] as List?) ?? const [];
-    return rentals.isNotEmpty || n(data['rentalIncome']) > 0;
+    final se = m('scheduleE');
+    final rentals = (se['rentalProperties'] as List?) ?? const [];
+    final partII = (se['partII'] as List?) ?? const [];
+    return rentals.isNotEmpty || partII.isNotEmpty || n(data['rentalIncome']) > 0;
   }
   if (step == 'Schedule F') {
     final sf = m('scheduleF');

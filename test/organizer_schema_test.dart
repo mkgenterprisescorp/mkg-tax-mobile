@@ -18,6 +18,12 @@ void main() {
     expect(data['scheduleC']['businessName'], '');
     expect(data['scheduleD']['transactions'], isA<List>());
     expect(data['scheduleE']['rentalProperties'], isA<List>());
+    expect(data['scheduleE']['partII'], isA<List>());
+    expect(data['federalK1Forms'], isA<List>());
+    expect(data['form1065']['owners'], isA<List>());
+    expect(data['form1120S']['owners'], isA<List>());
+    expect(data['form1120']['owners'], isA<List>());
+    expect(data['form1041']['owners'], isA<List>());
     expect(data['scheduleF']['farmName'], '');
     expect(data['dependents'], isA<List>());
     expect(data['w2Forms'], isA<List>());
