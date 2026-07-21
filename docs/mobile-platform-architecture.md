@@ -9,11 +9,15 @@
 
 Deliver a mobile-first client platform for:
 
+- **CRM + POS** for clients and field workflows (lists, follow-ups, invoice/payment collection UX)
+- **Automation + workflow triggers** for **new and existing users** (onboarding, renewals, document chase, prep milestones, Technology Access entitlement)
 - Individual and business tax preparation
 - Complete organizers (federal + state intake)
 - Payroll calculators and W-4 guidance
 - Documents, messaging, tasks, payments
 - Future business banking services (architecture only until regulated partner approval)
+
+Product-role detail: [`architecture/mobile-crm-pos-automation.md`](architecture/mobile-crm-pos-automation.md).
 
 Flutter **never** connects to Neon. All data access is HTTPS through the Laravel mobile API (and authorized adapters to web/business services).
 
@@ -91,14 +95,15 @@ User (identity from financemkgtaxpro bridge → MobileIdentityAnchor)
 | # | Module | Owns | Does not own |
 |---|--------|------|--------------|
 | 1 | Identity & access | Sanctum tokens, devices, sessions, MFA-ready hooks, roles/claims cache, audit, rate limits | Portal password hashes, Google OAuth, staff TOTP secrets (remain on web until bridge) |
-| 2 | Client & entity management | Profiles, dependents, entities, ownership, entity permissions, tax-year separation | Full CRM campaign engine |
+| 2 | Client & entity management (CRM) | Profiles, dependents, entities, ownership, entity permissions, tax-year separation, client follow-ups, automation trigger presentation | Staff-only blast campaign engine / softphone (web-first until APIs exist) |
 | 3 | Individual organizer | 1040 sections, conditional branching, completion, change requests | Final e-file ATS |
 | 4 | Business organizer | Entity classification through financial statement uploads | Live payroll run / banking money movement |
 | 5 | Federal/state intake | Tax-year-versioned server rules, 50 states + DC, nexus, allocation | Hard-coded Flutter tax tables |
 | 6 | Documents | AuthZ, signed URLs, classification, retention metadata | Document bytes in DB or Flutter offline store |
 | 7 | Payroll & W-4 | Gross-to-net, withholding estimates, versioned tables, disclaimers | Automatic payroll election submission |
 | 8 | Messaging / tasks / notifications | Threads, context, push tokens, read status | PII in push previews |
-| 9 | Payments | Invoice/status adapters, hosted checkout | Card/bank credentials; replacing production processors without approval |
+| 9 | Payments / POS | Invoice/status adapters, hosted checkout, POS-style pay UX, Technology Access deep link | Card/bank credentials; Stripe webhook SoT; replacing production processors without approval |
+| 9b | Automation / workflows | Trigger inbox, deep links, task CTAs for new + existing users (entitlement-gated) | Inventing entitlement truth; running Stripe Billing in-app |
 | 10 | Business banking | Provider-neutral interfaces, KYC/KYB/AML boundaries | Live money movement; representing MKG as a bank |
 
 ## 5. API conventions

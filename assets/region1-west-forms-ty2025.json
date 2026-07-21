@@ -2,7 +2,7 @@
   "taxYear": 2025,
   "regionId": "all",
   "phase": 6,
-  "phaseLabel": "Regions 1\u20136 nationwide intake (all regions active)",
+  "phaseLabel": "Regions 1\u20136 nationwide intake + personal estimates (R2\u20135 built out)",
   "states": [
     "AK",
     "AZ",
@@ -1489,7 +1489,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -1757,7 +1757,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -2030,7 +2030,7 @@
           "primaryFormTitle": "Nonresident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -3762,7 +3762,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Full Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -4030,7 +4030,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year/Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -4303,7 +4303,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -8308,7 +8308,7 @@
           "primaryFormTitle": "Colorado Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -8576,7 +8576,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -8849,7 +8849,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -10581,7 +10581,7 @@
           "primaryFormTitle": "Connecticut Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -10849,7 +10849,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -11122,7 +11122,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -12854,7 +12854,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -13122,7 +13122,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year path)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -13395,7 +13395,7 @@
           "primaryFormTitle": "Nonresident Request for Refund",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -15127,7 +15127,7 @@
           "primaryFormTitle": "Personal Income Tax Return (Resident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -15395,7 +15395,7 @@
           "primaryFormTitle": "Personal Income Tax Return (Part-Year/Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -15668,7 +15668,7 @@
           "primaryFormTitle": "Personal Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -18859,7 +18859,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -19127,7 +19127,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -19400,7 +19400,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -23405,7 +23405,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -23673,7 +23673,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -23946,7 +23946,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -25678,7 +25678,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -25946,7 +25946,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -26219,7 +26219,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -27951,7 +27951,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -28219,7 +28219,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -28492,7 +28492,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -30224,7 +30224,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -30492,7 +30492,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -30765,7 +30765,7 @@
           "primaryFormTitle": "Part-Year/Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -32497,7 +32497,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -32765,7 +32765,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -33038,7 +33038,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -34770,7 +34770,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -35038,7 +35038,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -35311,7 +35311,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -37043,7 +37043,7 @@
           "primaryFormTitle": "Louisiana Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -37311,7 +37311,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -37584,7 +37584,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -39316,7 +39316,7 @@
           "primaryFormTitle": "Massachusetts Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -39584,7 +39584,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -39857,7 +39857,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -41589,7 +41589,7 @@
           "primaryFormTitle": "Maryland Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -41857,7 +41857,7 @@
           "primaryFormTitle": "Maryland Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -42130,7 +42130,7 @@
           "primaryFormTitle": "Maryland Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -43862,7 +43862,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -44130,7 +44130,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -44403,7 +44403,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -46135,7 +46135,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -46403,7 +46403,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -46676,7 +46676,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -48408,7 +48408,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -48676,7 +48676,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule M1NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -48949,7 +48949,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule M1NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -50681,7 +50681,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -50949,7 +50949,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Form MO-NRI)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -51222,7 +51222,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Form MO-NRI)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -52954,7 +52954,7 @@
           "primaryFormTitle": "Resident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -53222,7 +53222,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -53495,7 +53495,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -55227,7 +55227,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -55495,7 +55495,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -55768,7 +55768,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -57500,7 +57500,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -57768,7 +57768,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule PN)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -58041,7 +58041,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule PN)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -59773,7 +59773,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -60041,7 +60041,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule ND-1NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -60314,7 +60314,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule ND-1NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -62046,7 +62046,7 @@
           "primaryFormTitle": "Nebraska Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -62314,7 +62314,7 @@
           "primaryFormTitle": "Nebraska Individual Income Tax Return (Part-Year)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -62587,7 +62587,7 @@
           "primaryFormTitle": "Nebraska Individual Income Tax Return (Nonresident)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -66592,7 +66592,7 @@
           "primaryFormTitle": "Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -66860,7 +66860,7 @@
           "primaryFormTitle": "Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -67133,7 +67133,7 @@
           "primaryFormTitle": "Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -72597,7 +72597,7 @@
           "primaryFormTitle": "Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -72891,7 +72891,7 @@
           "primaryFormTitle": "Nonresident and Part-Year Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -73185,7 +73185,7 @@
           "primaryFormTitle": "Nonresident and Part-Year Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -74938,7 +74938,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -75206,7 +75206,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule IT NRC)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -75479,7 +75479,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule IT NRC)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -77211,7 +77211,7 @@
           "primaryFormTitle": "Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -77479,7 +77479,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -77752,7 +77752,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -79484,7 +79484,7 @@
           "primaryFormTitle": "Oregon Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -79752,7 +79752,7 @@
           "primaryFormTitle": "Oregon Part-Year/Nonresident Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -80025,7 +80025,7 @@
           "primaryFormTitle": "Oregon Part-Year/Nonresident Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "6",
           "steps": [
@@ -81757,7 +81757,7 @@
           "primaryFormTitle": "Pennsylvania Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -82025,7 +82025,7 @@
           "primaryFormTitle": "Pennsylvania Income Tax Return (Part-Year Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -82298,7 +82298,7 @@
           "primaryFormTitle": "Pennsylvania Income Tax Return (Nonresident Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "4",
           "steps": [
@@ -84030,7 +84030,7 @@
           "primaryFormTitle": "Resident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -84298,7 +84298,7 @@
           "primaryFormTitle": "Nonresident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -84571,7 +84571,7 @@
           "primaryFormTitle": "Nonresident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -86303,7 +86303,7 @@
           "primaryFormTitle": "Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -86571,7 +86571,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Part-Year Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -86844,7 +86844,7 @@
           "primaryFormTitle": "Individual Income Tax Return (Nonresident Schedule NR)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -95226,7 +95226,7 @@
           "primaryFormTitle": "Resident Individual Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -95494,7 +95494,7 @@
           "primaryFormTitle": "Part-Year Resident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -95767,7 +95767,7 @@
           "primaryFormTitle": "Nonresident Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -97499,7 +97499,7 @@
           "primaryFormTitle": "Vermont Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -97767,7 +97767,7 @@
           "primaryFormTitle": "Vermont Income Tax Return (Part-Year Schedule IN-113)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -98040,7 +98040,7 @@
           "primaryFormTitle": "Vermont Income Tax Return (Nonresident Schedule IN-113)",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "5",
           "steps": [
@@ -101231,7 +101231,7 @@
           "primaryFormTitle": "Wisconsin Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -101499,7 +101499,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -101772,7 +101772,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "2",
           "steps": [
@@ -103504,7 +103504,7 @@
           "primaryFormTitle": "Personal Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -103772,7 +103772,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Personal Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -104045,7 +104045,7 @@
           "primaryFormTitle": "Nonresident/Part-Year Personal Income Tax Return",
           "workflowKind": "personal_income_tax",
           "federalBase": "1040",
-          "calculationMode": "intake_only",
+          "calculationMode": "estimate_supported",
           "liveEfile": false,
           "regionId": "3",
           "steps": [
@@ -112073,5 +112073,21 @@
     "WI",
     "WV",
     "WY"
+  ],
+  "regionsBuiltOut": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+  ],
+  "estimateSupportedRegions": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
   ]
 }

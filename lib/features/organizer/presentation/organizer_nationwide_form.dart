@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
-import '../../states/data/region1_repository.dart';
+import '../../states/data/regional_state_tax_repository.dart';
 import '../../states/data/state_workflow_repository.dart';
+import '../data/regional_estimate_support.dart';
 import '../data/rollout_regions.dart';
 import '../data/state_tax_regimes.dart';
 import 'organizer_fields.dart';
@@ -36,7 +37,7 @@ class OrganizerNationwideForm extends ConsumerStatefulWidget {
 class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideForm> {
   Map<String, dynamic>? _ret;
   Map<String, dynamic>? _progress;
-  Map<String, dynamic>? _estimate;
+  RegionalEstimateView? _estimateView;
   String? _error;
   bool _loading = true;
   bool _estimating = false;
@@ -157,7 +158,8 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
               ),
               const SizedBox(height: 4),
               Text(
-                'Intake workflow · ${ret['calculationMode'] ?? 'intake_only'} · '
+                '${ret['calculationMode'] == 'estimate_supported' ? 'Estimate-supported intake' : 'Intake workflow'} · '
+                '${ret['calculationMode'] ?? 'intake_only'} · '
                 'not a certified tax computation',
                 style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
               ),
@@ -169,11 +171,14 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
               ),
               const SizedBox(height: 4),
               Text('$pct% required steps complete', style: const TextStyle(fontSize: 12)),
-              if (const {'AZ', 'HI', 'NM', 'UT'}.contains(widget.stateCode.toUpperCase()) &&
-                  widget.family == 'individual') ...[
+              if (supportsRegionalPersonalEstimate(
+                    widget.stateCode,
+                    family: widget.family,
+                  ) &&
+                  widget.filingType == 'resident') ...[
                 const SizedBox(height: 8),
                 FilledButton.tonalIcon(
-                  onPressed: _estimating ? null : _runRegion1Estimate,
+                  onPressed: _estimating ? null : _runRegionalEstimate,
                   icon: _estimating
                       ? const SizedBox(
                           width: 14,
@@ -181,17 +186,25 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.calculate_outlined),
-                  label: Text('Run ${widget.stateCode.toUpperCase()} Region 1 estimate'),
+                  label: Text(
+                    'Run ${widget.stateCode.toUpperCase()} Region '
+                    '${regionForState(widget.stateCode)?.id ?? '?'} estimate',
+                  ),
                 ),
-                if (_estimate != null) ...[
+                if (_estimateView != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Form ${_estimate!['form'] ?? '—'} · tax \$${_estimate!['tax'] ?? 0} · '
-                    'refund/(owed) \$${_estimate!['refund_or_owed'] ?? 0}',
+                    'Form ${_estimateView!.formLabel} · tax \$${_estimateView!.tax} · '
+                    'refund/(owed) \$${_estimateView!.refundOrOwed}',
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                   ),
+                  if (_estimateView!.taxRegime.isNotEmpty)
+                    Text(
+                      'Regime: ${_estimateView!.taxRegime} · status ${_estimateView!.status}',
+                      style: const TextStyle(color: MkgColors.textGrey, fontSize: 11),
+                    ),
                   Text(
-                    '${_estimate!['disclaimer'] ?? 'Estimate only · live agency e-file off'}',
+                    _estimateView!.disclaimer,
                     style: const TextStyle(color: MkgColors.textGrey, fontSize: 11),
                   ),
                 ],
@@ -200,7 +213,8 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    'Region ${regionForState(widget.stateCode)!.id} · ${regionForState(widget.stateCode)!.name}',
+                    'Region ${regionForState(widget.stateCode)!.id} · ${regionForState(widget.stateCode)!.name}'
+                    '${isRegion2Through5EstimateState(widget.stateCode) ? ' · R2–5 estimate UI' : ''}',
                     style: const TextStyle(fontSize: 11, color: MkgColors.textGrey),
                   ),
                 ),
@@ -224,22 +238,38 @@ class _OrganizerNationwideFormState extends ConsumerState<OrganizerNationwideFor
     );
   }
 
-  Future<void> _runRegion1Estimate() async {
+  Future<void> _runRegionalEstimate() async {
     setState(() => _estimating = true);
-    final repo = ref.read(region1RepositoryProvider);
-    final result = await repo.estimate(
+    final repo = ref.read(regionalStateTaxRepositoryProvider);
+    final result = await repo.estimatePersonal(
       stateCode: widget.stateCode,
       input: {
-        'federal_agi': widget.answers['federalAgi'] ?? widget.answers['stateWages'] ?? 0,
-        'state_withholding': widget.answers['stateWithholding'] ?? 0,
-        'estimated_payments': widget.answers['estimatedPayments'] ?? 0,
-        'filing_status': widget.answers['filingStatus'] ?? 'single',
-        'residency_type': widget.answers['residencyType'] ?? widget.filingType,
+        'federal_agi': widget.answers['federalAgi'] ??
+            widget.answers['stateWages'] ??
+            widget.answers['federal_agi'] ??
+            0,
+        'state_withholding': widget.answers['stateWithholding'] ??
+            widget.answers['state_withholding'] ??
+            0,
+        'estimated_payments': widget.answers['estimatedPayments'] ??
+            widget.answers['estimated_payments'] ??
+            0,
+        'filing_status': widget.answers['filingStatus'] ??
+            widget.answers['filing_status'] ??
+            'single',
+        'residency_type': widget.answers['residencyType'] ??
+            widget.answers['residency_type'] ??
+            widget.filingType,
+        'resident_type': widget.answers['residencyType'] ??
+            widget.answers['resident_type'] ??
+            'full_year',
+        'tax_year': widget.taxYear,
       },
     );
     if (!mounted) return;
     setState(() {
-      _estimate = result;
+      _estimateView =
+          result == null ? null : RegionalEstimateView.fromResponse(result);
       _estimating = false;
     });
   }

@@ -6,6 +6,7 @@
 - Laravel OpenAPI SoT: sibling `mkg-tax-backend-2` → `openapi/openapi.yaml` + `docs/architecture/openapi-client-generation.md`.
 - Flutter consumer plan: `docs/api-client-strategy.md`. Keep hand-written Dio until generated Dart covers auth + tax-returns + organizer.
 - Vercel Flutter web is prototype / companion / fallback / pre-release API checker — same Sanctum account + Neon records as native. See `docs/deployment/vercel-scope.md`.
+- **Faster web iteration:** `bash scripts/dev-vercel-preview.sh` (preview) or `bash scripts/deploy-vercel-web.sh` (prod). Requires `VERCEL_TOKEN` (+ optional `VERCEL_ORG_ID=team_5uxQCVdAhb1FImpmmkm9rAa5`, `VERCEL_PROJECT_ID`). Prebuilt only — do not cold-build Flutter on Vercel Git. Production alias: `https://mkg-tax-mobile.vercel.app`. Laravel CORS must allowlist that origin.
 
 ### Tessa multi-agent platform
 - Architecture SoT (backend): `mkg-tax-backend-2` `docs/architecture/multi-agent-tessa.md`
@@ -26,9 +27,12 @@
 - **Mobile API (required):** `API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1` (Sanctum + Neon).
 - **Payments deep links / Stripe return:** portal `https://mkgtaxconsultants.com/payments` (`portalRoot`).
 - **Bidirectional sync:** Flutter ↔ Laravel ↔ portal APIs — **latest successful update wins** on both surfaces. Flutter never talks to Neon/`/internal/*`/portal S2S credentials directly.
-- **Product role:** Native CRM/POS/billing/communications client. Does **not** submit IRS e-file — pushes tax data to `financemkgtaxpro` over API; pulls web status back.
+- **Product role (owner clarification):** Flutter is the **CRM + POS** client **and** the surface that delivers **automation + workflow triggers** to **new and existing users** (onboarding, renewals, document chase, payment reminders, prep milestones, Technology Access entitlement). Billing/comms ride the same app. Does **not** submit IRS e-file — pushes tax data to `financemkgtaxpro` over API; pulls web status back.
 - **Split SoT:** mobile → **Neon**; web → **DO Postgres**. No shared DB URL.
 - Domain cutover notes: financemkgtaxpro `docs/account-sync/DOMAIN_TRANSITION.md`.
+- Detail: `docs/architecture/mobile-crm-pos-automation.md`.
+- **Workflow notices SoT:** portal `financemkgtaxpro` schedules new-user **document prompts**, **Apr 15 / Oct 15** filing reminders, and LLC/Corp dense notices (**3w→8h**). Flutter presents / deep-links only — see that doc’s “Filing / document workflow triggers” section.
+- **In-app inbox:** `/notifications` → `GET /api/v1/notifications?has_documents=&prep_type=` (Laravel `WorkflowTriggerBuilder`). Tapping a card deep-links to `/documents` or `/organizer`.
 
 ### Why Flutter (not native Swift/Kotlin)
 - **Third-party ecosystem:** Prefer pub.dev plugins for cross-platform needs (networking, secure storage, file pickers, deep links) instead of duplicating iOS/Android SDK wiring.
@@ -36,9 +40,9 @@
 - Current stack packages: `flutter_riverpod`, `go_router`, `dio` (+ cookie jar), `flutter_secure_storage`, `file_picker`, `url_launcher`. Add new plugins via `flutter pub add <package>` then `flutter pub get`.
 
 ### Product topology
-- **Flutter** (`mkg-tax-mobile`) is the native CRM/POS client for iOS/Android — not Swift.
-- **Client web portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro + DO Postgres) — login, taxes, forms, chats.
-- **Mobile API/DB:** `https://app.mkgtaxconsultants.com/api/v1` + **Neon**.
+- **Flutter** (`mkg-tax-mobile`) is the **CRM + POS + automation/workflow** client for iOS/Android (and Flutter web companion) — not Swift/Kotlin. Same app serves **new signups** and **existing clients** (grace → subscribe via portal Technology Access).
+- **Client web portal:** `https://mkgtaxconsultants.com` (financemkgtaxpro + DO Postgres) — login, taxes, forms, chats; Stripe Technology Access SoT; staff/ERO ops remain web-first where noted in the parity matrix.
+- **Mobile API/DB:** `https://app.mkgtaxconsultants.com/api/v1` + **Neon** — orchestrates CRM/POS façades + workflow trigger delivery; engines stay Laravel.
 - **WordPress:** marketing only (optional `finance.` on DO).
 - Legacy `www` WP Engine may redirect to `finance.` when marketing cutover is approved.
 - Do not configure S2S / portal bridge against `financemkgtax.com`.
@@ -74,6 +78,11 @@
 - Route: `/ca-540` (alias `/organizer/ca-540`).
 - Laravel: `POST /api/v1/ca540/calculate`, `GET .../organizer/ca540-estimate` (`Ca540Calculator` — portal Organizer line math + FTB links).
 - Saves computed `ca540` totals back to organizer section `state_ca_540`. Estimate-only (no CA e-file XML).
+
+### Nationwide regional estimates (Regions 1–6)
+- Flutter calls Laravel facades only — **no tax math in the app**. Prefer `RegionalStateTaxRepository` → `POST /api/v1/regions/{n}/estimate` (Region 1 legacy shape still works; R2–6 return StateTaxRouter payloads).
+- Estimate button shows for broad-PIT resident individual workflows (`regional_estimate_support.dart`). CA stays on Form 540; no-broad-PIT states stay intake-only.
+- Bundled catalog `assets/region1-west-forms-ty2025.json` is nationwide (all regions); R2–5 PIT individual returns are `estimate_supported`.
 
 ### Tax Organizer (web parity)
 - Mobile `/organizer` opens an **icon hub** of sections first; tap a tile to walk through that section, then return to the hub.

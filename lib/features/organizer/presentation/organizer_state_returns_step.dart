@@ -5,6 +5,7 @@ import '../../../core/widgets/mkg_widgets.dart';
 import '../../states/data/state_workflow_repository.dart';
 import '../data/official_form_links.dart';
 import '../data/organizer_enum_options.dart';
+import '../data/regional_estimate_support.dart';
 import '../data/rollout_regions.dart';
 import '../data/us_states.dart';
 import 'organizer_ca540_form.dart';
@@ -13,7 +14,7 @@ import 'organizer_fields.dart';
 import 'organizer_nationwide_form.dart';
 
 /// Multi-state intake: CA deep forms always available; nationwide non-CA states
-/// gated by regional rollout (Phase 1 = West + Northwest).
+/// gated by regional rollout (Regions 1–6 all unlocked; R2–5 estimate UI wired).
 class OrganizerStateReturnsStep extends StatelessWidget {
   const OrganizerStateReturnsStep({
     super.key,
@@ -70,7 +71,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
   void _addAllPhaseOneStates(String homeState) {
     final existing = {for (final r in _additional) '${r['stateCode']}'};
     final next = List<Map<String, dynamic>>.from(_additional);
-    // CA is always available; Phase 1 nationwide = Regions 1 + 6 income-tax states.
+    // CA is always available; nationwide = all enabled region income-tax states.
     final selectable = <String>{
       'CA',
       for (final code in phaseOneEnabledStates)
@@ -369,7 +370,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                           Text(
                             'State tax preparation for ${rows[i]['stateCode']} is not yet available '
                             'in the current regional phase (${regionForState('${rows[i]['stateCode']}')?.name ?? 'later'}). '
-                            'Active: Regions 1 (West) + 6 (Northwest).',
+                            'Active: Regions 1–6 (nationwide intake + personal estimates).',
                             style: const TextStyle(color: MkgColors.textGrey, fontSize: 12),
                           )
                         else
@@ -381,7 +382,8 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                             ),
                             subtitle: Text(
                               'Region ${regionForState('${rows[i]['stateCode']}')?.id ?? '?'} · '
-                              '${regionForState('${rows[i]['stateCode']}')?.name ?? ''} · intake only',
+                              '${regionForState('${rows[i]['stateCode']}')?.name ?? ''} · '
+                              '${supportsRegionalPersonalEstimate('${rows[i]['stateCode']}') ? 'estimate supported' : 'intake'}',
                               style: const TextStyle(fontSize: 12),
                             ),
                             children: [
@@ -500,7 +502,7 @@ class OrganizerStateReturnsStep extends StatelessWidget {
                         ],
                       ),
                       OrganizerDropdown<String>(
-                        label: 'State (Phase 1 regions)',
+                        label: 'State (Regions 1–6)',
                         value: phaseOneEnabledStates.contains('${_businessRows[i]['stateCode']}')
                             ? '${_businessRows[i]['stateCode']}'
                             : 'OR',

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/auth_repository.dart';
@@ -400,14 +401,66 @@ class WorkspaceActivation {
   final bool tasksEmbedded;
 }
 
+/// Scope keys that must match the active workspace before reusing [organizerSnapshot].
+class OrganizerSnapshotScope {
+  const OrganizerSnapshotScope({
+    this.workspaceId,
+    this.entityId,
+    this.taxYear,
+  });
+
+  final String? workspaceId;
+  final String? entityId;
+  final int? taxYear;
+
+  bool matches(TaxYearWorkspace? workspace) {
+    if (workspace == null) return false;
+    if ((workspaceId ?? '').isNotEmpty &&
+        workspaceId != workspace.workspaceId) {
+      return false;
+    }
+    if ((entityId ?? '').isNotEmpty &&
+        (workspace.entityId ?? '').isNotEmpty &&
+        entityId != workspace.entityId) {
+      return false;
+    }
+    if (taxYear != null && taxYear != workspace.taxYear) return false;
+    return true;
+  }
+}
+
+/// Default soft-cache TTL for the tax-year catalog (also invalidated on season rollover).
+const Duration kTaxYearCatalogTtl = Duration(hours: 12);
+
+/// Whether [state] may skip `GET /tax-years` on a normal remount.
+bool isTaxYearCatalogWarm(
+  TaxYearState state, {
+  DateTime? now,
+  Duration ttl = kTaxYearCatalogTtl,
+}) {
+  final clock = now ?? DateTime.now();
+  final expectedLocalFilingYear = clock.year - 1;
+  final catalogMatchesCurrentSeason =
+      state.currentFilingYear == expectedLocalFilingYear;
+  final loadedAt = state.catalogLoadedAt;
+  final withinTtl =
+      loadedAt != null && clock.difference(loadedAt) < ttl;
+  return state.years.isNotEmpty &&
+      state.currentFilingYear != null &&
+      catalogMatchesCurrentSeason &&
+      withinTtl;
+}
+
 class TaxYearState {
   const TaxYearState({
     this.years = const [],
     this.selectedYear,
     this.currentFilingYear,
+    this.catalogLoadedAt,
     this.workspace,
     this.tasks = const [],
     this.organizerSnapshot,
+    this.organizerSnapshotScope,
     this.loading = false,
     this.source = 'unknown',
     this.error,
@@ -416,36 +469,59 @@ class TaxYearState {
   final List<TaxYearInfo> years;
   final int? selectedYear;
   final int? currentFilingYear;
+  /// Wall-clock when [years] / [currentFilingYear] were last fetched.
+  final DateTime? catalogLoadedAt;
   final TaxYearWorkspace? workspace;
   final List<Map<String, dynamic>> tasks;
   /// Organizer JSON from the last activate (same shape as GET .../organizer).
   final Map<String, dynamic>? organizerSnapshot;
+  /// Taxpayer / return / year keys for [organizerSnapshot].
+  final OrganizerSnapshotScope? organizerSnapshotScope;
   final bool loading;
   final String source;
   final String? error;
+
+  /// Snapshot only when scope keys still match the active workspace.
+  Map<String, dynamic>? get scopedOrganizerSnapshot {
+    final snap = organizerSnapshot;
+    final scope = organizerSnapshotScope;
+    if (snap == null || scope == null) return null;
+    if (!scope.matches(workspace)) return null;
+    return snap;
+  }
 
   TaxYearState copyWith({
     List<TaxYearInfo>? years,
     int? selectedYear,
     int? currentFilingYear,
+    DateTime? catalogLoadedAt,
     TaxYearWorkspace? workspace,
     List<Map<String, dynamic>>? tasks,
     Map<String, dynamic>? organizerSnapshot,
+    OrganizerSnapshotScope? organizerSnapshotScope,
     bool? loading,
     String? source,
     String? error,
     bool clearWorkspace = false,
     bool clearOrganizerSnapshot = false,
+    bool clearCatalogLoadedAt = false,
   }) {
+    final dropSnapshot = clearOrganizerSnapshot || clearWorkspace;
     return TaxYearState(
       years: years ?? this.years,
       selectedYear: selectedYear ?? this.selectedYear,
       currentFilingYear: currentFilingYear ?? this.currentFilingYear,
+      catalogLoadedAt: clearCatalogLoadedAt
+          ? null
+          : (catalogLoadedAt ?? this.catalogLoadedAt),
       workspace: clearWorkspace ? null : (workspace ?? this.workspace),
       tasks: tasks ?? this.tasks,
-      organizerSnapshot: clearOrganizerSnapshot || clearWorkspace
+      organizerSnapshot: dropSnapshot
           ? null
           : (organizerSnapshot ?? this.organizerSnapshot),
+      organizerSnapshotScope: dropSnapshot
+          ? null
+          : (organizerSnapshotScope ?? this.organizerSnapshotScope),
       loading: loading ?? this.loading,
       source: source ?? this.source,
       error: error,
@@ -459,18 +535,76 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
 
   TaxYearRepository get _repo => ref.read(taxYearRepositoryProvider);
 
-  Future<void> bootstrap() async {
-    state = state.copyWith(loading: true, error: null);
+  Future<void>? _bootstrapInFlight;
+  bool _bootstrapForceCatalog = false;
+
+  /// Bumped for every workspace refresh that may await I/O. Stale completions
+  /// with an older epoch must not overwrite a newer year/entity/workspace.
+  int _workspaceRefreshEpoch = 0;
+
+  /// Soft bootstrap: keep painted Home content when catalog/workspace already warm.
+  /// Coalesces concurrent callers (Home remount + pull-to-refresh).
+  ///
+  /// Stores the body [Future] itself (not a `whenComplete` wrapper) and clears
+  /// that exact instance on both success and failure so a later bootstrap can run.
+  /// A soft in-flight run does not satisfy a later [forceCatalog] caller — that
+  /// caller is chained to run after the soft Future completes.
+  Future<void> bootstrap({bool forceCatalog = false}) {
+    final existing = _bootstrapInFlight;
+    if (existing != null) {
+      if (!forceCatalog || _bootstrapForceCatalog) {
+        return existing;
+      }
+      return existing.then((_) => bootstrap(forceCatalog: true));
+    }
+
+    _bootstrapForceCatalog = forceCatalog;
+    final pending = _bootstrapBody(forceCatalog: forceCatalog);
+    _bootstrapInFlight = pending;
+    pending.whenComplete(() {
+      if (identical(_bootstrapInFlight, pending)) {
+        _bootstrapInFlight = null;
+        _bootstrapForceCatalog = false;
+      }
+    });
+    return pending;
+  }
+
+  /// True while a [bootstrap] Future is coalesced — for tests.
+  @visibleForTesting
+  bool get debugBootstrapInFlight => _bootstrapInFlight != null;
+
+  /// The exact in-flight [Future] currently stored — for tests.
+  @visibleForTesting
+  Future<void>? get debugBootstrapInFlightFuture => _bootstrapInFlight;
+
+  /// Current workspace-refresh epoch — for tests.
+  @visibleForTesting
+  int get debugWorkspaceRefreshEpoch => _workspaceRefreshEpoch;
+
+  Future<void> _bootstrapBody({required bool forceCatalog}) async {
+    final hasWarmCatalog = isTaxYearCatalogWarm(state);
+    // Only flash full-screen loading when we have nothing to show yet.
+    if (!hasWarmCatalog) {
+      state = state.copyWith(loading: true, error: null);
+    } else {
+      state = state.copyWith(error: null);
+    }
     try {
-      final catalog = await _repo.listTaxYears();
-      final selected = state.selectedYear ?? catalog.current;
-      state = state.copyWith(
-        years: catalog.years,
-        currentFilingYear: catalog.current,
-        selectedYear: selected,
-        source: catalog.source,
-        loading: false,
-      );
+      if (forceCatalog || !hasWarmCatalog) {
+        final catalog = await _repo.listTaxYears();
+        final selected = state.selectedYear ?? catalog.current;
+        state = state.copyWith(
+          years: catalog.years,
+          currentFilingYear: catalog.current,
+          catalogLoadedAt: DateTime.now(),
+          selectedYear: selected,
+          source: catalog.source,
+          loading: false,
+        );
+      } else if (state.loading) {
+        state = state.copyWith(loading: false);
+      }
       await refreshWorkspace();
     } catch (e) {
       state = state.copyWith(loading: false, error: ApiErrorMapper.map(e));
@@ -478,6 +612,8 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   }
 
   Future<void> selectYear(int year) async {
+    // Invalidate any in-flight activate for the previous selection first.
+    _workspaceRefreshEpoch++;
     state = state.copyWith(selectedYear: year, clearWorkspace: true);
     await refreshWorkspace();
   }
@@ -486,6 +622,59 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   void clearOrganizerSnapshot() {
     if (state.organizerSnapshot == null) return;
     state = state.copyWith(clearOrganizerSnapshot: true);
+  }
+
+  /// After silent autosave, merge saved section answers into the warm snapshot
+  /// so a scoped reopen does not hydrate pre-edit activate JSON.
+  ///
+  /// [sectionAnswers] maps `section_key` → flat answer map (same shape as
+  /// Laravel section `answers`). Scope must still match the active workspace.
+  void mergeOrganizerSnapshotSectionAnswers(
+    Map<String, Map<String, dynamic>> sectionAnswers, {
+    String? prepType,
+  }) {
+    if (sectionAnswers.isEmpty) return;
+    final snap = state.organizerSnapshot;
+    final scope = state.organizerSnapshotScope;
+    if (snap == null || scope == null || !scope.matches(state.workspace)) {
+      return;
+    }
+
+    final next = Map<String, dynamic>.from(snap);
+    final sections = Map<String, dynamic>.from(
+      (next['sections'] as Map?) ?? const <String, dynamic>{},
+    );
+    final answersRoot = Map<String, dynamic>.from(
+      (sections['answers'] as Map?) ?? const <String, dynamic>{},
+    );
+    for (final entry in sectionAnswers.entries) {
+      answersRoot[entry.key] = {'answers': Map<String, dynamic>.from(entry.value)};
+    }
+    sections['answers'] = answersRoot;
+    next['sections'] = sections;
+    if (prepType != null && prepType.isNotEmpty) {
+      next['prep_type'] = prepType;
+    }
+    state = state.copyWith(organizerSnapshot: next);
+  }
+
+  /// Whether this refresh epoch may still commit workspace/snapshot state.
+  bool _canCommitWorkspaceRefresh({
+    required int epoch,
+    required int requestedYear,
+    String? requestedEntityId,
+  }) {
+    if (epoch != _workspaceRefreshEpoch) return false;
+    final selected = state.selectedYear ?? state.currentFilingYear;
+    if (selected != requestedYear) return false;
+    if (requestedEntityId != null &&
+        requestedEntityId.isNotEmpty &&
+        (state.workspace?.entityId ?? '').isNotEmpty &&
+        state.workspace!.entityId != requestedEntityId) {
+      // Selection moved to another taxpayer/entity while this call was awaiting.
+      return false;
+    }
+    return true;
   }
 
   Future<void> refreshWorkspace({bool force = false}) async {
@@ -508,6 +697,8 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
           state.source == 'laravel') {
         return;
       }
+      final epoch = ++_workspaceRefreshEpoch;
+      final requestedYear = year;
       try {
         final entities = ref.read(entitiesRepositoryProvider);
         final entity = await entities.ensurePrimaryEntity();
@@ -515,9 +706,16 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         if (entityId == null || entityId.isEmpty) {
           throw StateError('We’re unable to open your tax organizer right now. Please try again.');
         }
+        if (!_canCommitWorkspaceRefresh(
+          epoch: epoch,
+          requestedYear: requestedYear,
+          requestedEntityId: entityId,
+        )) {
+          return;
+        }
         final packed = await _repo.activateWorkspacePacked(
           entityId: entityId,
-          taxYear: year,
+          taxYear: requestedYear,
         );
         // Activate already embeds tasks — avoid a second ~4s GET when present.
         final tasks = packed.tasksEmbedded
@@ -525,15 +723,38 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
             : (packed.workspace.workspaceId == null
                 ? const <Map<String, dynamic>>[]
                 : await _repo.listTasks(packed.workspace.workspaceId!));
+        if (!_canCommitWorkspaceRefresh(
+          epoch: epoch,
+          requestedYear: requestedYear,
+          requestedEntityId: entityId,
+        )) {
+          return;
+        }
+        // Packed payload must still describe the year/entity we asked for.
+        if (packed.workspace.taxYear != requestedYear) return;
+        final packedEntity = packed.workspace.entityId ?? entityId;
+        if (packedEntity != entityId) return;
+
         state = state.copyWith(
           workspace: packed.workspace,
           tasks: tasks,
           organizerSnapshot: packed.organizer,
+          organizerSnapshotScope: OrganizerSnapshotScope(
+            workspaceId: packed.workspace.workspaceId,
+            entityId: packedEntity,
+            taxYear: packed.workspace.taxYear,
+          ),
           source: 'laravel',
           error: null,
         );
         return;
       } catch (e) {
+        if (!_canCommitWorkspaceRefresh(
+          epoch: epoch,
+          requestedYear: requestedYear,
+        )) {
+          return;
+        }
         // Never fall through to cookie-portal on Sanctum builds — portal rows
         // lack a Laravel workspace UUID and Tax Organizer will hard-fail.
         state = state.copyWith(
@@ -546,19 +767,30 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
     }
 
     // Cookie-portal fallback: derive progress from tax_returns for the selected year.
+    final epoch = ++_workspaceRefreshEpoch;
+    final requestedYear = year;
     try {
       final portal = ref.read(portalRepositoryProvider);
       String? lastName;
       try {
         lastName = (await ref.read(authRepositoryProvider).currentUser())?.lastName;
       } catch (_) {}
-      final row = await portal.getOrCreateReturnForYear(year, lastName: lastName);
+      final row = await portal.getOrCreateReturnForYear(requestedYear, lastName: lastName);
       var docsCount = 0;
       try {
         if (row['id'] != null) {
           docsCount = (await portal.listDocuments(row['id'])).length;
         }
       } catch (_) {}
+      if (!_canCommitWorkspaceRefresh(
+        epoch: epoch,
+        requestedYear: requestedYear,
+      )) {
+        return;
+      }
+      final rowYear = (row['year'] as num?)?.toInt();
+      if (rowYear != null && rowYear != requestedYear) return;
+
       state = state.copyWith(
         workspace: TaxYearWorkspace.fromPortalReturn(row, documentsCount: docsCount),
         tasks: const [],
@@ -566,6 +798,12 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         error: null,
       );
     } catch (e) {
+      if (!_canCommitWorkspaceRefresh(
+        epoch: epoch,
+        requestedYear: requestedYear,
+      )) {
+        return;
+      }
       state = state.copyWith(error: ApiErrorMapper.map(e));
     }
   }
