@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../voice/tessa_voice_flags.dart';
 import 'supported_locales.dart';
 
 class LanguagePreferences {
@@ -52,7 +53,9 @@ class LanguagePreferences {
         'preferred_language': preferredLanguage,
         'secondary_language': secondaryLanguage,
         'region_id': regionId,
-        'spoken_response_enabled': spokenResponseEnabled,
+        // Voice stays off unless [TessaVoiceFlags.voiceEnabled] is reviewed on.
+        'spoken_response_enabled':
+            TessaVoiceFlags.voiceEnabled && spokenResponseEnabled,
         'bilingual_tax_terms': bilingualTaxTerms,
         'keep_form_labels_english': keepFormLabelsEnglish,
         'human_interpreter_requested': humanInterpreterRequested,
@@ -84,7 +87,8 @@ class LocaleController extends Notifier<LanguagePreferences> {
         preferredLanguage: SupportedLocales.normalize(parts['preferred'] ?? 'en-US'),
         secondaryLanguage: SupportedLocales.normalize(parts['secondary'] ?? 'en-US'),
         regionId: parts['region'] ?? '1',
-        spokenResponseEnabled: parts['spoken'] == '1',
+        spokenResponseEnabled:
+            TessaVoiceFlags.voiceEnabled && parts['spoken'] == '1',
         bilingualTaxTerms: parts['bilingual'] != '0',
         keepFormLabelsEnglish: parts['keep_en'] != '0',
         humanInterpreterRequested: parts['interpreter'] == '1',
@@ -100,6 +104,8 @@ class LocaleController extends Notifier<LanguagePreferences> {
     final normalized = next.copyWith(
       preferredLanguage: SupportedLocales.normalize(next.preferredLanguage),
       secondaryLanguage: SupportedLocales.normalize(next.secondaryLanguage),
+      spokenResponseEnabled:
+          TessaVoiceFlags.voiceEnabled && next.spokenResponseEnabled,
     );
     state = normalized;
     final prefs = await SharedPreferences.getInstance();

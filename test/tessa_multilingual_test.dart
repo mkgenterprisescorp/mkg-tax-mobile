@@ -2,13 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mkg_tax_mobile/core/localization/region_language_registry.dart';
 import 'package:mkg_tax_mobile/core/localization/supported_locales.dart';
 import 'package:mkg_tax_mobile/core/localization/tax_glossary.dart';
+import 'package:mkg_tax_mobile/core/localization/locale_controller.dart';
 import 'package:mkg_tax_mobile/core/voice/tessa_audio_service.dart';
+import 'package:mkg_tax_mobile/core/voice/tessa_voice_flags.dart';
 
 void main() {
   test('phase one UI locales are English and Spanish only', () {
     expect(SupportedLocales.phaseOneUi, ['en-US', 'es-US']);
     expect(SupportedLocales.isPhaseOneUi('es'), isTrue);
     expect(SupportedLocales.isPhaseOneUi('vi-VN'), isFalse);
+  });
+
+  test('voice remains disabled unless reviewed feature flag is on', () {
+    expect(TessaVoiceFlags.voiceEnabled, isFalse);
+    final body = const LanguagePreferences(spokenResponseEnabled: true).toApiBody();
+    expect(body['spoken_response_enabled'], isFalse);
   });
 
   test('region priorities put Spanish second', () {

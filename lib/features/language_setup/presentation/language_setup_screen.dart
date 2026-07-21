@@ -8,6 +8,7 @@ import '../../../core/localization/region_language_registry.dart';
 import '../../../core/localization/supported_locales.dart';
 import '../../../core/network/laravel_api_client.dart';
 import '../../../core/theme/mkg_theme.dart';
+import '../../../core/voice/tessa_voice_flags.dart';
 import '../data/language_preferences_repository.dart';
 
 class LanguageSetupScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,8 @@ class _LanguageSetupScreenState extends ConsumerState<LanguageSetupScreen> {
     _regionId = current.regionId;
     _bilingual = current.bilingualTaxTerms;
     _keepEnglish = current.keepFormLabelsEnglish;
-    _spoken = current.spokenResponseEnabled;
+    // Voice remains off unless [TessaVoiceFlags.voiceEnabled] is reviewed on.
+    _spoken = TessaVoiceFlags.voiceEnabled && current.spokenResponseEnabled;
     _interpreter = current.humanInterpreterRequested;
   }
 
@@ -54,7 +56,7 @@ class _LanguageSetupScreenState extends ConsumerState<LanguageSetupScreen> {
       regionId: _regionId,
       bilingualTaxTerms: _bilingual,
       keepFormLabelsEnglish: _keepEnglish,
-      spokenResponseEnabled: _spoken,
+      spokenResponseEnabled: TessaVoiceFlags.voiceEnabled && _spoken,
       humanInterpreterRequested: _interpreter,
       setupCompleted: true,
     );
@@ -201,8 +203,11 @@ class _LanguageSetupScreenState extends ConsumerState<LanguageSetupScreen> {
           SwitchListTile(
             title: Text(l10n.spokenResponses),
             subtitle: Text(l10n.voiceUnavailable),
-            value: _spoken,
-            onChanged: (v) => setState(() => _spoken = v),
+            value: TessaVoiceFlags.voiceEnabled && _spoken,
+            // Phase 1: voice UI stays inert until TESSA_VOICE_ENABLED is reviewed.
+            onChanged: TessaVoiceFlags.voiceEnabled
+                ? (v) => setState(() => _spoken = v)
+                : null,
           ),
           SwitchListTile(
             title: Text(l10n.humanInterpreter),
