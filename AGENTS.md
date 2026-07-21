@@ -75,6 +75,11 @@
 - Laravel: `POST /api/v1/ca540/calculate`, `GET .../organizer/ca540-estimate` (`Ca540Calculator` — portal Organizer line math + FTB links).
 - Saves computed `ca540` totals back to organizer section `state_ca_540`. Estimate-only (no CA e-file XML).
 
+### Nationwide regional estimates (Regions 1–6)
+- Flutter calls Laravel facades only — **no tax math in the app**. Prefer `RegionalStateTaxRepository` → `POST /api/v1/regions/{n}/estimate` (Region 1 legacy shape still works; R2–6 return StateTaxRouter payloads).
+- Estimate button shows for broad-PIT resident individual workflows (`regional_estimate_support.dart`). CA stays on Form 540; no-broad-PIT states stay intake-only.
+- Bundled catalog `assets/region1-west-forms-ty2025.json` is nationwide (all regions); R2–5 PIT individual returns are `estimate_supported`.
+
 ### Tax Organizer (web parity)
 - Mobile `/organizer` opens an **icon hub** of sections first; tap a tile to walk through that section, then return to the hub.
 - Personal walkthrough includes **Form 1040-X** (`form1040x` / section `form_1040x`) before State Tax Returns.
