@@ -270,11 +270,12 @@ void main() {
       await notifier.bootstrap(forceCatalog: true);
       final listAfterWarm = fakeRepo.listCalls;
       final year = container.read(taxYearProvider).selectedYear!;
+      final workspaceBefore = container.read(taxYearProvider).workspace?.taxReturnId;
       expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
       expect(container.read(taxYearProvider).workspace?.taxYear, year);
 
-      // Soft refresh will fail after the portal gate opens; force must still
-      // execute a catalog refresh once soft settles.
+      // Soft refresh fails after the portal gate opens. A queued forceCatalog
+      // must still run once soft settles (soft failure must not cancel force).
       fakePortal.yearGates[year] = Completer<void>();
       fakePortal.throwForYear[year] = Exception('soft bootstrap workspace failed');
 
@@ -288,17 +289,16 @@ void main() {
 
       fakePortal.yearGates[year]!.complete();
       await soft;
-      // Soft failure is absorbed into state.error; warm catalog remains.
-      expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
-      expect(container.read(taxYearProvider).error, isNotNull);
-
       await forcedA;
       await forcedB;
+
       expect(fakeRepo.listCalls, listAfterWarm + 1);
       expect(notifier.debugBootstrapInFlight, isFalse);
-      // Forced refresh clears the soft error after a successful catalog + workspace load.
+      expect(isTaxYearCatalogWarm(container.read(taxYearProvider)), isTrue);
+      // Forced refresh recovers; warm filing-year identity retained.
       expect(container.read(taxYearProvider).error, isNull);
       expect(container.read(taxYearProvider).workspace?.taxYear, year);
+      expect(container.read(taxYearProvider).workspace?.taxReturnId, workspaceBefore);
     });
   });
 
