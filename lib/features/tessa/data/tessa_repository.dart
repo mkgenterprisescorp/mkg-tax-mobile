@@ -84,6 +84,8 @@ class TessaRepository {
     Map<String, dynamic>? organizer,
     int? taxYear,
     String? workspaceId,
+    String? preferredLanguage,
+    String? locale,
   }) async {
     if (AppConfig.usesLaravelAuth && _api.bearerToken != null) {
       final res = await _api.post<Map<String, dynamic>>(
@@ -96,6 +98,8 @@ class TessaRepository {
           if (organizer != null) 'organizer': organizer,
           if (taxYear != null) 'tax_year': taxYear,
           if (workspaceId != null) 'workspace_id': workspaceId,
+          if (preferredLanguage != null) 'preferred_language': preferredLanguage,
+          if (locale != null) 'locale': locale,
         },
       );
       if (!PlatformApi.ok(res)) throw StateError('TESSA send failed');

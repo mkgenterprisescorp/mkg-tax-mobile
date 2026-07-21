@@ -11,6 +11,7 @@
 ### Tessa multi-agent platform
 - Architecture SoT (backend): `mkg-tax-backend-2` `docs/architecture/multi-agent-tessa.md`
 - Flutter summary: `docs/tessa-multi-agent.md` — `/tessa` only; engines authoritative; `/chat` is Advisor Chat (do not redirect to Tessa).
+- **Multilingual Phase 1:** `docs/architecture/tessa-multilingual.md` — EN/ES ARB + `/language-setup`; send `preferred_language` on chat; never put Gemini/STT/TTS keys in Flutter; never infer language from device.
 
 ### Flutter performance
 - Playbook: `docs/performance/flutter-performance-playbook.md` — DevTools-first, lazy load, Riverpod, network/assets, skeleton UI, isolates.

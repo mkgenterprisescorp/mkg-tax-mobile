@@ -83,6 +83,7 @@ class MoreHubScreen extends ConsumerWidget {
           ]),
         section('Support', const [
           _MoreItem('Ask TESSA', Icons.smart_toy_outlined, '/tessa'),
+          _MoreItem('Language settings', Icons.language, '/language-setup?settings=1'),
           _MoreItem('Support / Contact Us', Icons.support_agent_outlined, '/support'),
           _MoreItem('Terms & disclosures', Icons.policy_outlined, '/support'),
         ]),
