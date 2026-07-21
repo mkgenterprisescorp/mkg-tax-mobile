@@ -9,10 +9,23 @@ The Flutter app is the primary **CRM** and **POS** experience for MKG clients an
 
 | Audience | Examples |
 |----------|----------|
-| **New users** | Signup → Technology Access checkout → onboarding checklist → first organizer / document intake → first payment |
-| **Existing users** | Grace window → renew Technology Access → document chase → prep milestones → payment reminders → renewals |
+| **New users** | Signup → Technology Access checkout → **tax document upload prompts** → first organizer / document intake → first payment |
+| **Existing users** | Grace window → renew Technology Access → document chase → prep milestones → **Apr 15 / Oct 15 filing reminders** → renewals |
+| **LLC / Corporation started** | Dense deadline notices at **3w / 2w / 1w / 3d / 48h / 24h / 8h** before the entity filing deadline (portal scheduler SoT) |
 
 Automation **policy and entitlement** (including the \$2.50/mo Technology Access subscription) live on the **portal** (`financemkgtaxpro`). Flutter **surfaces** triggers and CRM/POS actions; Laravel **orchestrates** delivery (push, tasks, deep links). Flutter never holds Stripe secret keys or invents entitlement truth.
+
+## Filing / document workflow triggers (portal SoT)
+
+Portal owns SMS/email scheduling — see `financemkgtaxpro` `docs/filing-deadline-workflow-notices.md`:
+
+| Trigger | Cadence |
+|---------|---------|
+| New-user tax document prompts | 1h, 1d, 3d, 7d after signup until a document is uploaded |
+| April 15 / October 15 filing reminders | 21d, 14d, 7d, 3d before each deadline |
+| LLC/Corp entity deadline notices (when return started) | 3w, 2w, 1w, 3d, 48h, 24h, 8h before Mar 15 (1065/1120-S), Apr 15 (1120), and Oct 15 extension |
+
+Flutter should deep-link document prompts to Documents / smart intake and filing notices to Organizer / Tax Center. Do not invent a second deadline calendar in the APK.
 
 ## Boundaries
 

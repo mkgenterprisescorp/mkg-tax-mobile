@@ -145,6 +145,9 @@ Do **not** implement feature work until this matrix is reviewed (Phase 0 gate).
 | Admin / white-label / site monitor | Web-only | |
 | Virtual terminal staff POS | Web-first staff ops; **client POS pay UX is Flutter target** (hosted Stripe / invoice) | See `architecture/mobile-crm-pos-automation.md` |
 | CRM campaigns | Staff blast engine web-first; **client CRM + automation/workflow triggers are Flutter target** (new + existing users) | Entitlement SoT: portal Technology Access |
+| New-user document prompts | Portal SMS/email SoT; Flutter deep-link to Documents | `financemkgtaxpro` `docs/filing-deadline-workflow-notices.md` |
+| Apr 15 / Oct 15 filing reminders | Portal scheduler SoT; Flutter presents / deep-links | Cadence 21d/14d/7d/3d |
+| LLC/Corp deadline notices | Portal dense cadence when entity return started | 3w/2w/1w/3d/48h/24h/8h |
 
 ---
 
