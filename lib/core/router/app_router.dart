@@ -17,6 +17,7 @@ import '../../features/forms/presentation/forms_list_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
 import '../../features/iero/presentation/iero_extraction_screen.dart';
+import '../../features/language_setup/presentation/language_setup_screen.dart';
 import '../../features/more/presentation/feature_screens.dart';
 import '../../features/more/presentation/more_hub_screen.dart';
 import '../../features/onboarding/presentation/splash_onboarding.dart';
@@ -94,6 +95,7 @@ GoRouter createRouter({
           '/organizer',
           '/documents',
           '/tessa',
+          '/language-setup',
           '/more',
           '/profile',
           '/tools',
@@ -170,6 +172,12 @@ GoRouter createRouter({
           GoRoute(path: '/messages', redirect: (context, state) => '/chat'),
           GoRoute(path: '/tessa', builder: (context, state) => const TessaScreen()),
           GoRoute(path: '/ai-assistant', redirect: (context, state) => '/tessa'),
+          GoRoute(
+            path: '/language-setup',
+            builder: (context, state) => LanguageSetupScreen(
+              fromSettings: state.uri.queryParameters['settings'] == '1',
+            ),
+          ),
           GoRoute(path: '/billing', builder: (context, state) => const BillingScreen()),
           GoRoute(path: '/payments', redirect: (context, state) => '/billing'),
           GoRoute(path: '/bookkeeping', builder: (context, state) => const BookkeepingScreen()),

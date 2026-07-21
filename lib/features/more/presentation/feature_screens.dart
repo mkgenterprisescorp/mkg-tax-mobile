@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mkg_tax_mobile/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/localization/locale_controller.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
@@ -238,10 +240,9 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
         }
       }
       if (_messages.isEmpty) {
-        _messages.add((
-          false,
-          'Hi — I am Tessa AI, your MKG Tax assistant. Ask about federal 1040, CA 540 / business forms, or nationwide state intake. Tap a chip to run estimate/intake automation; you verify before anything becomes filing data.',
-        ));
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context);
+        _messages.add((false, l10n.tessaGreeting));
       }
       // Prefetch form-automation nextActions from live workspace when available.
       try {
@@ -302,6 +303,7 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
       _sending = true;
     });
     try {
+      final lang = ref.read(localeControllerProvider);
       final result = await ref.read(tessaRepositoryProvider).sendMessage(
             _conversationId,
             text,
@@ -309,6 +311,8 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
             jurisdictions: _jurisdictions,
             taxYear: _taxYear,
             workspaceId: _workspaceId,
+            preferredLanguage: lang.preferredLanguage,
+            locale: lang.preferredLanguage,
           );
       if (!mounted) return;
       setState(() {
@@ -388,8 +392,21 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
     if (!_ready) {
       return const Center(child: CircularProgressIndicator());
     }
+    final l10n = AppLocalizations.of(context);
+    final lang = ref.watch(localeControllerProvider);
     return Column(
       children: [
+        Material(
+          color: MkgColors.surfaceGrey,
+          child: ListTile(
+            dense: true,
+            leading: const Icon(Icons.language, color: MkgColors.primary),
+            title: Text(l10n.languageSettings),
+            subtitle: Text(lang.preferredLanguage),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/language-setup?settings=1'),
+          ),
+        ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -439,8 +456,8 @@ class _TessaScreenState extends ConsumerState<TessaScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask Tessa about 1040, CA forms, or state intake...',
+                    decoration: InputDecoration(
+                      hintText: l10n.tessaTitle,
                     ),
                     onSubmitted: (_) => _send(),
                   ),

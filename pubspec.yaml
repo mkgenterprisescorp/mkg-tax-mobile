@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -38,6 +41,7 @@ dependencies:
   go_router: ^17.3.0
   dio: ^5.10.0
   flutter_secure_storage: ^10.3.1
+  shared_preferences: ^2.5.3
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0
   cookie_jar: ^4.0.9
@@ -78,6 +82,7 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/brand/mkg_tax_logo.png
