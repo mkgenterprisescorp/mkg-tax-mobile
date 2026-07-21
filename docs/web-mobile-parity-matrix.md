@@ -143,8 +143,8 @@ Do **not** implement feature work until this matrix is reviewed (Phase 0 gate).
 | IRS e-file ATS / ERO tooling | Web-only | |
 | QuickBooks deep ops | Web-only | |
 | Admin / white-label / site monitor | Web-only | |
-| Virtual terminal staff POS | Web-only | |
-| CRM campaigns | Web-only | |
+| Virtual terminal staff POS | Web-first staff ops; **client POS pay UX is Flutter target** (hosted Stripe / invoice) | See `architecture/mobile-crm-pos-automation.md` |
+| CRM campaigns | Staff blast engine web-first; **client CRM + automation/workflow triggers are Flutter target** (new + existing users) | Entitlement SoT: portal Technology Access |
 
 ---
 
