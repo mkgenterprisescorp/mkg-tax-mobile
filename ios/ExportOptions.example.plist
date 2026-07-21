@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TEMPLATE ONLY — safe to commit.
+  The signed GitHub Actions workflow generates a runtime ExportOptions.plist
+  from the protected ios-testflight environment (APPLE_TEAM_ID, IOS_BUNDLE_ID,
+  IOS_PROVISIONING_PROFILE_NAME). Do not commit a filled-in copy with real
+  team IDs unless the owner has confirmed every field is non-sensitive and
+  intentional.
+
+  method: app-store-connect (TestFlight / App Store distribution)
+  signingStyle: manual
+  Do not use development signing for TestFlight.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>PLACEHOLDER_APPLE_TEAM_ID</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>PLACEHOLDER_IOS_BUNDLE_ID</key>
+		<string>PLACEHOLDER_PROVISIONING_PROFILE_NAME</string>
+	</dict>
+</dict>
+</plist>
