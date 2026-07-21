@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
+import '../../organizer/data/ca540_repository.dart';
 import '../data/refund_advance_repository.dart';
 import 'refund_advance_hub_screen.dart';
 
@@ -53,7 +55,15 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
   final _refundCtrl = TextEditingController(text: '7500');
   Map<String, dynamic>? _quote;
   bool _busy = false;
+  bool _prefilling = false;
   String? _error;
+  String? _prefillSource;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillExpectedRefund());
+  }
 
   @override
   void dispose() {
@@ -62,6 +72,80 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
   }
 
   num get _expectedRefund => num.tryParse(_refundCtrl.text.replaceAll(',', '')) ?? 0;
+
+  Future<void> _prefillExpectedRefund() async {
+    setState(() => _prefilling = true);
+    try {
+      final prior = ref.read(refundAdvanceProvider)?.expectedRefund;
+      num? federal;
+      num? ca540;
+      String? source;
+
+      if (prior != null && prior > 0) {
+        federal = prior;
+        source = 'prior refund calculator';
+      }
+
+      await ref.read(taxYearProvider.notifier).refreshWorkspace();
+      final workspaceId = ref.read(taxYearProvider).workspace?.workspaceId;
+      if (workspaceId != null) {
+        final preview = await ref.read(refundAdvanceRepositoryProvider).form1040Preview(workspaceId);
+        final estimate = preview?['refund_estimate'];
+        if (estimate is Map) {
+          final refund = (estimate['refund'] as num?) ?? (estimate['owing'] as num?);
+          if (refund != null && refund > 0) {
+            federal = refund;
+            source = 'Form 1040 preview (Laravel)';
+          }
+        }
+        final ca = await ref.read(ca540RepositoryProvider).fromOrganizer(workspaceId);
+        if (ca != null) {
+          final lines = ca['lines'] is Map ? Map<String, dynamic>.from(ca['lines'] as Map) : ca;
+          final caRefund = (lines['refund_or_owed'] as num?) ??
+              (ca['refund'] as num?) ??
+              (lines['refund'] as num?);
+          if (caRefund != null && caRefund > 0) {
+            ca540 = caRefund;
+            source = source == null
+                ? 'CA Form 540 estimate (Laravel)'
+                : '$source + CA Form 540';
+          }
+        }
+      }
+
+      // Prefer combined federal+CA when both positive; else federal; else CA.
+      num? combined;
+      if (federal != null && federal > 0 && ca540 != null && ca540 > 0) {
+        combined = federal + ca540;
+        source = 'Form 1040 + CA 540 (Laravel estimates)';
+      } else {
+        combined = federal ?? ca540;
+      }
+
+      if (!mounted) return;
+      if (combined != null && combined > 0) {
+        setState(() {
+          _refundCtrl.text = combined!.round().toString();
+          _prefillSource = source;
+        });
+        final adv = ref.read(refundAdvanceProvider);
+        ref.read(refundAdvanceProvider.notifier).setQuote(
+              RefundAdvanceQuote(
+                tierLabel: adv?.tierLabel ?? _selected.label,
+                amount: adv?.amount ?? _selected.amountFor(combined),
+                apr: adv?.apr ?? _selected.apr,
+                expectedRefund: combined,
+                quote: adv?.quote,
+                tilaAccepted: adv?.tilaAccepted ?? false,
+              ),
+            );
+      }
+    } catch (_) {
+      // Keep default; user can still enter expected refund manually.
+    } finally {
+      if (mounted) setState(() => _prefilling = false);
+    }
+  }
 
   Future<void> _calculate() async {
     final amount = _selected.amountFor(_expectedRefund);
@@ -133,6 +217,32 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
           'Tax refund advance · Pathward, N.A. · 29-day repayment from IRS refund',
           style: TextStyle(color: MkgColors.textGrey, fontSize: 13),
         ),
+        const SizedBox(height: 12),
+        if (_prefilling)
+          const LinearProgressIndicator(minHeight: 2)
+        else if (_prefillSource != null)
+          MkgCard(
+            child: Text(
+              'Expected refund autofilled from $_prefillSource. Adjust if needed before calculating.',
+              style: const TextStyle(fontSize: 13, height: 1.35),
+            ),
+          ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _refundCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Expected refund (1040 + CA 540 when available)',
+            prefixText: '\$ ',
+            helperText: 'Laravel estimates only — not a filed return.',
+          ),
+          onChanged: (_) {
+            setState(() {
+              _quote = null;
+              _prefillSource = null;
+            });
+          },
+        ),
         const SizedBox(height: 16),
         const Text('No-cost advances — 0% APR', style: TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
@@ -156,18 +266,6 @@ class _LoanEstimateScreenState extends ConsumerState<LoanEstimateScreen> {
           ],
         ),
         if (_selected is _PercentAdvance) ...[
-          const SizedBox(height: 14),
-          TextField(
-            controller: _refundCtrl,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Expected refund amount',
-              prefixText: '\$ ',
-            ),
-            onChanged: (_) {
-              setState(() => _quote = null);
-            },
-          ),
           const SizedBox(height: 6),
           Text(
             'Advance amount: \$${advancePreview.toStringAsFixed(0)} '

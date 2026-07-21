@@ -34,7 +34,17 @@ int? _asInt(Object? value) {
 /// Tax Organizer — personal + business parity with mkgtaxconsultants.com `/organizer`.
 /// Saves into canonical `tax_returns.data` keys (not `mobileOrganizer`).
 class OrganizerScreen extends ConsumerStatefulWidget {
-  const OrganizerScreen({super.key});
+  const OrganizerScreen({
+    super.key,
+    this.initialMode,
+    this.focusSection,
+    this.prepType,
+  });
+
+  /// `interview` | `direct` — interview shows guided prompts atop the section.
+  final String? initialMode;
+  final String? focusSection;
+  final String? prepType;
 
   @override
   ConsumerState<OrganizerScreen> createState() => _OrganizerScreenState();
@@ -51,6 +61,8 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   /// Hub = icon grid of sections; detail = walk through one section.
   bool _showHub = true;
   Map<String, dynamic> _data = {};
+  String _entryMode = 'direct';
+  bool _appliedRouteParams = false;
 
   /// Fast debounce — dirty-section PUT keeps payloads small.
   static const _autoSaveDebounce = Duration(milliseconds: 700);
@@ -199,6 +211,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           _showHub = true;
           _autoSaveReady = true;
         });
+        _applyEntryParamsIfNeeded();
         return;
       }
 
@@ -222,6 +235,7 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _showHub = true;
         _autoSaveReady = true;
       });
+      _applyEntryParamsIfNeeded();
       // Keep tax-year selector aligned with the opened return.
       if (tax.selectedYear != result.year) {
         await ref.read(taxYearProvider.notifier).selectYear(result.year);
@@ -234,6 +248,41 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
         _autoSaveReady = false;
       });
     }
+  }
+
+  void _applyEntryParamsIfNeeded() {
+    if (_appliedRouteParams) return;
+    _appliedRouteParams = true;
+    final mode = (widget.initialMode ?? '').trim().toLowerCase();
+    final focus = (widget.focusSection ?? '').trim().toLowerCase();
+    final prep = (widget.prepType ?? '').trim();
+    if (mode == 'interview' || mode == 'direct') {
+      _entryMode = mode;
+    }
+    if (prep.isNotEmpty && prep != '${_data['prepType']}') {
+      _data = Map<String, dynamic>.from(_data)..['prepType'] = prep;
+    }
+    if (focus.isEmpty) return;
+    final stepTitle = switch (focus) {
+      'income_1040' || 'form_1040' => 'Income (1040)',
+      'credits_deductions' || 'credits' => 'Credits & Deductions',
+      'schedule_c' => 'Schedule C',
+      'state_returns' || 'ca540' || 'ca_540' => 'State Tax Returns',
+      'entity_form' => _steps.firstWhere(
+          (s) => s.contains('1120') || s.contains('Entity') || s.contains('1065'),
+          orElse: () => _steps.isNotEmpty ? _steps.first : 'Filing Info',
+        ),
+      'filing_info' => 'Filing Info',
+      'personal_info' => 'Personal Info',
+      _ => null,
+    };
+    if (stepTitle == null) return;
+    final idx = _steps.indexOf(stepTitle);
+    if (idx < 0) return;
+    setState(() {
+      _step = idx;
+      _showHub = false;
+    });
   }
 
   Future<Map<String, dynamic>> _maybeAutofillProfile(
@@ -542,6 +591,15 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
           ],
         ),
         const SizedBox(height: 12),
+        if (_entryMode == 'interview')
+          MkgCard(
+            child: Text(
+              'Interview mode: answer each field carefully so credits and deductions are not overlooked. '
+              'Tessa can preview value savings after you save. Mode: interview.',
+              style: const TextStyle(fontSize: 13, height: 1.35),
+            ),
+          ),
+        if (_entryMode == 'interview') const SizedBox(height: 12),
         _StepProgress(steps: steps, index: stepIndex),
         const SizedBox(height: 16),
         AbsorbPointer(

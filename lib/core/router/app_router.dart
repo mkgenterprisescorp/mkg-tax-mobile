@@ -14,6 +14,7 @@ import '../../features/clients/presentation/my_clients_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';
 import '../../features/documents/presentation/smart_document_intake_screen.dart';
 import '../../features/forms/presentation/forms_list_screen.dart';
+import '../../features/forms/presentation/form_entry_hub_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/home/presentation/main_tabs.dart';
 import '../../features/iero/presentation/iero_extraction_screen.dart';
@@ -116,6 +117,7 @@ GoRouter createRouter({
           if (location.startsWith('/payroll-tools')) return true;
           if (location.startsWith('/tax-savings')) return true;
           if (location.startsWith('/things-to-bring')) return true;
+          if (location.startsWith('/forms/entry')) return true;
           if (location.startsWith('/refund-tracker') || location.startsWith('/tax-resources')) return true;
           if (location.startsWith('/ca-540') || location.contains('/ca-540')) return true;
           if (location.startsWith('/billing') || location.startsWith('/payments')) return true;
@@ -162,9 +164,17 @@ GoRouter createRouter({
           GoRoute(path: '/account', builder: (context, state) => const AccountOverviewScreen()),
           GoRoute(path: '/banking', builder: (context, state) => const BankingScreen()),
           GoRoute(path: '/blogs', builder: (context, state) => const BlogsScreen()),
-          GoRoute(path: '/organizer', builder: (context, state) => const OrganizerScreen()),
+          GoRoute(
+            path: '/organizer',
+            builder: (context, state) => OrganizerScreen(
+              initialMode: state.uri.queryParameters['mode'],
+              focusSection: state.uri.queryParameters['focus'],
+              prepType: state.uri.queryParameters['prep'],
+            ),
+          ),
           GoRoute(path: '/organizer/form-1040', builder: (context, state) => const Form1040AutofillScreen()),
           GoRoute(path: '/organizer/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
+          GoRoute(path: '/forms/entry', builder: (context, state) => const FormEntryHubScreen()),
           GoRoute(path: '/ca-540', builder: (context, state) => const Ca540CalculatorScreen()),
           GoRoute(path: '/engagements', builder: (context, state) => const EngagementsScreen()),
           GoRoute(path: '/documents', builder: (context, state) => const DocumentsScreen()),

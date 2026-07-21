@@ -784,9 +784,10 @@ class ToolsScreen extends StatelessWidget {
   static const _tiles = <(IconData, String, String, String)>[
     (Icons.calculate_outlined, 'Paycheck & W-4', 'Withholding estimates', '/payroll-tools'),
     (Icons.savings_outlined, 'Refund estimator', 'Federal estimate · organizer', '/refund-advance/estimate'),
-    (Icons.payments_outlined, 'Refund advance loans', '0% & 36% APR · TILA', '/refund-advance'),
+    (Icons.payments_outlined, 'Refund advance loans', '0% & 36% APR · 1040/540 autofill', '/refund-advance'),
     (Icons.receipt_long_outlined, 'Payments', 'Fee schedule · invoices', '/billing'),
-    (Icons.tips_and_updates_outlined, 'Tax savings', 'Credits & deductions checklist', '/tax-savings'),
+    (Icons.tips_and_updates_outlined, 'Tax savings', 'Interview · value savings', '/tax-savings'),
+    (Icons.assignment_outlined, 'Form entry', 'Interview or direct · 1040/540/C/1120', '/forms/entry'),
     (Icons.checklist_outlined, 'Things to bring', 'Appointment document list', '/things-to-bring'),
     (Icons.description_outlined, 'Autofill Form 1040', 'From Tax Organizer', '/organizer/form-1040'),
     (Icons.edit_note, 'Form 1040-X', 'Amended federal return', '/organizer'),
@@ -905,15 +906,21 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
   late final TextEditingController _phone;
   late final TextEditingController _ssn;
   late Map<String, dynamic> _addressData;
   bool _saving = false;
+  bool _startingIdentity = false;
+  String? _identityUrl;
 
   @override
   void initState() {
     super.initState();
     final user = ref.read(authProvider).user;
+    _firstName = TextEditingController(text: user?.firstName ?? '');
+    _lastName = TextEditingController(text: user?.lastName ?? '');
     _phone = TextEditingController(text: user?.phone ?? '');
     _ssn = TextEditingController();
     _addressData = {
@@ -931,6 +938,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
       if (!mounted) return;
+      if (_firstName.text.trim().isEmpty && prefill.firstName.isNotEmpty) {
+        _firstName.text = prefill.firstName;
+      }
+      if (_lastName.text.trim().isEmpty && prefill.lastName.isNotEmpty) {
+        _lastName.text = prefill.lastName;
+      }
       if (_phone.text.trim().isEmpty && prefill.phone.isNotEmpty) {
         _phone.text = prefill.phone;
       }
@@ -956,16 +969,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
     _phone.dispose();
     _ssn.dispose();
     super.dispose();
   }
 
   Future<void> _submitKyc() async {
+    final first = _firstName.text.trim();
+    final last = _lastName.text.trim();
     final address = '${_addressData['address'] ?? ''}'.trim();
     final city = '${_addressData['city'] ?? ''}'.trim();
     final state = '${_addressData['state'] ?? ''}'.trim().toUpperCase();
     final zip = '${_addressData['zip'] ?? ''}'.trim();
+    if (first.isEmpty || last.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your legal first and last name before submitting.')),
+      );
+      return;
+    }
     if (address.isEmpty || city.isEmpty || state.isEmpty || zip.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete street, city, state, and ZIP before submitting.')),
@@ -982,8 +1005,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             city: city,
             state: state,
             zipCode: zip,
+            firstName: first,
+            lastName: last,
           );
-      // Portal cookie path can still accept SSN; Sanctum profile bridge strips it.
       final digits = _ssn.text.replaceAll(RegExp(r'\D'), '');
       if (!AppConfig.usesLaravelAuth && digits.length == 9) {
         await ref.read(portalRepositoryProvider).saveSsn(digits);
@@ -996,6 +1020,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profile submitted for review.$ssnNote')),
         );
+        await _startIdentityVerification(showErrors: false);
       }
     } catch (e) {
       if (mounted) {
@@ -1003,6 +1028,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _startIdentityVerification({bool showErrors = true}) async {
+    if (!AppConfig.usesLaravelAuth) {
+      if (showErrors && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Identity verification requires the mobile API session.')),
+        );
+      }
+      return;
+    }
+    setState(() => _startingIdentity = true);
+    try {
+      final session = await ref.read(authRepositoryProvider).beginIdentityVerification();
+      final url = '${session['hosted_url'] ?? ''}'.trim();
+      if (!mounted) return;
+      setState(() => _identityUrl = url.isEmpty ? null : url);
+      if (url.isNotEmpty) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else if (showErrors) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Identity verification URL was not returned. Please try again.')),
+        );
+      }
+    } catch (e) {
+      if (showErrors && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorMapper.map(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _startingIdentity = false);
     }
   }
 
@@ -1035,11 +1091,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: const ListTile(
               leading: Icon(Icons.hourglass_top, color: MkgColors.orange),
               title: Text('Profile under review'),
-              subtitle: Text('You will be notified once approved.'),
+              subtitle: Text('Complete Stripe Identity verification below while staff reviews your profile.'),
             ),
           ),
         ],
         const SectionHeader('KYC / profile details'),
+        TextField(controller: _firstName, decoration: const InputDecoration(labelText: 'Legal first name'), textCapitalization: TextCapitalization.words),
+        const SizedBox(height: 10),
+        TextField(controller: _lastName, decoration: const InputDecoration(labelText: 'Legal last name'), textCapitalization: TextCapitalization.words),
+        const SizedBox(height: 10),
         TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone),
         const SizedBox(height: 10),
         AddressAutofillFields(
@@ -1060,6 +1120,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onPressed: _saving ? null : _submitKyc,
           child: Text(_saving ? 'Submitting…' : 'Submit profile for review'),
         ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          onPressed: (_saving || _startingIdentity) ? null : () => _startIdentityVerification(),
+          icon: const Icon(Icons.verified_user_outlined),
+          label: Text(_startingIdentity ? 'Opening Stripe Identity…' : 'Continue to Stripe Identity verification'),
+        ),
+        if (_identityUrl != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Session ready. If the browser did not open, tap again or visit your secure verification link.',
+            style: TextStyle(color: MkgColors.textGrey, fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 12),
         OutlinedButton(
           onPressed: () async {

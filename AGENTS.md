@@ -20,7 +20,8 @@
 
 ### Profile / KYC submit (Sanctum)
 - Profile screen **must not** call portal `/api/user/kyc-submit` on Sanctum builds (404 → “The requested item is unavailable.”).
-- Use `AuthRepository.submitProfileForReview` → `GET` then versioned `PATCH /api/v1/profile` (retry once on 409). SSN is not accepted on this bridge — collect via Organizer/Documents.
+- Use `AuthRepository.submitProfileForReview` → `GET` then versioned `PATCH /api/v1/profile` (retry once on 409). Include `first_name` / `last_name`. SSN is not accepted on this bridge — collect via Organizer/Documents.
+- After KYC submit, call `POST /api/v1/identity-verification/session` and open `hosted_url` (portal Stripe Identity handoff — no secrets in Flutter).
 
 ### Auth / API / website hosts
 - **DO web app (client login):** `https://mkgtaxconsultants.com` (`financemkgtaxpro` + DO Postgres) — clients manage taxes/forms; also owns IRS XML / MeF. Notifications/chats/staff UI live here, **not** in WordPress.
@@ -55,6 +56,7 @@
 ### Tax Refund Advances (Flutter)
 - Hub: `/refund-advance` (also `/financial`).
 - Walkthrough: Overview → **Refund calculator** (`/refund-advance/estimate`) → **Loan Estimate** (0% \$250/\$500/\$1k; **36% APR** at 25/50/75%) → **TILA** → apply.
+- Loan Estimate autofills expected refund from Laravel Form 1040 preview + CA 540 estimate (combined when both present).
 - Sanctum APIs (preferred): `POST /api/v1/refund-advance/calculate|tila|apply`, `POST /api/v1/tax-estimates`. Portal cookie fallback still uses `/api/loans/*` when not on Laravel auth.
 - Written Guarantee: `/refund-advance/guarantee`.
 - Apply persists a **mobile application receipt** (invoice projection) — not live Pathward funding.
@@ -120,7 +122,8 @@
 - Refund estimator: `/refund-advance/estimate`.
 - Refund advance loans: `/refund-advance` (loan estimate → TILA → apply).
 - Payments: `/billing` (hosted Stripe Checkout via Laravel).
-- Tax savings: `/tax-savings` (native checklist; optional web AI at `/tax-savings`).
+- Tax savings: `/tax-savings` — interview or checklist; persists `tax_savings_checklist` into organizer credits section; loads Laravel `POST /tessa/assist/planning` `value_savings` (in-app only).
+- Form entry hub: `/forms/entry` — interview vs direct for 1040 / 540 / Schedule C / 1120-S / 1120 → `/organizer?mode=&focus=&prep=`.
 - Things to bring: `/things-to-bring` (client checklist; staff email/SMS stays on portal).
 
 ### Flutter web (staging DO)
