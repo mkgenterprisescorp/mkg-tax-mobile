@@ -357,7 +357,7 @@ class _FormPlanCard extends StatelessWidget {
         ? Map<String, dynamic>.from(payload['form_plan'] as Map)
         : <String, dynamic>{};
     final forms = plan['required_forms'] is List
-        ? (plan['required_forms'] as List).map((e) => '$e').toList()
+        ? (plan['required_forms'] as List).map((formId) => '$formId').toList()
         : const <String>[];
     final diagnostics = payload['diagnostics'] is List
         ? (payload['diagnostics'] as List).whereType<Map>().take(6).toList()
