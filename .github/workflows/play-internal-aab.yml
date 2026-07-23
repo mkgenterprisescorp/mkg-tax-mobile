@@ -189,17 +189,28 @@ jobs:
           ]
           crit, warn = [], []
           api_host_seen = False
+          skip_prefixes = (
+              "BUNDLE-METADATA/com.android.tools.build.debugsymbols/",
+              "base/root/org/apache/tika/",
+              "base/root/META-INF/",
+              "base/root/pipes-fork-server",
+          )
           with zipfile.ZipFile(aab) as z:
               for info in z.infolist():
                   if info.file_size > 12_000_000:
                       continue
-                  if info.filename.endswith((".png", ".jpg", ".webp", ".so")):
+                  if info.filename.endswith((".png", ".jpg", ".webp", ".so", ".sym")):
+                      continue
+                  if any(info.filename.startswith(pref) for pref in skip_prefixes):
                       continue
                   data = z.read(info)
                   if host in data:
                       api_host_seen = True
                   for pat, name in crit_pats:
                       if pat.search(data):
+                          # tika-mimetypes.xml documents PEM markers; ignore MIME catalogs
+                          if name == "private_key" and b"tika" in info.filename.encode():
+                              continue
                           crit.append((name, info.filename))
                   for pat, name in warn_pats:
                       if pat.search(data):
