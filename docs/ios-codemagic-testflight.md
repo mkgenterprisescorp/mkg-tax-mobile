@@ -1,78 +1,72 @@
-# Codemagic iOS / TestFlight (mkg-tax-mobile)
-
-Source of truth for signed iOS builds after the first successful Codemagic IPA
-(`build 6a620ddaf44974f6fb95f192` on `main` @ `2f36b7c`).
+# Codemagic iOS prepare / TestFlight (mkg-tax-mobile)
 
 ## Identity (do not change)
 
 | Item | Value |
 | --- | --- |
 | Repository | `mkgenterprisescorp/mkg-tax-mobile` |
-| App display (ASC) | MKG Tax Consultants Pro Filer |
-| Device display name | `MKG Tax` (`CFBundleDisplayName`) |
-| iOS bundle ID | `com.mkgenterprises.mkgTaxMobile` |
-| Android package (unchanged) | `com.mkgtaxconsultants.mobile` |
+| Bundle ID | `com.mkgenterprises.mkgTaxMobile` |
+| Device display name | `MKG Tax` |
 | Production API | `https://app.mkgtaxconsultants.com/api/v1` |
+| Android package (unchanged) | `com.mkgtaxconsultants.mobile` |
 
-Do **not** register another App ID, rename the bundle ID, or create another
-Codemagic application for this product.
+## Separation of concerns
 
-## Workflows (`codemagic.yaml`)
-
-| Workflow ID | Purpose | ASC upload |
+| Stage | Where | Upload |
 | --- | --- | --- |
-| `ios_signed_prepare` | Analyze, test, signed IPA, private artifacts | **No** |
-| `ios_testflight` | Same gates + TestFlight submit | **Yes** (`submit_to_testflight: true`) |
+| Signed prepare | root `codemagic.yaml` → `ios_signed_prepare` | **No** |
+| TestFlight | `docs/deployment/codemagic-ios-testflight.workflow.yaml.example` (promote only after approval) | TestFlight only |
 
-Both are **manual / API only** (`triggering.events: []`). Never start
-`ios_testflight` without explicit owner approval. `submit_to_app_store` is
-always `false`.
+Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
-Pinned toolchain: Flutter **3.44.6**, Xcode **16.4**, `mac_mini_m2`.
+## Codemagic prerequisites
 
-## Codemagic UI prerequisites
+1. **Developer Portal integration label** in Team settings must exactly match:
 
-1. **Developer Portal integration** — key label must match
-   `integrations.app_store_connect` in `codemagic.yaml` (default string:
-   `App Store Connect`). Use the same API key that signed build
-   `6a620ddaf44974f6fb95f192`.
-2. **Encrypted group** `ios_appstore` with numeric **`APP_STORE_APPLE_ID`**
-   (App Store Connect app record Apple ID — not the bundle ID).
-3. Automatic App Store distribution signing for
-   `com.mkgenterprises.mkgTaxMobile` (already proven on the first IPA).
+   ```yaml
+   integrations:
+     app_store_connect: App Store Connect
+   ```
 
-## Build number policy
+   Use the same API key that signed Codemagic build `6a620ddaf44974f6fb95f192`.
+   If the UI label differs, update YAML to that exact string before starting a build.
 
-Scripts call `app-store-connect get-latest-testflight-build-number`, fall back
-to App Store latest, then apply floor **`33`** (first signed prepare after the
-`+32` Play/Codemagic baseline). `pubspec.yaml` stays at `1.0.0+32` so Android
-versionCode is not altered by this iOS work.
+2. Encrypted group **`ios_appstore`** with numeric **`APP_STORE_APPLE_ID`**
+   (App Store Connect app record Apple ID for `com.mkgenterprises.mkgTaxMobile` —
+   not the bundle ID string).
 
-## Approval gate
+3. Manual starts only. No release tags.
 
-1. Merge / land `codemagic.yaml`.
-2. Start **`ios_signed_prepare`** on `main` (or the release branch).
-3. Download IPA + logs; confirm bundle ID, Apple Distribution identity, SHA-256.
-4. **Stop** — request explicit approval.
-5. Only after approval, start **`ios_testflight`** (internal TestFlight only).
+## Ordered release steps
 
-## First successful signed IPA (reference)
+1. Keep prepare PR clean (this path only).
+2. Confirm integration label + `APP_STORE_APPLE_ID`.
+3. Merge prepare PR only after CI / local gates pass.
+4. Start **`ios_signed_prepare`** on `main`.
+5. Validate bundle ID, version/build, Apple Distribution signing, production API,
+   IPA artifact + SHA-256.
+6. **STOP** and report evidence.
+7. Do **not** promote/run TestFlight until explicit approval.
 
-| Field | Value |
-| --- | --- |
-| Build URL | https://codemagic.io/app/6a61fd1171826706ef5d191c/build/6a620ddaf44974f6fb95f192 |
-| Build ID | `6a620ddaf44974f6fb95f192` |
-| App ID | `6a61fd1171826706ef5d191c` |
-| Commit | `2f36b7c` |
-| Artifact | `mkg_tax_mobile.ipa` (~26.53 MB) |
-| TestFlight upload | **Not performed** |
+## Local gates
 
-## Local IPA inspect (optional)
+```bash
+python3 scripts/ci/validate_codemagic_yaml.py
+flutter analyze --no-fatal-infos
+flutter test --concurrency=1
+```
+
+After a prepare build, optional Linux IPA check:
 
 ```bash
 python3 scripts/ci/ios_inspect_ipa.py /path/to/mkg_tax_mobile.ipa
 ```
 
-Runs on Linux without Xcode; validates plist identity, embedded provision
-markers, and forbidden-content scan. Full codesign Authority checks require
-macOS (`codesign`) — Codemagic workflows run those on the build machine.
+## Reference signed IPA (pre-yaml UI build)
+
+| Field | Value |
+| --- | --- |
+| Build URL | https://codemagic.io/app/6a61fd1171826706ef5d191c/build/6a620ddaf44974f6fb95f192 |
+| Commit | `2f36b7c` |
+| Artifact | `mkg_tax_mobile.ipa` |
+| TestFlight | Not uploaded |
