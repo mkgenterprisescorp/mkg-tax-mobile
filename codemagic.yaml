@@ -257,6 +257,8 @@ workflows:
       - name: Ensure ASC TestFlight Test Information
         script: |
           set -euo pipefail
+          # Warm ASC JWT via CLI (same credentials as fetch-signing-files).
+          app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" >/tmp/tf_latest_bn.txt || true
           python3 scripts/ci/ensure_asc_testflight_test_info.py
       - name: Report signing metadata (no secrets)
         script: |

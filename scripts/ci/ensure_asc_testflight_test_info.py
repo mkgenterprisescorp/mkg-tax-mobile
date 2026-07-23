@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 try:
     import jwt
@@ -29,7 +30,19 @@ except ImportError:
     )
     import jwt
 
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import NoEncryption
+from cryptography.hazmat.primitives.serialization import PrivateFormat
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
 ASC_BASE = "https://api.appstoreconnect.apple.com"
+PRIVATE_KEY_DIRS = (
+    Path("./private_keys"),
+    Path.home() / "private_keys",
+    Path.home() / ".private_keys",
+    Path.home() / ".appstoreconnect" / "private_keys",
+)
 
 
 def _require_env(*names: str) -> dict[str, str]:
@@ -50,20 +63,126 @@ def _require_env(*names: str) -> dict[str, str]:
     return out
 
 
-def _token(creds: dict[str, str]) -> str:
+def _normalize_private_key(raw: str) -> str:
+    """Codemagic/env secrets often store PEM with literal \\n or missing framing."""
+    key = raw.strip().strip('"').strip("'")
+    if "\\n" in key and "\n" not in key:
+        key = key.replace("\\n", "\n")
+    key = key.replace("\r\n", "\n").strip()
+    if "BEGIN PRIVATE KEY" not in key and "BEGIN EC PRIVATE KEY" not in key:
+        body = "".join(key.split())
+        key = (
+            "-----BEGIN PRIVATE KEY-----\n"
+            + "\n".join(body[i : i + 64] for i in range(0, len(body), 64))
+            + "\n-----END PRIVATE KEY-----"
+        )
+    if not key.endswith("\n"):
+        key += "\n"
+    return key
+
+
+def _ec_pem_or_none(pem: str) -> str | None:
+    """ASC API JWTs require an EC (ES256) key — skip RSA code-signing keys."""
+    try:
+        key = load_pem_private_key(pem.encode("utf-8"), password=None)
+    except ValueError:
+        return None
+    if not isinstance(key, EllipticCurvePrivateKey):
+        return None
+    return key.private_bytes(
+        Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+    ).decode("utf-8")
+
+
+def _load_private_key(key_id: str, env_value: str | None) -> str:
+    """Prefer AuthKey_*.p8 on disk; env may hold an RSA CERTIFICATE_PRIVATE_KEY by mistake."""
+    candidates: list[tuple[str, str]] = []
+
+    for directory in PRIVATE_KEY_DIRS:
+        path = directory.expanduser() / f"AuthKey_{key_id}.p8"
+        if path.is_file():
+            candidates.append((str(path), path.read_text(encoding="utf-8")))
+
+    for directory in PRIVATE_KEY_DIRS:
+        root = directory.expanduser()
+        if not root.is_dir():
+            continue
+        for path in sorted(root.glob("AuthKey_*.p8")):
+            candidates.append((str(path), path.read_text(encoding="utf-8")))
+
+    if env_value:
+        candidates.append(("env:APP_STORE_CONNECT_PRIVATE_KEY", env_value))
+
+    seen: set[str] = set()
+    for label, raw in candidates:
+        if label in seen:
+            continue
+        seen.add(label)
+        pem = _normalize_private_key(raw)
+        ec_pem = _ec_pem_or_none(pem)
+        if ec_pem:
+            print(f"Using ASC API EC private key from {label}")
+            return ec_pem
+        print(
+            f"Skipping non-EC/invalid PEM candidate {label} "
+            f"(len={len(raw)}, begin={'BEGIN' in raw}, nl={chr(10) in raw})"
+        )
+
+    raise SystemExit(
+        "No valid ASC API EC private key found. Expected AuthKey_<KEY_ID>.p8 "
+        "under Codemagic private_keys paths, or a PEM EC key in "
+        "APP_STORE_CONNECT_PRIVATE_KEY."
+    )
+
+
+def _cached_jwt(key_id: str) -> str | None:
+    """Reuse JWT written by earlier `app-store-connect` CLI steps on this builder."""
+    cache = (
+        Path(os.environ.get("TMPDIR") or "/tmp")
+        / ".codemagic-cli-tools"
+        / "cache"
+        / "app_store_connect_jwt"
+        / key_id
+    )
+    if not cache.is_file():
+        return None
+    token = cache.read_text(encoding="utf-8").strip()
+    if not token or token.count(".") != 2:
+        return None
+    try:
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_exp": True},
+            algorithms=["ES256"],
+        )
+    except Exception:
+        return None
+    if payload.get("iss") and payload.get("aud") == "appstoreconnect-v1":
+        print(f"Using cached App Store Connect JWT for key {key_id}")
+        return token
+    return None
+
+
+def _token(issuer_id: str, key_id: str, private_key: str | None) -> str:
+    cached = _cached_jwt(key_id)
+    if cached:
+        return cached
+    if not private_key:
+        raise SystemExit("No cached JWT and no usable ASC private key")
     now = int(time.time())
     payload = {
-        "iss": creds["APP_STORE_CONNECT_ISSUER_ID"],
+        "iss": issuer_id,
         "iat": now,
         "exp": now + 16 * 60,
         "aud": "appstoreconnect-v1",
     }
-    return jwt.encode(
+    token = jwt.encode(
         payload,
-        creds["APP_STORE_CONNECT_PRIVATE_KEY"],
+        private_key,
         algorithm="ES256",
-        headers={"kid": creds["APP_STORE_CONNECT_KEY_IDENTIFIER"]},
+        headers={"kid": key_id},
     )
+    return token if isinstance(token, str) else token.decode("ascii")
 
 
 def _request(token: str, method: str, path: str, body: dict | None = None) -> dict:
@@ -202,9 +321,22 @@ def main() -> int:
     creds = _require_env(
         "APP_STORE_CONNECT_ISSUER_ID",
         "APP_STORE_CONNECT_KEY_IDENTIFIER",
-        "APP_STORE_CONNECT_PRIVATE_KEY",
     )
-    token = _token(creds)
+    key_id = creds["APP_STORE_CONNECT_KEY_IDENTIFIER"]
+    private_key: str | None = None
+    try:
+        private_key = _load_private_key(
+            key_id,
+            os.environ.get("APP_STORE_CONNECT_PRIVATE_KEY"),
+        )
+    except SystemExit as exc:
+        # Still OK if an earlier app-store-connect step cached a JWT.
+        print(f"Private key load note: {exc}")
+    token = _token(
+        creds["APP_STORE_CONNECT_ISSUER_ID"],
+        key_id,
+        private_key,
+    )
 
     print(f"Ensuring TestFlight Test Info for app {app_id}")
     print(f"FeedbackEmail={feedback_email}")
