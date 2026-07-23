@@ -147,12 +147,45 @@ const String passwordResetAcknowledgement =
     'If an account matches the information provided, password reset instructions will be sent.';
 
 class AuthRepository {
-  AuthRepository(this._api, {LaravelApiClient? laravel}) : _laravel = laravel;
+  AuthRepository(
+    this._api, {
+    LaravelApiClient? laravel,
+    Dio? portalClient,
+  })  : _laravel = laravel,
+        _portalClient = portalClient;
 
   final ApiClient _api;
   final LaravelApiClient? _laravel;
+  /// Optional override for portal-origin calls (password-reset confirm).
+  /// Production uses [AppConfig.portalRoot] (`https://mkgtaxconsultants.com`).
+  final Dio? _portalClient;
+
+  /// Test-only override for [AppConfig.usesLaravelAuth] (compile-time define).
+  @visibleForTesting
+  static bool Function()? debugUsesLaravelAuth;
+
+  bool get _usesLaravelAuth =>
+      debugUsesLaravelAuth?.call() ?? AppConfig.usesLaravelAuth;
+
   static const _tokenKey = 'mkg_sanctum_token';
   static const _storage = FlutterSecureStorage();
+
+  Dio _portalDio() {
+    return _portalClient ??
+        Dio(
+          BaseOptions(
+            baseUrl: AppConfig.portalRoot,
+            connectTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 30),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            // Mirror ApiClient: surface 5xx as DioException.badResponse.
+            validateStatus: (code) => code != null && code < 500,
+          ),
+        );
+  }
 
   Future<void> _persistToken(String? token) async {
     if (token == null || token.isEmpty) {
@@ -175,7 +208,7 @@ class AuthRepository {
   }
 
   Future<PortalUser?> currentUser() async {
-    if (AppConfig.usesLaravelAuth) {
+    if (_usesLaravelAuth) {
       await _readToken();
       final res = await _api.get<Map<String, dynamic>>('/me');
       if (res.statusCode == 401 || res.data == null) return null;
@@ -206,7 +239,7 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    if (AppConfig.usesLaravelAuth) {
+    if (_usesLaravelAuth) {
       final res = await _api.post<Map<String, dynamic>>(
         '/auth/login',
         data: {
@@ -271,7 +304,7 @@ class AuthRepository {
     required String phone,
     String? referralCode,
   }) async {
-    if (AppConfig.usesLaravelAuth) {
+    if (_usesLaravelAuth) {
       throw AuthException(registrationUnavailableMessage);
     }
 
@@ -303,7 +336,7 @@ class AuthRepository {
   /// UI always shows [passwordResetAcknowledgement] and the same navigation.
   Future<void> requestPasswordReset(String email) async {
     try {
-      if (AppConfig.usesLaravelAuth) {
+      if (_usesLaravelAuth) {
         // Enumeration-safe façade → mkgtaxconsultants.com portal via mobile API.
         await _api.post<Map<String, dynamic>>(
           '/auth/password-reset/request',
@@ -326,32 +359,58 @@ class AuthRepository {
   }
 
   /// Step 3 of web-parity reset: exchange email + 6-digit code for a new password.
+  ///
+  /// Production Sanctum builds (`usesLaravelAuth`) complete reset against the
+  /// portal origin that issued the OTP (`AppConfig.portalRoot` →
+  /// `POST /api/reset-password`). Request still goes through Laravel S2S
+  /// (`/auth/password-reset/request`); confirm must hit the same portal OTP
+  /// store. Cookie-portal builds keep using `_api` on the portal base URL.
   Future<void> resetPassword({
     required String email,
     required String code,
     required String newPassword,
   }) async {
-    if (AppConfig.usesLaravelAuth) {
+    final payload = {
+      'email': email.trim(),
+      'code': code.trim(),
+      'newPassword': newPassword,
+    };
+    try {
+      final Response<Map<String, dynamic>> res;
+      if (_usesLaravelAuth) {
+        res = await _portalDio().post<Map<String, dynamic>>(
+          '/api/reset-password',
+          data: payload,
+        );
+      } else {
+        res = await _api.post<Map<String, dynamic>>(
+          '/api/reset-password',
+          data: payload,
+        );
+      }
+      if ((res.statusCode ?? 500) >= 400) {
+        throw AuthException(
+          _authErrorMessage(
+            res.statusCode,
+            'That code is invalid or has expired. Please request a new one.',
+          ),
+        );
+      }
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
       throw AuthException(
-        'Password reset is not available in this testing version. Please contact MKG Tax Consultants for assistance.',
+        _authErrorMessage(
+          e.response?.statusCode,
+          'That code is invalid or has expired. Please request a new one.',
+        ),
       );
-    }
-    final res = await _api.post<Map<String, dynamic>>(
-      '/api/reset-password',
-      data: {
-        'email': email.trim(),
-        'code': code.trim(),
-        'newPassword': newPassword,
-      },
-    );
-    if ((res.statusCode ?? 500) >= 400) {
-      throw AuthException(_authErrorMessage(res.statusCode, 'That code is invalid or has expired. Please request a new one.'));
     }
   }
 
   Future<void> logout() async {
     try {
-      if (AppConfig.usesLaravelAuth) {
+      if (_usesLaravelAuth) {
         await _api.post('/auth/logout');
       } else {
         await _api.post('/api/logout');
@@ -364,7 +423,7 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>?> currentTaxReturn() async {
-    if (AppConfig.usesLaravelAuth) return null;
+    if (_usesLaravelAuth) return null;
     final res = await _api.get<dynamic>('/api/tax-returns/current');
     if (res.statusCode != 200 || res.data == null) return null;
     if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
@@ -373,7 +432,7 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
-    if (AppConfig.usesLaravelAuth) {
+    if (_usesLaravelAuth) {
       throw AuthException(
         'Profile updates are not available in this testing version. Please contact MKG Tax Consultants for assistance.',
       );
@@ -393,7 +452,7 @@ class AuthRepository {
     required String state,
     required String zipCode,
   }) async {
-    if (AppConfig.usesLaravelAuth) {
+    if (_usesLaravelAuth) {
       return _submitLaravelProfile(
         phone: phone,
         address: address,
