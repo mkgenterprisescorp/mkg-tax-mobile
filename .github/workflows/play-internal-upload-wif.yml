@@ -21,7 +21,7 @@ on:
       release_name:
         description: "Play Console release name"
         required: true
-        default: "MKG Tax Consultants Pro Filer 1.0.0 (32) — Internal"
+        default: "Pro Filer 1.0.0 (32) — Internal"
       release_status:
         description: "Play release status: draft (safe) or completed (testers)"
         required: true
@@ -121,6 +121,8 @@ jobs:
               sys.exit("Refusing non-internal track")
           if release_status not in ("draft", "completed"):
               sys.exit("release_status must be draft or completed")
+          if len(release_name) > 50:
+              sys.exit(f"release_name longer than Play max 50 chars: len={len(release_name)}")
 
           def api(method, url, data=None, headers=None, raw=False):
               hdrs = {
