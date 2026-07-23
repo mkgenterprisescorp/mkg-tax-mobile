@@ -132,6 +132,13 @@
 - Build: `flutter build web --release` with staging dart-defines (see README / `docs/toolchain-versions.md`). Local: `python3 -m http.server 8088 -d build/web` then `/` and `/#/banking`.
 - Manual CI: copy `docs/staging-web.workflow.yml.example` → `.github/workflows/staging-web.yml` (PAT needs `workflow` scope). Also see Vercel web deploy docs under `docs/deployment/` / `docs/vercel-web-deploy.md` if using that path.
 
+### Codemagic iOS
+- Secret `CODEMAGIC_API_TOKEN` → `x-auth-token` for `https://api.codemagic.io`.
+- App id `6a61fd1171826706ef5d191c`. SoT: root `codemagic.yaml` → `ios_signed_prepare` (no upload). Docs: `docs/ios-codemagic-testflight.md`.
+- Signing: ASC `fetch-signing-files` + group `ios_appstore` must include `CERTIFICATE_PRIVATE_KEY` (and preferably `APP_STORE_APPLE_ID`). Do not use `environment.ios_signing` profile matching (failed builds `6a621b81` / `6a621d1a`).
+- Start: `POST /builds` with `workflowId=ios_signed_prepare`, `branch=main`. Floor build **33**. TestFlight HOLD.
+- Interim UI Workflow Editor IPA (TF submit off): workflow id `6a61fd1171826706ef5d191b`; reference `6a620ddaf44974f6fb95f192`.
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
