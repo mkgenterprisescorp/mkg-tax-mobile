@@ -1,4 +1,4 @@
-package com.mkgenterprises.mkg_tax_mobile
+package com.mkgtaxconsultants.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
