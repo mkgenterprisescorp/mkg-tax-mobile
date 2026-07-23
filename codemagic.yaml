@@ -68,9 +68,11 @@ workflows:
           set -euo pipefail
           test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
           if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
-            echo "CERTIFICATE_PRIVATE_KEY is not set in Codemagic group ios_appstore." >&2
-            echo "Add the Apple Distribution certificate RSA private key (PEM) as an encrypted" >&2
-            echo "variable named CERTIFICATE_PRIVATE_KEY. Do not commit or print the key." >&2
+            echo "CERTIFICATE_PRIVATE_KEY is not available to this yaml workflow." >&2
+            echo "Workflow Editor (Default Workflow) variables are NOT injected into codemagic.yaml builds." >&2
+            echo "Add it under App settings → Environment variables as encrypted variable" >&2
+            echo "CERTIFICATE_PRIVATE_KEY in group ios_appstore (referenced by this workflow)." >&2
+            echo "Do not commit or print the key." >&2
             exit 1
           fi
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
