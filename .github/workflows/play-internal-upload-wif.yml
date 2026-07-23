@@ -147,6 +147,7 @@ jobs:
               except urllib.error.HTTPError as e:
                   err = e.read().decode()
                   print("HTTP", e.code, url, err[:2000], file=sys.stderr)
+                  e.play_body = err
                   raise
 
           base = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}"
@@ -175,9 +176,9 @@ jobs:
               if int(bundle.get("versionCode", -1)) != version_code:
                   sys.exit(f"versionCode mismatch uploaded={bundle.get('versionCode')} expected={version_code}")
           except Exception as e:
-              msg = str(e)
+              body = getattr(e, "play_body", "") or str(e)
               # Version already on Play — update track/release metadata only.
-              if "Version code" in msg and "already been used" in msg:
+              if "already been used" in body or "Version code" in body and "already" in body:
                   print("BUNDLE_ALREADY_PRESENT versionCode=", version_code)
               else:
                   raise
