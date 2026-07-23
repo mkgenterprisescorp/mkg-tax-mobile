@@ -134,11 +134,11 @@
 
 ### Codemagic iOS
 - Secret `CODEMAGIC_API_TOKEN` → `x-auth-token` for `https://api.codemagic.io` (do not rotate for prepare runs).
-- App id `6a61fd1171826706ef5d191c`. SoT: root `codemagic.yaml` → `ios_signed_prepare` only (no `publishing`, no TestFlight). Docs: `docs/ios-codemagic-testflight.md`.
-- Integration label: **`Codemagic CI`**. ASC app id `6793948043` / bundle `com.mkgenterprises.mkgTaxMobile`. `APP_STORE_APPLE_ID` at app level.
+- App id `6a61fd1171826706ef5d191c`. SoT: root `codemagic.yaml` → `ios_signed_prepare` (no upload) + `ios_testflight` (TestFlight only; `submit_to_app_store: false`). Docs: `docs/ios-codemagic-testflight.md`.
+- Integration label: **`Codemagic CI`**. ASC app id `6793948043` / bundle `com.mkgenterprises.mkgTaxMobile`.
 - Signing: automatic ASC sequence — `keychain initialize` → `fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create` → `keychain add-certificates` → `xcode-project use-profiles --project ios/Runner.xcodeproj`. No `environment.ios_signing`.
-- Codemagic **Environment variables** group `ios_appstore` must include encrypted **`CERTIFICATE_PRIVATE_KEY`** (Distribution cert PEM). Workflow Editor / Default Workflow vars are not available to yaml (`6a624dbf…` saw empty key). Never commit or print the key.
-- Start: `POST /builds` with `workflowId=ios_signed_prepare`, `branch=main`. Floor build **33**. TestFlight HOLD.
+- Codemagic **Environment variables** group `ios_appstore` must include encrypted **`CERTIFICATE_PRIVATE_KEY`** + `APP_STORE_APPLE_ID`. Workflow Editor vars are not available to yaml. Never commit or print the key.
+- Prepare: `POST /builds` `workflowId=ios_signed_prepare`. TestFlight (after approval): `workflowId=ios_testflight`. Floor build **33**. Never App Store production from these workflows.
 
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
