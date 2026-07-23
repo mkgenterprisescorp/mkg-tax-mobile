@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -226,37 +227,70 @@ class TaxYearRepository {
     if (_api.bearerToken == null) {
       throw StateError('Please sign in again to open your tax organizer.');
     }
-    final res = await _api.post<Map<String, dynamic>>(
-      '/api/v1/entities/$entityId/tax-years/activate',
-      data: {'tax_year': taxYear},
+    // Activate embeds organizer + tasks; staging Neon often needs > default timeouts.
+    final writeOptions = Options(
+      sendTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
     );
-    final code = res.statusCode ?? 500;
-    if (code >= 400 || res.data == null) {
-      throw StateError(_activateFailureMessage(code));
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final res = await _api.post<Map<String, dynamic>>(
+          '/api/v1/entities/$entityId/tax-years/activate',
+          data: {'tax_year': taxYear},
+          options: writeOptions,
+        );
+        final code = res.statusCode ?? 500;
+        if (code >= 400 || res.data == null) {
+          throw StateError(_activateFailureMessage(code));
+        }
+        final data = res.data!['data'];
+        if (data is! Map) {
+          throw StateError('We’re unable to open your tax organizer right now. Please try again.');
+        }
+        final map = Map<String, dynamic>.from(data);
+        final workspace = TaxYearWorkspace.fromJson(map);
+        if ((workspace.workspaceId ?? '').isEmpty) {
+          throw StateError('No tax-year workspace. Select a year and try again.');
+        }
+        final organizer = map['organizer'] is Map
+            ? Map<String, dynamic>.from(map['organizer'] as Map)
+            : null;
+        final tasks = (map['tasks'] as List?)
+                ?.whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList() ??
+            const <Map<String, dynamic>>[];
+        return WorkspaceActivation(
+          workspace: workspace,
+          tasks: tasks,
+          organizer: organizer,
+          tasksEmbedded: map.containsKey('tasks'),
+        );
+      } on DioException catch (e) {
+        lastError = e;
+        final status = e.response?.statusCode;
+        final retryable = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            status == 502 ||
+            status == 503 ||
+            status == 504;
+        if (!retryable || attempt >= 1) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      } on StateError catch (e) {
+        lastError = e;
+        // Retry once on generic open failures (transient upstream).
+        if (attempt >= 1 || !e.message.contains('unable to open your tax organizer')) {
+          rethrow;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
     }
-    final data = res.data!['data'];
-    if (data is! Map) {
-      throw StateError('We’re unable to open your tax organizer right now. Please try again.');
-    }
-    final map = Map<String, dynamic>.from(data);
-    final workspace = TaxYearWorkspace.fromJson(map);
-    if ((workspace.workspaceId ?? '').isEmpty) {
-      throw StateError('No tax-year workspace. Select a year and try again.');
-    }
-    final organizer = map['organizer'] is Map
-        ? Map<String, dynamic>.from(map['organizer'] as Map)
-        : null;
-    final tasks = (map['tasks'] as List?)
-            ?.whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList() ??
-        const <Map<String, dynamic>>[];
-    return WorkspaceActivation(
-      workspace: workspace,
-      tasks: tasks,
-      organizer: organizer,
-      tasksEmbedded: map.containsKey('tasks'),
-    );
+    final err = lastError;
+    if (err != null) throw err;
+    throw StateError('We’re unable to open your tax organizer right now. Please try again.');
   }
 
   static String _activateFailureMessage(int statusCode) {
