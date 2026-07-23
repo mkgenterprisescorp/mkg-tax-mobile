@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,8 @@ import 'core/localization/locale_controller.dart';
 import 'core/network/api_client.dart';
 import 'core/network/laravel_api_client.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/sync_models.dart';
+import 'core/sync/sync_providers.dart';
 import 'core/theme/mkg_theme.dart';
 import 'features/auth/data/auth_repository.dart';
 
@@ -79,13 +83,29 @@ class MkgTaxApp extends ConsumerStatefulWidget {
   ConsumerState<MkgTaxApp> createState() => _MkgTaxAppState();
 }
 
-class _MkgTaxAppState extends ConsumerState<MkgTaxApp> {
+class _MkgTaxAppState extends ConsumerState<MkgTaxApp> with WidgetsBindingObserver {
   GoRouter? _router;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(() => ref.read(authProvider.notifier).restoreSession());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (ref.read(authProvider).user == null) return;
+    unawaited(
+      ref.read(syncCoordinatorProvider).pull(reason: 'resume').catchError((_) => SyncPullResult.empty),
+    );
   }
 
   @override

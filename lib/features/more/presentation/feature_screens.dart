@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,9 @@ import '../../../core/api/portal_repository.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/localization/locale_controller.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/sync/sync_conflict_screen.dart';
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_providers.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -989,6 +994,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await ref.read(portalRepositoryProvider).saveSsn(digits);
       }
       await ref.read(authProvider.notifier).setUser(user);
+      unawaited(
+        ref.read(syncCoordinatorProvider).notifyLocalWriteSucceeded(reason: 'profile_write').catchError(
+              (_) => SyncPullResult.empty,
+            ),
+      );
       if (mounted) {
         final ssnNote = AppConfig.usesLaravelAuth && digits.length == 9
             ? ' Enter SSN in Tax Organizer / Documents when requested — it is not stored from this screen.'
@@ -996,6 +1006,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profile submitted for review.$ssnNote')),
         );
+      }
+    } on SyncConflictException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      final action = await Navigator.of(context).push<SyncConflictResolution>(
+        MaterialPageRoute(builder: (_) => SyncConflictScreen(conflict: e.conflict)),
+      );
+      if (!mounted) return;
+      if (action == SyncConflictResolution.retryWithServerVersion) {
+        await _submitKyc();
+      } else if (action == SyncConflictResolution.keepServer) {
+        await _hydrateFromLaravelProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Server values kept. Review your profile before submitting again.')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

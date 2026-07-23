@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_error_mapper.dart';
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_providers.dart';
 import '../../../core/tax_year/tax_year_repository.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
@@ -379,6 +381,11 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
             );
       }
       if (!mounted) return;
+      unawaited(
+        ref.read(syncCoordinatorProvider).notifyLocalWriteSucceeded(reason: 'organizer_write').catchError(
+              (_) => SyncPullResult.empty,
+            ),
+      );
       // Clear only keys we attempted; keep anything marked while save was in flight.
       _dirtySectionKeys.removeAll(dirtySnapshot);
       // Silent autosave: keep a warm snapshot but merge the sections we just
