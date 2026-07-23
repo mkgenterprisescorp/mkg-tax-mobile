@@ -135,8 +135,8 @@
 
 ### Mobile login / Play Internal testers
 - Signup is **disabled** on Sanctum production builds (`usesLaravelAuth` / `MOBILE_REGISTRATION_ENABLED=false`).
-- Login requires portal S2S (`FINANCEMKGTAXPRO_*` ↔ portal `MOBILE_SERVICE_CLIENT_*`). **Resolved 2026-07-23:** S2S matrix 10/10 (identity assertion minting + durable nonce active; no whitespace_credentials/503/504). Wrong password returns `invalid_credentials` via bridge.
-- Designated testers: Marsh `mkgtax@gmail.com`, Erin `erin.mkgtax@gmail.com` (must be portal **client** users: active + approved + email verified; TOTP off or OTP UI required).
+- Login requires portal S2S (`FINANCEMKGTAXPRO_*` ↔ portal `MOBILE_SERVICE_CLIENT_*`). **Resolved 2026-07-23:** S2S matrix 10/10; durable nonce active; identity assertion minting works.
+- Testers: `mkgtax@gmail.com`, `erin.mkgtax@gmail.com`. Reset via portal S2S `POST /internal/mobile/v1/ops/reset-tester-passwords` (allowlisted). Password for agents: Cursor secret `ADMIN_NEW_PASSWORD`. Login check: `POST /api/v1/auth/login` → 200 + token (verified).
 
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
