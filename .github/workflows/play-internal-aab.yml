@@ -116,7 +116,7 @@ jobs:
             --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com \
             --dart-define=WEB_BASE_URL=https://mkgtaxconsultants.com \
             --dart-define=APP_ENV=production \
-            --dart-define=APP_NAME=MKG Tax Consultants Pro Filer
+            --dart-define="APP_NAME=MKG Tax Consultants Pro Filer"
 
       - name: Verify AAB + merged manifest + signing
         run: |
