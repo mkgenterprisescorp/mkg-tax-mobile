@@ -1,0 +1,105 @@
+# EXAMPLE ONLY — not loaded by Codemagic.
+# Promote into root codemagic.yaml under `workflows:` only after:
+#   1. ios_signed_prepare validates on main
+#   2. Owner gives explicit TestFlight upload approval
+#
+# Keep submit_to_app_store: false. Bundle ID must remain
+# com.mkgenterprises.mkgTaxMobile. Integration label must match the existing
+# Developer Portal key (same as ios_signed_prepare).
+
+# ios_testflight:
+#   name: iOS TestFlight upload (approval required)
+#   instance_type: mac_mini_m2
+#   max_build_duration: 120
+#   triggering:
+#     events: []
+#   integrations:
+#     app_store_connect: Codemagic CI
+#   environment:
+#     groups:
+#       - ios_appstore
+#     flutter: "3.44.6"
+#     xcode: "16.4"
+#     cocoapods: default
+#     ios_signing:
+#       distribution_type: app_store
+#       bundle_identifier: com.mkgenterprises.mkgTaxMobile
+#     vars:
+#       APP_ENV: production
+#       API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
+#       BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
+#       IOS_BUILD_NUMBER_FLOOR: "33"
+#   scripts:
+#     - name: Get Flutter packages
+#       script: |
+#         flutter pub get
+#     - name: Flutter analyze
+#       script: |
+#         flutter analyze --no-fatal-infos
+#     - name: Flutter tests
+#       script: |
+#         flutter test --concurrency=1
+#     - name: Set up code signing (App Store / TestFlight Internal Only)
+#       script: |
+#         xcode-project use-profiles \
+#           --custom-export-options='{"testFlightInternalTestingOnly": true}'
+#     - name: Resolve next iOS build number
+#       script: |
+#         set -euo pipefail
+#         if [ -z "${APP_STORE_APPLE_ID:-}" ]; then
+#           echo "APP_STORE_APPLE_ID missing from encrypted group ios_appstore" >&2
+#           exit 1
+#         fi
+#         LATEST="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
+#         if [ -z "${LATEST}" ] || ! [[ "${LATEST}" =~ ^[0-9]+$ ]]; then
+#           LATEST="$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
+#         fi
+#         if [ -z "${LATEST}" ] || ! [[ "${LATEST}" =~ ^[0-9]+$ ]]; then
+#           LATEST=0
+#         fi
+#         CANDIDATE=$((LATEST + 1))
+#         FLOOR="${IOS_BUILD_NUMBER_FLOOR}"
+#         if [ "${CANDIDATE}" -lt "${FLOOR}" ]; then
+#           BUILD_NUMBER="${FLOOR}"
+#         else
+#           BUILD_NUMBER="${CANDIDATE}"
+#         fi
+#         echo "Resolved BUILD_NUMBER=${BUILD_NUMBER} (latest=${LATEST}, floor=${FLOOR})"
+#         echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$CM_ENV"
+#     - name: Build signed IPA (production API)
+#       script: |
+#         set -euo pipefail
+#         flutter build ipa --release \
+#           --build-number="$BUILD_NUMBER" \
+#           --dart-define=APP_ENV=production \
+#           --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+#           --export-options-plist=/Users/builder/export_options.plist
+#     - name: Inspect IPA (bundle ID + distribution profile)
+#       script: |
+#         set -euo pipefail
+#         IPA="$(find build/ios/ipa -name '*.ipa' | head -n 1)"
+#         test -n "${IPA}"
+#         shasum -a 256 "${IPA}" | tee /tmp/ipa.sha256
+#         mkdir -p /tmp/ipa_inspect
+#         unzip -q -o "${IPA}" -d /tmp/ipa_inspect
+#         APP="$(find /tmp/ipa_inspect/Payload -maxdepth 1 -name '*.app' -type d | head -n 1)"
+#         PLIST="${APP}/Info.plist"
+#         BID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${PLIST}")"
+#         test "${BID}" = "${BUNDLE_ID}"
+#         codesign -dvvv "${APP}" 2>&1 | tee /tmp/codesign.txt | grep -E 'Authority=|TeamIdentifier=|Identifier=' || true
+#         grep -q 'Authority=Apple Distribution' /tmp/codesign.txt
+#         if grep -qE 'Authority=Apple Development|Authority=iPhone Developer' /tmp/codesign.txt; then
+#           echo "Development signing identity is not allowed" >&2
+#           exit 1
+#         fi
+#         echo "IPA inspection passed — publishing to TestFlight only."
+#   artifacts:
+#     - build/ios/ipa/*.ipa
+#     - /tmp/xcodebuild_logs/*.log
+#     - /tmp/ipa.sha256
+#     - /tmp/codesign.txt
+#   publishing:
+#     app_store_connect:
+#       auth: integration
+#       submit_to_testflight: true
+#       submit_to_app_store: false
