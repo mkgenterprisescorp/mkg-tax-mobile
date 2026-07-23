@@ -1,0 +1,278 @@
+name: Play Internal Upload (WIF)
+
+# Uploads an existing private AAB artifact to Google Play Internal testing only.
+# Authenticates via Workload Identity Federation (no JSON key in secrets).
+# Does NOT promote to closed/open/production.
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: "Actions run ID that produced mkg-tax-pro-filer-play-aab"
+        required: true
+        default: "29987103756"
+      expected_commit:
+        description: "Expected git commit SHA for BUILD_META.txt"
+        required: true
+        default: "36f1e65de71dedd70b5d2a723a0627d3526390e5"
+      expected_version_code:
+        description: "Expected Android versionCode"
+        required: true
+        default: "32"
+      release_name:
+        description: "Play Console release name"
+        required: true
+        default: "MKG Tax Consultants Pro Filer 1.0.0 (32) — Internal"
+      release_status:
+        description: "Play release status: draft (safe) or completed (testers)"
+        required: true
+        default: "draft"
+
+env:
+  PACKAGE_NAME: "com.mkgtaxconsultants.mobile"
+  ARTIFACT_NAME: "mkg-tax-pro-filer-play-aab"
+  TRACK: "internal"
+
+jobs:
+  upload-internal:
+    name: Upload AAB to Internal testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: android-google-play
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify WIF environment variables
+        run: |
+          set -euo pipefail
+          test -n "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
+          test -n "${{ vars.GCP_SERVICE_ACCOUNT }}"
+          echo "WIF provider configured (length=${#PROVIDER})"
+          echo "Service account configured (length=${#SA})"
+        env:
+          PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SA: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+
+      - name: Download private AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.artifact_run_id }}
+          path: ./aab
+
+      - name: Confirm package / version / commit
+        id: meta
+        run: |
+          set -euo pipefail
+          test -f ./aab/app-release.aab
+          test -f ./aab/BUILD_META.txt
+          cat ./aab/BUILD_META.txt
+          PKG=$(awk -F= '/^package=/{print $2}' ./aab/BUILD_META.txt)
+          VC=$(awk -F= '/^versionCode=/{print $2}' ./aab/BUILD_META.txt)
+          VN=$(awk -F= '/^versionName=/{print $2}' ./aab/BUILD_META.txt)
+          COMMIT=$(awk -F= '/^commit=/{print $2}' ./aab/BUILD_META.txt)
+          test "$PKG" = "${PACKAGE_NAME}"
+          test "$VC" = "${{ inputs.expected_version_code }}"
+          test "$COMMIT" = "${{ inputs.expected_commit }}"
+          AAB_SHA=$(sha256sum ./aab/app-release.aab | awk '{print $1}')
+          echo "package=$PKG" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VC" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VN" >> "$GITHUB_OUTPUT"
+          echo "aab_sha256=$AAB_SHA" >> "$GITHUB_OUTPUT"
+          echo "CONFIRMED package=$PKG versionCode=$VC commit=$COMMIT sha=$AAB_SHA"
+
+      - name: Upload to Play Internal testing only
+        id: upload
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          AAB_PATH: ./aab/app-release.aab
+          RELEASE_NAME: ${{ inputs.release_name }}
+          RELEASE_STATUS: ${{ inputs.release_status }}
+          VERSION_CODE: ${{ inputs.expected_version_code }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, urllib.parse, urllib.request
+
+          token = os.environ["ACCESS_TOKEN"]
+          package = os.environ["PACKAGE_NAME"]
+          track = os.environ["TRACK"]
+          aab_path = os.environ["AAB_PATH"]
+          release_name = os.environ["RELEASE_NAME"]
+          release_status = os.environ["RELEASE_STATUS"]
+          version_code = int(os.environ["VERSION_CODE"])
+
+          if track != "internal":
+              sys.exit("Refusing non-internal track")
+          if release_status not in ("draft", "completed"):
+              sys.exit("release_status must be draft or completed")
+
+          def api(method, url, data=None, headers=None, raw=False):
+              hdrs = {
+                  "Authorization": f"Bearer {token}",
+                  "User-Agent": "mkg-play-internal-upload",
+              }
+              if headers:
+                  hdrs.update(headers)
+              body = None
+              if data is not None and not raw:
+                  body = json.dumps(data).encode()
+                  hdrs["Content-Type"] = "application/json; charset=utf-8"
+              elif data is not None and raw:
+                  body = data
+              req = urllib.request.Request(url, data=body, method=method, headers=hdrs)
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      raw_body = resp.read()
+                      if not raw_body:
+                          return resp.status, {}
+                      return resp.status, json.loads(raw_body.decode())
+              except urllib.error.HTTPError as e:
+                  err = e.read().decode()
+                  print("HTTP", e.code, url, err[:2000], file=sys.stderr)
+                  raise
+
+          base = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}"
+
+          # 1) Create edit
+          status, edit = api("POST", f"{base}/edits", data={})
+          edit_id = edit["id"]
+          print("edit_id=", edit_id)
+
+          # 2) Upload bundle (media upload)
+          upload_url = (
+              f"https://androidpublisher.googleapis.com/upload/androidpublisher/v3/"
+              f"applications/{package}/edits/{edit_id}/bundles?uploadType=media"
+          )
+          with open(aab_path, "rb") as f:
+              aab_bytes = f.read()
+          status, bundle = api(
+              "POST",
+              upload_url,
+              data=aab_bytes,
+              headers={"Content-Type": "application/octet-stream"},
+              raw=True,
+          )
+          print("bundle_versionCode=", bundle.get("versionCode"), "sha1=", bundle.get("sha1"))
+          if int(bundle.get("versionCode", -1)) != version_code:
+              sys.exit(f"versionCode mismatch uploaded={bundle.get('versionCode')} expected={version_code}")
+
+          notes = (
+              "Internal testing — MKG Tax Consultants Pro Filer 1.0.0 (32)\n\n"
+              "Please verify:\n"
+              "1. Login with a valid client account (Sanctum) against production API "
+              "https://app.mkgtaxconsultants.com/api/v1\n"
+              "2. Client synchronization: tax-year activate / workspace load after login\n"
+              "3. Organizer: open return, edit an allowlisted field, save / autosave\n"
+              "4. Estimates: run federal estimate and confirm server-authored results "
+              "(no on-device tax math)\n"
+              "5. Tessa: send a short assist message; confirm response (voice remains off)\n"
+              "6. Logout: session ends; re-open requires login\n"
+          )
+
+          # 3) Assign to internal track only
+          track_body = {
+              "track": track,
+              "releases": [
+                  {
+                      "name": release_name,
+                      "versionCodes": [str(version_code)],
+                      "status": release_status,
+                      "releaseNotes": [
+                          {"language": "en-US", "text": notes[:500]}
+                      ],
+                  }
+              ],
+          }
+          status, track_resp = api(
+              "PUT",
+              f"{base}/edits/{edit_id}/tracks/{track}",
+              data=track_body,
+          )
+          print("track_update_status=", status)
+          print("track=", json.dumps(track_resp)[:1500])
+
+          # 4) Commit edit (may fail if Play requires declarations — surface clearly)
+          try:
+              status, committed = api("POST", f"{base}/edits/{edit_id}:commit")
+              print("commit_ok=", True)
+              print("committed_edit=", json.dumps(committed)[:1000])
+              open(os.environ["GITHUB_OUTPUT"], "a").write("commit_ok=true\n")
+          except Exception as e:
+              print("COMMIT_BLOCKED", str(e)[:1500])
+              open(os.environ["GITHUB_OUTPUT"], "a").write("commit_ok=false\n")
+              # Leave edit uncommitted for Console review; do not raise if draft path preferred
+              if release_status == "completed":
+                  raise
+              print("Draft track update left in uncommitted edit; resolve declarations in Play Console.")
+
+          # 5) Fetch track + testers for reporting
+          try:
+              status, track_info = api("GET", f"{base}/edits/{edit_id}/tracks/{track}")
+          except Exception:
+              # After commit, edit may be invalid; create a new read via tracks.get without edit if possible
+              track_info = track_resp
+
+          # Testers opt-in is under the app's testing → internal testing page
+          opt_in = f"https://play.google.com/apps/internaltest/{package}"
+          # Also list testers endpoint if available
+          testers_url = ""
+          try:
+              # Use published track state via new edit for opt-in link discovery is limited via API;
+              # Play Console deep link:
+              testers_url = (
+                  f"https://play.google.com/console/u/0/developers/app/tracks/internal-testing"
+              )
+          except Exception:
+              pass
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"edit_id={edit_id}\n")
+              out.write(f"release_status={release_status}\n")
+              out.write(f"opt_in_hint={opt_in}\n")
+
+          summary = {
+              "package": package,
+              "track": track,
+              "versionCode": version_code,
+              "releaseName": release_name,
+              "releaseStatus": release_status,
+              "editId": edit_id,
+              "optInHint": opt_in,
+              "consoleInternalTesting": "https://play.google.com/console/developers",
+          }
+          print("UPLOAD_RESULT", json.dumps(summary))
+          PY
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Play Internal Upload"
+            echo "- package: \`${{ env.PACKAGE_NAME }}\`"
+            echo "- versionCode: \`${{ inputs.expected_version_code }}\`"
+            echo "- track: \`internal\` only"
+            echo "- release name: \`${{ inputs.release_name }}\`"
+            echo "- artifact run: \`${{ inputs.artifact_run_id }}\`"
+            echo "- expected commit: \`${{ inputs.expected_commit }}\`"
+            echo "- AAB SHA-256: \`${{ steps.meta.outputs.aab_sha256 }}\`"
+            echo "- release status input: \`${{ inputs.release_status }}\`"
+            echo "- commit_ok: \`${{ steps.upload.outputs.commit_ok }}\`"
+            echo "- opt-in hint: \`${{ steps.upload.outputs.opt_in_hint }}\`"
+            echo "- Production upload: **not performed**"
+          } >> "$GITHUB_STEP_SUMMARY"
