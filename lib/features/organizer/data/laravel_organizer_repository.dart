@@ -105,11 +105,23 @@ class LaravelOrganizerRepository {
         'entity_form' => businessFormLabels[prep] ?? 'Entity Form',
         _ => key,
       };
+      final answers = jsonSafeAnswers(OrganizerSectionMapper.answersForSection(key, data));
+      // Skip scrubbed-empty sections on dirty autosave so a blank Direct Deposit
+      // (or similar) cannot 422 the whole PUT while Schedule E is saving.
+      // Full/manual saves still send empty maps so cleared fields persist once
+      // the API accepts `present` empty answers.
+      if (answers.isEmpty && onlySectionKeys != null) {
+        continue;
+      }
       sections.add({
         'section_key': key,
-        'answers': jsonSafeAnswers(OrganizerSectionMapper.answersForSection(key, data)),
+        'answers': answers,
         'section_complete': isOrganizerStepComplete(stepTitle, data),
       });
+    }
+
+    if (sections.isEmpty) {
+      return {'skipped': true};
     }
 
     return _putSections(
@@ -143,11 +155,15 @@ class LaravelOrganizerRepository {
       }
       return PlatformApi.unwrapMap(res);
     } on DioException catch (e) {
-      // One retry for transient mobile / Neon latency blips.
+      // One retry for transient mobile / Neon latency blips and DO edge 5xx.
+      final status = e.response?.statusCode;
       final retryable = e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionError;
+          e.type == DioExceptionType.connectionError ||
+          status == 502 ||
+          status == 503 ||
+          status == 504;
       if (retryable && attempt < 1) {
         await Future<void>.delayed(const Duration(milliseconds: 600));
         return _putSections(
