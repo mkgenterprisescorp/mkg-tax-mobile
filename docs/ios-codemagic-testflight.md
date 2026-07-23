@@ -51,15 +51,19 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
    `ios_testflight` uses the same App Store export (not Internal Testing Only) so
    `submit_to_testflight: true` can request external TestFlight beta review.
 
-6. **TestFlight Test Information (ASC UI, required for external beta submit):**
+6. **TestFlight Test Information (required for external beta submit):**
 
+   `ios_testflight` runs `scripts/ci/ensure_asc_testflight_test_info.py` before
+   the IPA build so Codemagic post-processing can submit for beta review.
+
+   Defaults (overridable via workflow vars):
+   - Feedback / contact email: `clientservices@mkgenterprisescorp.com`
+   - Contact: Marshawn Govan / `+1-559-412-7248` (public portal phone)
+
+   ASC UI (manual fallback):
    https://appstoreconnect.apple.com/apps/6793948043/testflight/test-info
 
-   Fill before Codemagic post-processing can submit for beta review:
-   - Beta App Information → Feedback Email
-   - Beta App Review Information → First Name, Last Name, Phone Number, Email
-
-   Missing these caused post-processing failure after upload of build 33
+   Missing these previously caused post-processing failure after upload
    (`Complete test information is required to submit … for external testing`).
 
 ## Ordered release steps

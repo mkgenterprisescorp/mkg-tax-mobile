@@ -213,8 +213,14 @@ workflows:
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
-        # Prior TF upload used 33; next external-submit binary must be ≥34.
-        IOS_BUILD_NUMBER_FLOOR: "34"
+        # Prior external-submit attempt used 34; next binary must be ≥35.
+        IOS_BUILD_NUMBER_FLOOR: "35"
+        # ASC TestFlight Test Information (external beta review)
+        TF_FEEDBACK_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_FIRST_NAME: Marshawn
+        TF_CONTACT_LAST_NAME: Govan
+        TF_CONTACT_PHONE: "+1-559-412-7248"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -248,6 +254,10 @@ workflows:
       - name: Set up code signing (App Store / TestFlight)
         script: |
           xcode-project use-profiles --project ios/Runner.xcodeproj
+      - name: Ensure ASC TestFlight Test Information
+        script: |
+          set -euo pipefail
+          python3 scripts/ci/ensure_asc_testflight_test_info.py
       - name: Report signing metadata (no secrets)
         script: |
           set -euo pipefail
@@ -255,6 +265,7 @@ workflows:
           {
             echo "BUNDLE_ID=${BUNDLE_ID}"
             echo "APP_STORE_APPLE_ID=${APP_STORE_APPLE_ID}"
+            echo "TF_FEEDBACK_EMAIL=${TF_FEEDBACK_EMAIL}"
             echo "=== keychain identities (names only) ==="
             security find-identity -v -p codesigning 2>/dev/null \
               | sed -E 's/^[0-9]+\) [A-F0-9]+ /IDENTITY /' || true

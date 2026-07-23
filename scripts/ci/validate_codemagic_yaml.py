@@ -129,6 +129,17 @@ def main() -> int:
         if asc.get("submit_to_app_store") is not False:
             errors.append("ios_testflight must set submit_to_app_store: false")
 
+    tf_scripts = _scripts_blob(tf)
+    if "ensure_asc_testflight_test_info.py" not in tf_scripts:
+        errors.append(
+            "ios_testflight must run scripts/ci/ensure_asc_testflight_test_info.py"
+        )
+    tf_vars = (tf.get("environment") or {}).get("vars") or {}
+    if tf_vars.get("TF_FEEDBACK_EMAIL") != "clientservices@mkgenterprisescorp.com":
+        errors.append(
+            "ios_testflight TF_FEEDBACK_EMAIL must be clientservices@mkgenterprisescorp.com"
+        )
+
     if "submit_to_app_store: true" in text:
         errors.append("submit_to_app_store: true is forbidden")
 
