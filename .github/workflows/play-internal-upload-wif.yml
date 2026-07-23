@@ -17,7 +17,7 @@ on:
       expected_version_code:
         description: "Expected Android versionCode"
         required: true
-        default: "32"
+        default: "38"
       release_name:
         description: "Play Console release name"
         required: true
