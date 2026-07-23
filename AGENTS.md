@@ -132,6 +132,12 @@
 - Build: `flutter build web --release` with staging dart-defines (see README / `docs/toolchain-versions.md`). Local: `python3 -m http.server 8088 -d build/web` then `/` and `/#/banking`.
 - Manual CI: copy `docs/staging-web.workflow.yml.example` → `.github/workflows/staging-web.yml` (PAT needs `workflow` scope). Also see Vercel web deploy docs under `docs/deployment/` / `docs/vercel-web-deploy.md` if using that path.
 
+
+### Mobile login / Play Internal testers
+- Signup is **disabled** on Sanctum production builds (`usesLaravelAuth` / `MOBILE_REGISTRATION_ENABLED=false`).
+- Login requires portal S2S (`FINANCEMKGTAXPRO_*` ↔ portal `MOBILE_SERVICE_CLIENT_*`). If Laravel logs show `[financemkgtaxpro-bridge] ... authenticate ... unauthorized`, fix **duplicate** `MOBILE_SERVICE_CLIENT_ID`/`SECRET` on the DigitalOcean `financemkgtaxpro` app (keep plain ID + first secret only), then retest.
+- Designated testers: Marsh `mkgtax@gmail.com`, Erin `erin.mkgtax@gmail.com` (must be portal **client** users: active + approved + email verified; TOTP off or OTP UI required).
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
