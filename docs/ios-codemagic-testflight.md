@@ -66,6 +66,10 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
    Missing these previously caused post-processing failure after upload
    (`Complete test information is required to submit … for external testing`).
 
+7. **Export compliance:** `ios/Runner/Info.plist` sets
+   `ITSAppUsesNonExemptEncryption=false` (HTTPS/TLS only). Without this, ASC
+   rejects beta review submit with `Build is missing export compliance`.
+
 ## Ordered release steps
 
 1. Confirm integration label `Codemagic CI` + group `ios_appstore`.

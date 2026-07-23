@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Standard HTTPS/TLS only — exempt encryption; required for TestFlight
+	     beta review submit (ASC: "Build is missing export compliance"). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Privacy purpose strings required by App Store Connect (ITMS-90683).
 	     file_picker / document upload paths may reference Photos, Camera, and
 	     Location APIs even when the user only picks tax document files. -->
