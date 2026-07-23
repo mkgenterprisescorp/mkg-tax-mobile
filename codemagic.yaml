@@ -196,18 +196,22 @@ workflows:
             exit 1
           fi
           # Secret / misconfig scan — skip Flutter.framework (engine embeds 127.0.0.1 VM-service strings).
+          # Use grep (rg is not installed on Codemagic macOS images).
           SCAN_ROOTS=("${APP}/Frameworks/App.framework" "${APP}/Info.plist")
+          FORBIDDEN_RE='neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|MOCK_PASSWORD|/internal/mobile|http://app\.mkgtaxconsultants\.com|sk_live_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY'
           for root in "${SCAN_ROOTS[@]}"; do
             [ -e "${root}" ] || continue
-            if rg -a -n -e 'neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|MOCK_PASSWORD|/internal/mobile|http://app\.mkgtaxconsultants\.com|sk_live_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' "${root}"; then
+            if grep -aRE "${FORBIDDEN_RE}" "${root}" >/dev/null 2>&1; then
               echo "Forbidden pattern found inside IPA payload" >&2
+              grep -aRnE "${FORBIDDEN_RE}" "${root}" | head -n 20 >&2 || true
               exit 1
             fi
           done
-          if ! rg -a -q 'app\.mkgtaxconsultants\.com' "${APP}/Frameworks/App.framework" 2>/dev/null; then
+          if ! grep -aR "app.mkgtaxconsultants.com" "${APP}/Frameworks/App.framework" >/dev/null 2>&1; then
             echo "Production API host app.mkgtaxconsultants.com not found in App.framework" >&2
             exit 1
           fi
+          echo "ProductionAPI=https://app.mkgtaxconsultants.com/api/v1"
           echo "IPA inspection passed (no App Store Connect upload in this workflow)."
     artifacts:
       - build/ios/ipa/*.ipa
