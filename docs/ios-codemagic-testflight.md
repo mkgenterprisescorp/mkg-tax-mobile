@@ -30,20 +30,31 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
    Same API key that signed Codemagic build `6a620ddaf44974f6fb95f192`.
 
-2. Application-level encrypted **`APP_STORE_APPLE_ID`**
-   (App Store Connect app record Apple ID for `com.mkgenterprises.mkgTaxMobile` —
-   currently configured as `6793948043`; not the bundle ID string).
-   Group `ios_appstore` may also expose the same variable.
+2. Variable group **`ios_appstore`** (linked to the app) must include:
+
+   | Variable | Notes |
+   | --- | --- |
+   | `APP_STORE_APPLE_ID` | ASC app record id (`6793948043`). Also set as a non-secret fallback in `codemagic.yaml` vars. |
+   | `CERTIFICATE_PRIVATE_KEY` | PEM RSA private key for the Apple Distribution certificate. Required for yaml ASC `fetch-signing-files`. |
 
 3. Manual starts only. No release tags.
+
+4. **Signing model (yaml):** ASC CLI (`app-store-connect fetch-signing-files --type IOS_APP_STORE --create` + `keychain add-certificates` + `xcode-project use-profiles`). Do **not** rely on `environment.ios_signing` distribution_type matching — that failed prepare builds `6a621b81` / `6a621d1a` with “No matching profiles found” before scripts ran (Team Code signing identities were empty/mismatched vs Workflow Editor automatic signing).
 
 ## Ordered release steps
 
 1. Keep prepare PR clean (this path only).
-2. Confirm integration label + `APP_STORE_APPLE_ID`.
+2. Confirm integration label + `ios_appstore` (`CERTIFICATE_PRIVATE_KEY` + `APP_STORE_APPLE_ID`).
 3. Merge prepare PR only after CI / local gates pass.
-4. Start **`ios_signed_prepare`** on `main`.
-5. Validate bundle ID, version/build, Apple Distribution signing, production API,
+4. Start **`ios_signed_prepare`** on `main` (UI or API):
+
+   ```bash
+   curl -H "Content-Type: application/json" -H "x-auth-token: $CODEMAGIC_API_TOKEN" \
+     --data '{"appId":"6a61fd1171826706ef5d191c","workflowId":"ios_signed_prepare","branch":"main"}' \
+     -X POST https://api.codemagic.io/builds
+   ```
+
+5. Validate bundle ID, version/build (≥33 floor), Apple Distribution signing, production API,
    IPA artifact + SHA-256.
 6. **STOP** and report evidence.
 7. Do **not** promote/run TestFlight until explicit approval.

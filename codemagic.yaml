@@ -14,10 +14,16 @@
 #   1. integrations.app_store_connect MUST equal the existing Developer Portal
 #      API key label: "Codemagic CI" (same key that signed build
 #      6a620ddaf44974f6fb95f192).
-#   2. Application-level encrypted variable APP_STORE_APPLE_ID must be set
-#      (numeric App Store Connect app record Apple ID for
-#      com.mkgenterprises.mkgTaxMobile). Group ios_appstore also accepted.
+#   2. Group ios_appstore must expose:
+#        - APP_STORE_APPLE_ID (ASC app record id for this bundle; e.g. 6793948043)
+#        - CERTIFICATE_PRIVATE_KEY (RSA private key for Apple Distribution cert)
+#      APP_STORE_APPLE_ID is also set below as a non-secret fallback.
 #   3. Start builds manually. Do not push release tags.
+#
+# Signing: ASC CLI fetch (same path as Workflow Editor automatic signing).
+# Do NOT use environment.ios_signing distribution_type matching here — that only
+# works after Team → Code signing identities has matching App Store profiles and
+# failed prepare builds 6a621b81 / 6a621d1a with "No matching profiles found".
 #
 # Guardrails: no submit_to_testflight / submit_to_app_store here. Do not change
 # the bundle ID. Password-reset / backend / Android changes are out of scope.
@@ -39,13 +45,12 @@ workflows:
       flutter: "3.44.6"
       xcode: "16.4"
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.mkgenterprises.mkgTaxMobile
       vars:
         APP_ENV: production
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
+        # ASC app record Apple ID (not secret). Group ios_appstore may override.
+        APP_STORE_APPLE_ID: "6793948043"
         # Floor when TestFlight has no prior build (first successful signed IPA used 32).
         IOS_BUILD_NUMBER_FLOOR: "33"
     scripts:
@@ -58,6 +63,23 @@ workflows:
       - name: Flutter tests
         script: |
           flutter test --concurrency=1
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch App Store signing files (ASC)
+        script: |
+          set -euo pipefail
+          if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            echo "CERTIFICATE_PRIVATE_KEY missing from group ios_appstore" >&2
+            echo "Add the Apple Distribution certificate RSA private key (PEM) to Codemagic group ios_appstore." >&2
+            exit 1
+          fi
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
       - name: Set up code signing (App Store distribution)
         script: |
           xcode-project use-profiles
@@ -65,7 +87,7 @@ workflows:
         script: |
           set -euo pipefail
           if [ -z "${APP_STORE_APPLE_ID:-}" ]; then
-            echo "APP_STORE_APPLE_ID missing from encrypted group ios_appstore" >&2
+            echo "APP_STORE_APPLE_ID missing" >&2
             exit 1
           fi
           # Prefer TestFlight latest; fall back to App Store; then floor.

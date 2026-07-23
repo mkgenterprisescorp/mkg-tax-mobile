@@ -53,19 +53,39 @@ def main() -> int:
     if env.get("flutter") != "3.44.6" or env.get("xcode") != "16.4":
         print(f"ERROR: unexpected toolchain pins flutter={env.get('flutter')!r} xcode={env.get('xcode')!r}", file=sys.stderr)
         return 1
-    signing = env.get("ios_signing") or {}
-    if signing.get("distribution_type") != "app_store":
-        print("ERROR: distribution_type must be app_store", file=sys.stderr)
+    # Prefer ASC CLI fetch-signing-files over ios_signing profile matching
+    # (Team Code signing identities). Reject the old matching block if present.
+    if env.get("ios_signing"):
+        print(
+            "ERROR: do not use environment.ios_signing here; use ASC "
+            "fetch-signing-files + CERTIFICATE_PRIVATE_KEY (group ios_appstore)",
+            file=sys.stderr,
+        )
         return 1
-    if signing.get("bundle_identifier") != EXPECTED_BUNDLE:
-        print(f"ERROR: bundle_identifier must be {EXPECTED_BUNDLE}", file=sys.stderr)
-        return 1
+    scripts_blob = "\n".join(
+        (s.get("script") if isinstance(s, dict) else str(s)) or ""
+        for s in (w.get("scripts") or [])
+    )
+    for required in (
+        "keychain initialize",
+        "app-store-connect fetch-signing-files",
+        "--type IOS_APP_STORE",
+        "keychain add-certificates",
+        "xcode-project use-profiles",
+        "CERTIFICATE_PRIVATE_KEY",
+    ):
+        if required not in scripts_blob:
+            print(f"ERROR: missing signing script requirement: {required}", file=sys.stderr)
+            return 1
     vars_ = env.get("vars") or {}
     if vars_.get("API_BASE_URL") != EXPECTED_API:
         print(f"ERROR: API_BASE_URL must be {EXPECTED_API}", file=sys.stderr)
         return 1
     if vars_.get("BUNDLE_ID") != EXPECTED_BUNDLE:
         print(f"ERROR: BUNDLE_ID must be {EXPECTED_BUNDLE}", file=sys.stderr)
+        return 1
+    if not str(vars_.get("APP_STORE_APPLE_ID") or "").isdigit():
+        print("ERROR: vars.APP_STORE_APPLE_ID must be numeric ASC app id", file=sys.stderr)
         return 1
     if "ios_appstore" not in (env.get("groups") or []):
         print("ERROR: environment.groups must include ios_appstore", file=sys.stderr)
