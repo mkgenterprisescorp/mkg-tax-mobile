@@ -412,6 +412,7 @@ class TaxYearRepository {
     required String entityId,
     required int taxYear,
   }) async {
+    await _api.ensureBearerFromStorage();
     if (_api.bearerToken == null) {
       throw StateError('Please sign in again to open your tax organizer.');
     }

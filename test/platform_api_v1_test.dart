@@ -20,6 +20,21 @@ void main() {
     final map = PlatformApi.unwrapMap(res);
     expect(map?['meta']?['current_filing_tax_year'], 2025);
     expect((map?['years'] as List).length, 1);
+    expect(PlatformApi.ok(res), isTrue);
+  });
+
+  test('PlatformApi.ok rejects error-shaped HTTP 200 bodies', () {
+    final res = Response(
+      requestOptions: RequestOptions(path: '/profile'),
+      data: {
+        'data': {
+          'error': 'validation_error',
+          'message': 'The request could not be validated.',
+        },
+      },
+      statusCode: 200,
+    );
+    expect(PlatformApi.ok(res), isFalse);
   });
 
   test('TaxYearWorkspace.fromJson maps Laravel workspace fields', () {

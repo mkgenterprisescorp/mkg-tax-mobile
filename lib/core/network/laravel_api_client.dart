@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
 
@@ -11,6 +12,10 @@ class LaravelApiClient {
   final Dio dio;
   String? _bearerToken;
 
+  /// Must match [AuthRepository] token key.
+  static const sanctumTokenStorageKey = 'mkg_sanctum_token';
+  static const _storage = FlutterSecureStorage();
+
   void setBearerToken(String? token) {
     _bearerToken = token;
     if (token == null || token.isEmpty) {
@@ -21,6 +26,18 @@ class LaravelApiClient {
   }
 
   String? get bearerToken => _bearerToken;
+
+  /// Restore bearer from secure storage when the in-memory copy was dropped
+  /// (provider rebuild). Prevents false "session expired" / organizer open failures.
+  Future<String?> ensureBearerFromStorage() async {
+    if (_bearerToken != null && _bearerToken!.isNotEmpty) return _bearerToken;
+    final token = await _storage.read(key: sanctumTokenStorageKey);
+    if (token != null && token.isNotEmpty) {
+      setBearerToken(token);
+      return token;
+    }
+    return null;
+  }
 
   static LaravelApiClient create({String? baseUrl}) {
     final root = (baseUrl ?? AppConfig.laravelApiRoot);
