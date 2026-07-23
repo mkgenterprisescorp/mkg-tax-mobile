@@ -11,16 +11,20 @@
 #   docs/deployment/codemagic-ios-testflight.workflow.yaml.example
 #
 # Codemagic Team / app prerequisites (not in git):
-#   1. integrations.app_store_connect MUST equal the existing Developer Portal
-#      API key label: "Codemagic CI" (same key that signed build
-#      6a620ddaf44974f6fb95f192).
-#   2. Application-level encrypted variable APP_STORE_APPLE_ID must be set
-#      (numeric App Store Connect app record Apple ID for
-#      com.mkgenterprises.mkgTaxMobile). Group ios_appstore also accepted.
+#   1. integrations.app_store_connect MUST equal "Codemagic CI"
+#      (same Developer Portal key that signed build 6a620ddaf44974f6fb95f192).
+#   2. APP_STORE_APPLE_ID configured at app level (ASC app record 6793948043);
+#      also set below as a non-secret fallback. Group ios_appstore may override.
 #   3. Start builds manually. Do not push release tags.
 #
-# Guardrails: no submit_to_testflight / submit_to_app_store here. Do not change
-# the bundle ID. Password-reset / backend / Android changes are out of scope.
+# Signing: Codemagic automatic Apple signing sequence (no environment.ios_signing):
+#   keychain initialize →
+#   app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create →
+#   keychain add-certificates →
+#   xcode-project use-profiles --project ios/Runner.xcodeproj
+#
+# Guardrails: no publishing / submit_to_testflight / submit_to_app_store.
+# Do not change the bundle ID. Password-reset / backend / Android are out of scope.
 
 workflows:
   ios_signed_prepare:
@@ -31,7 +35,6 @@ workflows:
     triggering:
       events: []
     integrations:
-      # Team integrations → Developer Portal key label (signed build 6a620dda).
       app_store_connect: Codemagic CI
     environment:
       groups:
@@ -39,13 +42,12 @@ workflows:
       flutter: "3.44.6"
       xcode: "16.4"
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.mkgenterprises.mkgTaxMobile
       vars:
         APP_ENV: production
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
+        # ASC app record Apple ID (not secret). App-level / group may override.
+        APP_STORE_APPLE_ID: "6793948043"
         # Floor when TestFlight has no prior build (first successful signed IPA used 32).
         IOS_BUILD_NUMBER_FLOOR: "33"
     scripts:
@@ -58,14 +60,62 @@ workflows:
       - name: Flutter tests
         script: |
           flutter test --concurrency=1
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch App Store signing files (ASC)
+        script: |
+          set -euo pipefail
+          test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
+          if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            echo "CERTIFICATE_PRIVATE_KEY is not available to this yaml workflow." >&2
+            echo "Workflow Editor (Default Workflow) variables are NOT injected into codemagic.yaml builds." >&2
+            echo "Add it under App settings → Environment variables as encrypted variable" >&2
+            echo "CERTIFICATE_PRIVATE_KEY in group ios_appstore (referenced by this workflow)." >&2
+            echo "Do not commit or print the key." >&2
+            exit 1
+          fi
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
       - name: Set up code signing (App Store distribution)
         script: |
-          xcode-project use-profiles
+          xcode-project use-profiles --project ios/Runner.xcodeproj
+      - name: Report signing metadata (no secrets)
+        script: |
+          set -euo pipefail
+          mkdir -p /tmp/signing_meta
+          {
+            echo "BUNDLE_ID=${BUNDLE_ID}"
+            echo "APP_STORE_APPLE_ID=${APP_STORE_APPLE_ID}"
+            echo "=== keychain identities (names only) ==="
+            security find-identity -v -p codesigning 2>/dev/null \
+              | sed -E 's/^[0-9]+\) [A-F0-9]+ /IDENTITY /' || true
+            echo "=== provisioning profiles (metadata) ==="
+            for p in "$HOME/Library/MobileDevice/Provisioning Profiles"/*.mobileprovision \
+                     /Users/builder/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+              [ -f "$p" ] || continue
+              security cms -D -i "$p" > /tmp/signing_meta/profile.plist 2>/dev/null || continue
+              NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' /tmp/signing_meta/profile.plist 2>/dev/null || true)"
+              UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/signing_meta/profile.plist 2>/dev/null || true)"
+              TEAM="$(/usr/libexec/PlistBuddy -c 'Print :TeamName' /tmp/signing_meta/profile.plist 2>/dev/null || true)"
+              APPID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /tmp/signing_meta/profile.plist 2>/dev/null || true)"
+              TYPE="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' /tmp/signing_meta/profile.plist 2>/dev/null || echo false)"
+              echo "ProfileName=${NAME}"
+              echo "ProfileUUID=${UUID}"
+              echo "TeamName=${TEAM}"
+              echo "application-identifier=${APPID}"
+              echo "get-task-allow=${TYPE}"
+            done
+          } | tee /tmp/signing_meta/report.txt
       - name: Resolve next iOS build number
         script: |
           set -euo pipefail
           if [ -z "${APP_STORE_APPLE_ID:-}" ]; then
-            echo "APP_STORE_APPLE_ID missing from encrypted group ios_appstore" >&2
+            echo "APP_STORE_APPLE_ID missing" >&2
             exit 1
           fi
           # Prefer TestFlight latest; fall back to App Store; then floor.
@@ -88,6 +138,7 @@ workflows:
       - name: Build signed IPA (production API)
         script: |
           set -euo pipefail
+          test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
           flutter build ipa --release \
             --build-number="$BUILD_NUMBER" \
             --dart-define=APP_ENV=production \
@@ -102,6 +153,7 @@ workflows:
             exit 1
           fi
           echo "IPA=${IPA}"
+          ls -la "${IPA}" | tee /tmp/ipa.size.txt
           shasum -a 256 "${IPA}" | tee /tmp/ipa.sha256
           mkdir -p /tmp/ipa_inspect
           unzip -q -o "${IPA}" -d /tmp/ipa_inspect
@@ -110,9 +162,15 @@ workflows:
           BID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${PLIST}")"
           VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${PLIST}")"
           BN="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${PLIST}")"
+          DISPLAY="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${PLIST}" 2>/dev/null || true)"
           echo "CFBundleIdentifier=${BID}"
           echo "CFBundleShortVersionString=${VER}"
           echo "CFBundleVersion=${BN}"
+          echo "CFBundleDisplayName=${DISPLAY}"
+          if [ "${BID}" != "com.mkgenterprises.mkgTaxMobile" ]; then
+            echo "Bundle ID mismatch: got ${BID}" >&2
+            exit 1
+          fi
           test "${BID}" = "${BUNDLE_ID}"
           codesign -dvvv "${APP}" 2>&1 | tee /tmp/codesign.txt | grep -E 'Authority=|TeamIdentifier=|Identifier=' || true
           if ! grep -q 'Authority=Apple Distribution' /tmp/codesign.txt; then
@@ -127,22 +185,39 @@ workflows:
           test -f "${PROFILE}"
           security cms -D -i "${PROFILE}" > /tmp/profile.plist
           /usr/libexec/PlistBuddy -c 'Print :Name' /tmp/profile.plist | sed 's/^/ProfileName=/'
+          /usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/profile.plist | sed 's/^/ProfileUUID=/'
+          /usr/libexec/PlistBuddy -c 'Print :TeamName' /tmp/profile.plist | sed 's/^/TeamName=/'
+          /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /tmp/profile.plist \
+            | sed 's/^/application-identifier=/'
           /usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' /tmp/profile.plist 2>/dev/null \
             | sed 's/^/get-task-allow=/' || true
-          # App Store / TestFlight profiles must not allow debugging.
           if /usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' /tmp/profile.plist 2>/dev/null | grep -qi true; then
             echo "embedded.mobileprovision looks like development (get-task-allow=true)" >&2
             exit 1
           fi
-          # Secret / misconfig scan (binary-safe).
-          if rg -a -n -e 'neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|MOCK_PASSWORD|/internal/mobile|localhost|127\.0\.0\.1|http://app\.mkgtaxconsultants\.com|sk_live_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' "${APP}"; then
-            echo "Forbidden pattern found inside IPA payload" >&2
+          # Secret / misconfig scan — skip Flutter.framework (engine embeds 127.0.0.1 VM-service strings).
+          # Use grep (rg is not installed on Codemagic macOS images).
+          SCAN_ROOTS=("${APP}/Frameworks/App.framework" "${APP}/Info.plist")
+          FORBIDDEN_RE='neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|MOCK_PASSWORD|/internal/mobile|http://app\.mkgtaxconsultants\.com|sk_live_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY'
+          for root in "${SCAN_ROOTS[@]}"; do
+            [ -e "${root}" ] || continue
+            if grep -aRE "${FORBIDDEN_RE}" "${root}" >/dev/null 2>&1; then
+              echo "Forbidden pattern found inside IPA payload" >&2
+              grep -aRnE "${FORBIDDEN_RE}" "${root}" | head -n 20 >&2 || true
+              exit 1
+            fi
+          done
+          if ! grep -aR "app.mkgtaxconsultants.com" "${APP}/Frameworks/App.framework" >/dev/null 2>&1; then
+            echo "Production API host app.mkgtaxconsultants.com not found in App.framework" >&2
             exit 1
           fi
+          echo "ProductionAPI=https://app.mkgtaxconsultants.com/api/v1"
           echo "IPA inspection passed (no App Store Connect upload in this workflow)."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - /tmp/ipa.sha256
+      - /tmp/ipa.size.txt
       - /tmp/codesign.txt
+      - /tmp/signing_meta/report.txt
     # No publishing block — TestFlight upload is a separate approved PR/workflow.
