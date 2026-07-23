@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,9 @@ import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../../../core/network/laravel_api_client.dart';
+import '../../../core/sync/sync_cursor_store.dart';
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_providers.dart';
 
 class PortalUser {
   const PortalUser({
@@ -481,6 +486,16 @@ class AuthRepository {
         return PortalUser.fromLaravelProfile(map, fallback: await currentUser());
       }
       if (res.statusCode == 409) {
+        if (attempt > 0) {
+          throw SyncConflictException(
+            SyncConflict.fromResponse(
+              res,
+              entityType: 'profile',
+              entityId: '${current['external_user_id'] ?? current['id'] ?? 'profile'}',
+              localValues: Map<String, dynamic>.from(payload),
+            ),
+          );
+        }
         // Optimistic concurrency — reload version and retry once.
         final raw = res.data;
         final conflictVersion = raw == null
@@ -558,8 +573,15 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final user = await _repo.currentUser();
       state = AuthState(user: user, loading: false);
+      _setSyncAccount(user);
+      if (user != null) {
+        unawaited(
+          ref.read(syncCoordinatorProvider).pull(reason: 'restore').catchError((_) => SyncPullResult.empty),
+        );
+      }
     } catch (_) {
       state = const AuthState(loading: false);
+      _setSyncAccount(null);
     }
     _pingRouter();
   }
@@ -569,6 +591,10 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final user = await _repo.login(email: email, password: password);
       state = AuthState(user: user, loading: false);
+      _setSyncAccount(user);
+      unawaited(
+        ref.read(syncCoordinatorProvider).pull(reason: 'login').catchError((_) => SyncPullResult.empty),
+      );
       _pingRouter();
       return true;
     } on AuthException catch (e) {
@@ -616,13 +642,32 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> setUser(PortalUser user) async {
     state = AuthState(user: user, loading: false);
+    _setSyncAccount(user);
     _pingRouter();
   }
 
   Future<void> logout() async {
+    final accountKey = ref.read(activeSyncAccountKeyProvider) ??
+        SyncCursorStore.accountKeyFor(
+          externalUserId: state.user?.id,
+          email: state.user?.email,
+        );
     await _repo.logout();
+    if (accountKey != null) {
+      await ref.read(syncCoordinatorProvider).clearAccount(accountKey: accountKey);
+    }
+    ref.read(activeSyncAccountKeyProvider.notifier).state = null;
+    ref.invalidate(syncCachedSummariesProvider);
+    ref.invalidate(syncCoordinatorProvider);
     state = const AuthState();
     _pingRouter();
+  }
+
+  void _setSyncAccount(PortalUser? user) {
+    ref.read(activeSyncAccountKeyProvider.notifier).state = SyncCursorStore.accountKeyFor(
+      externalUserId: user?.id,
+      email: user?.email,
+    );
   }
 }
 
