@@ -67,6 +67,12 @@ workflows:
         script: |
           set -euo pipefail
           test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
+          if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            echo "CERTIFICATE_PRIVATE_KEY is not set in Codemagic group ios_appstore." >&2
+            echo "Add the Apple Distribution certificate RSA private key (PEM) as an encrypted" >&2
+            echo "variable named CERTIFICATE_PRIVATE_KEY. Do not commit or print the key." >&2
+            exit 1
+          fi
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create

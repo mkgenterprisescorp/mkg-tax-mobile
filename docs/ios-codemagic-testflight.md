@@ -31,9 +31,11 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
 2. **`APP_STORE_APPLE_ID`** is configured at app level (`6793948043`). Yaml also sets a non-secret fallback; group `ios_appstore` may override.
 
-3. Manual starts only. No release tags.
+3. **`CERTIFICATE_PRIVATE_KEY`** (Codemagic encrypted group `ios_appstore`, not git): PEM RSA private key for the Apple Distribution certificate. Required by Codemagic CLI for `fetch-signing-files` even with integration label `Codemagic CI`. Without it, builds fail with: `Cannot save Signing Certificates without certificate private key` (seen on `6a62221fe96a84b5155a3351`).
 
-4. **Signing model (yaml):** Codemagic automatic Apple signing — **no** `environment.ios_signing` profile matching:
+4. Manual starts only. No release tags.
+
+5. **Signing model (yaml):** Codemagic automatic Apple signing — **no** `environment.ios_signing` profile matching:
 
    ```bash
    keychain initialize
