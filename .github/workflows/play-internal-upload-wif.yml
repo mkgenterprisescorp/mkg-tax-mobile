@@ -21,7 +21,7 @@ on:
       release_name:
         description: "Play Console release name"
         required: true
-        default: "MKG Tax Consultants Pro Filer 1.0.0 (32)"
+        default: "MKG Tax Consultants Pro File"
       release_status:
         description: "Play release status: draft (safe) or completed (testers)"
         required: true
@@ -163,16 +163,24 @@ jobs:
           )
           with open(aab_path, "rb") as f:
               aab_bytes = f.read()
-          status, bundle = api(
-              "POST",
-              upload_url,
-              data=aab_bytes,
-              headers={"Content-Type": "application/octet-stream"},
-              raw=True,
-          )
-          print("bundle_versionCode=", bundle.get("versionCode"), "sha1=", bundle.get("sha1"))
-          if int(bundle.get("versionCode", -1)) != version_code:
-              sys.exit(f"versionCode mismatch uploaded={bundle.get('versionCode')} expected={version_code}")
+          try:
+              status, bundle = api(
+                  "POST",
+                  upload_url,
+                  data=aab_bytes,
+                  headers={"Content-Type": "application/octet-stream"},
+                  raw=True,
+              )
+              print("bundle_versionCode=", bundle.get("versionCode"), "sha1=", bundle.get("sha1"))
+              if int(bundle.get("versionCode", -1)) != version_code:
+                  sys.exit(f"versionCode mismatch uploaded={bundle.get('versionCode')} expected={version_code}")
+          except Exception as e:
+              msg = str(e)
+              # Version already on Play — update track/release metadata only.
+              if "Version code" in msg and "already been used" in msg:
+                  print("BUNDLE_ALREADY_PRESENT versionCode=", version_code)
+              else:
+                  raise
 
           notes = (
               "Internal testing — MKG Tax Consultants Pro Filer 1.0.0 (32)\n\n"
