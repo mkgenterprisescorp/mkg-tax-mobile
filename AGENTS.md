@@ -134,9 +134,11 @@
 
 
 ### Codemagic iOS
-- Secret `CODEMAGIC_API_TOKEN` → `x-auth-token` for `https://api.codemagic.io`.
-- App id `6a61fd1171826706ef5d191c`. Workflow SoT: root `codemagic.yaml` (`ios_signed_prepare`, no upload). Details: `docs/ios-codemagic-testflight.md`.
-- Reference signed IPA build: `6a620ddaf44974f6fb95f192` (v1.0.0). TestFlight HOLD until explicit approval.
+- Secret `CODEMAGIC_API_TOKEN` → `x-auth-token` for `https://api.codemagic.io` (verified: list apps + start builds).
+- App id `6a61fd1171826706ef5d191c`. Workflow SoT: root `codemagic.yaml` → `ios_signed_prepare` (no upload). Details: `docs/ios-codemagic-testflight.md`.
+- Start: `POST /builds` body `appId` + `workflowId=ios_signed_prepare` + `branch=main`. Floor build number **33**.
+- Reference **UI** IPA: `6a620ddaf44974f6fb95f192` (v1.0.0 / 32). Yaml attempt `6a621b81a9e9b4ffb8ddd6fb` failed: no App Store profile in Team **Code signing identities** for `com.mkgenterprises.mkgTaxMobile` (Workflow Editor portal signing does not feed yaml `ios_signing`).
+- Unblock: fetch/upload Distribution cert + App Store profile in Code signing identities; ASC label `Codemagic CI`; group `ios_appstore` / `APP_STORE_APPLE_ID=6793948043`. TestFlight HOLD until explicit approval.
 
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)

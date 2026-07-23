@@ -37,13 +37,32 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
 3. Manual starts only. No release tags.
 
+4. **Yaml Code signing identities** (required; Workflow Editor does not share these):
+
+   Team settings → codemagic.yaml settings → **Code signing identities**:
+
+   - Fetch/upload an **Apple Distribution** certificate (private key must be in Codemagic).
+   - Fetch/upload an **App Store** provisioning profile for `com.mkgenterprises.mkgTaxMobile`.
+   - Profile must show a matching certificate (green check).
+
+   Without this, `ios_signed_prepare` fails immediately with:
+   `No matching profiles found for bundle identifier "…" and distribution type "app_store"`
+   (seen on build `6a621b81a9e9b4ffb8ddd6fb`).
+
 ## Ordered release steps
 
 1. Keep prepare PR clean (this path only).
-2. Confirm integration label + `APP_STORE_APPLE_ID`.
+2. Confirm integration label + `APP_STORE_APPLE_ID` + Code signing identities (above).
 3. Merge prepare PR only after CI / local gates pass.
-4. Start **`ios_signed_prepare`** on `main`.
-5. Validate bundle ID, version/build, Apple Distribution signing, production API,
+4. Start **`ios_signed_prepare`** on `main` (UI or API):
+
+   ```bash
+   curl -H "Content-Type: application/json" -H "x-auth-token: $CODEMAGIC_API_TOKEN" \
+     --data '{"appId":"6a61fd1171826706ef5d191c","workflowId":"ios_signed_prepare","branch":"main"}' \
+     -X POST https://api.codemagic.io/builds
+   ```
+
+5. Validate bundle ID, version/build (≥33 floor), Apple Distribution signing, production API,
    IPA artifact + SHA-256.
 6. **STOP** and report evidence.
 7. Do **not** promote/run TestFlight until explicit approval.
