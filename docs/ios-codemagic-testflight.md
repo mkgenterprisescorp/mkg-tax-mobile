@@ -33,7 +33,9 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
 3. **`CERTIFICATE_PRIVATE_KEY`** in Environment variables group `ios_appstore` (encrypted Distribution cert PEM). Workflow Editor variables are **not** injected into yaml builds.
 
-4. Manual starts only. No release tags.
+4. Manual starts only. No release tags. Codemagic `xcode: "26.4"` (iOS 26 SDK required by ASC).
+
+5. App Store marketing icon must be opaque RGB (no alpha) — `Icon-App-1024x1024@1x.png`.
 
 5. **Signing model (yaml):** Codemagic automatic Apple signing — **no** `environment.ios_signing`:
 

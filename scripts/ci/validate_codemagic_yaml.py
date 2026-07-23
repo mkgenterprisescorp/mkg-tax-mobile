@@ -52,10 +52,10 @@ def _validate_common(name: str, w: dict) -> list[str]:
         )
 
     env = w.get("environment") or {}
-    if env.get("flutter") != "3.44.6" or env.get("xcode") != "16.4":
+    if env.get("flutter") != "3.44.6" or env.get("xcode") != "26.4":
         errors.append(
             f"{name}: unexpected toolchain pins flutter={env.get('flutter')!r} "
-            f"xcode={env.get('xcode')!r}"
+            f"xcode={env.get('xcode')!r} (ASC requires Xcode 26+ / iOS 26 SDK)"
         )
     if env.get("ios_signing"):
         errors.append(f"{name}: do not use environment.ios_signing; use ASC fetch sequence")
