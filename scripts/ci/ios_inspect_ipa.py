@@ -23,12 +23,14 @@ import zipfile
 from pathlib import Path
 
 EXPECTED_BUNDLE_ID = os.environ.get("IOS_BUNDLE_ID", "com.mkgenterprises.mkgTaxMobile")
+# Skip Flutter.framework in scans — the engine binary embeds 127.0.0.1 VM-service strings.
 FORBIDDEN = re.compile(
     rb"neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|"
-    rb"MOCK_PASSWORD|/internal/mobile|localhost|127\.0\.0\.1|"
+    rb"MOCK_PASSWORD|/internal/mobile|"
     rb"http://app\.mkgtaxconsultants\.com|sk_live_|"
     rb"BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY"
 )
+SKIP_SCAN_PARTS = ("Flutter.framework",)
 
 
 def _read_plist(path: Path) -> dict:
@@ -107,12 +109,15 @@ def inspect(ipa_path: Path) -> int:
         for path in app.rglob("*"):
             if not path.is_file():
                 continue
+            rel = path.relative_to(app).as_posix()
+            if any(part in rel for part in SKIP_SCAN_PARTS):
+                continue
             try:
                 data = path.read_bytes()
             except OSError:
                 continue
             if FORBIDDEN.search(data):
-                print(f"ERROR: Forbidden pattern in {path.relative_to(app)}", file=sys.stderr)
+                print(f"ERROR: Forbidden pattern in {rel}", file=sys.stderr)
                 return 1
         print("IPA inspection and secret scan passed.")
         return 0

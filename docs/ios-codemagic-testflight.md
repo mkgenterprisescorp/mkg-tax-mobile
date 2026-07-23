@@ -9,6 +9,7 @@
 | Device display name | `MKG Tax` |
 | Production API | `https://app.mkgtaxconsultants.com/api/v1` |
 | Android package (unchanged) | `com.mkgtaxconsultants.mobile` |
+| ASC app record Apple ID | `6793948043` |
 
 ## Separation of concerns
 
@@ -21,32 +22,36 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
 ## Codemagic prerequisites
 
-1. **Developer Portal integration label** in Team settings must exactly match:
+1. **Developer Portal integration label** must exactly match:
 
    ```yaml
    integrations:
      app_store_connect: Codemagic CI
    ```
 
-   Same API key that signed Codemagic build `6a620ddaf44974f6fb95f192`.
-
-2. Variable group **`ios_appstore`** (linked to the app) must include:
-
-   | Variable | Notes |
-   | --- | --- |
-   | `APP_STORE_APPLE_ID` | ASC app record id (`6793948043`). Also set as a non-secret fallback in `codemagic.yaml` vars. |
-   | `CERTIFICATE_PRIVATE_KEY` | PEM RSA private key for the Apple Distribution certificate. Required for yaml ASC `fetch-signing-files`. |
+2. **`APP_STORE_APPLE_ID`** is configured at app level (`6793948043`). Yaml also sets a non-secret fallback; group `ios_appstore` may override.
 
 3. Manual starts only. No release tags.
 
-4. **Signing model (yaml):** ASC CLI (`app-store-connect fetch-signing-files --type IOS_APP_STORE --create` + `keychain add-certificates` + `xcode-project use-profiles`). Do **not** rely on `environment.ios_signing` distribution_type matching — that failed prepare builds `6a621b81` / `6a621d1a` with “No matching profiles found” before scripts ran (Team Code signing identities were empty/mismatched vs Workflow Editor automatic signing).
+4. **Signing model (yaml):** Codemagic automatic Apple signing — **no** `environment.ios_signing` profile matching:
+
+   ```bash
+   keychain initialize
+   app-store-connect fetch-signing-files "$BUNDLE_ID" \
+     --type IOS_APP_STORE \
+     --create
+   keychain add-certificates
+   xcode-project use-profiles --project ios/Runner.xcodeproj
+   ```
+
+   Then `flutter build ipa --release` with production dart-defines. No `publishing:` section.
 
 ## Ordered release steps
 
 1. Keep prepare PR clean (this path only).
-2. Confirm integration label + `ios_appstore` (`CERTIFICATE_PRIVATE_KEY` + `APP_STORE_APPLE_ID`).
-3. Merge prepare PR only after CI / local gates pass.
-4. Start **`ios_signed_prepare`** on `main` (UI or API):
+2. Confirm integration label `Codemagic CI` + ASC app id `6793948043`.
+3. Validate on the prepare branch, then merge only after checks pass.
+4. Start **`ios_signed_prepare`** on the exact `main` merge commit (UI or API):
 
    ```bash
    curl -H "Content-Type: application/json" -H "x-auth-token: $CODEMAGIC_API_TOKEN" \
@@ -73,11 +78,12 @@ After a prepare build, optional Linux IPA check:
 python3 scripts/ci/ios_inspect_ipa.py /path/to/mkg_tax_mobile.ipa
 ```
 
-## Reference signed IPA (pre-yaml UI build)
+## Reference signed IPAs (Workflow Editor — not yaml prepare)
 
-| Field | Value |
-| --- | --- |
-| Build URL | https://codemagic.io/app/6a61fd1171826706ef5d191c/build/6a620ddaf44974f6fb95f192 |
-| Commit | `2f36b7c` |
-| Artifact | `mkg_tax_mobile.ipa` |
-| TestFlight | Not uploaded |
+| Field | `6a620dda…` | `6a621d6c…` (post-#91) |
+| --- | --- | --- |
+| Build URL | https://codemagic.io/app/6a61fd1171826706ef5d191c/build/6a620ddaf44974f6fb95f192 | https://codemagic.io/app/6a61fd1171826706ef5d191c/build/6a621d6c2cac72f520799f7c |
+| Commit | `2f36b7c` | `fce1acd` (main / #91) |
+| Version / build | 1.0.0 / 32 | 1.0.0 / 32 |
+| Bundle ID | `com.mkgenterprises.mkgTaxMobile` | same |
+| TestFlight | Not uploaded | Not uploaded |

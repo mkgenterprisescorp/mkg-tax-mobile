@@ -19,8 +19,17 @@ YAML_PATH = ROOT / "codemagic.yaml"
 EXPECTED_BUNDLE = "com.mkgenterprises.mkgTaxMobile"
 EXPECTED_API = "https://app.mkgtaxconsultants.com/api/v1"
 # Existing Codemagic Developer Portal key label used for automatic signing.
-# Confirm in Team integrations before starting ios_signed_prepare.
 EXPECTED_INTEGRATION_LABEL = "Codemagic CI"
+
+# Codemagic automatic Apple signing sequence (order matters).
+REQUIRED_SIGNING_SNIPPETS = (
+    "keychain initialize",
+    'app-store-connect fetch-signing-files "$BUNDLE_ID"',
+    "--type IOS_APP_STORE",
+    "--create",
+    "keychain add-certificates",
+    "xcode-project use-profiles --project ios/Runner.xcodeproj",
+)
 
 
 def main() -> int:
@@ -49,34 +58,42 @@ def main() -> int:
         )
         return 1
 
+    if w.get("publishing"):
+        print("ERROR: ios_signed_prepare must not include a publishing section", file=sys.stderr)
+        return 1
+
     env = w["environment"]
     if env.get("flutter") != "3.44.6" or env.get("xcode") != "16.4":
-        print(f"ERROR: unexpected toolchain pins flutter={env.get('flutter')!r} xcode={env.get('xcode')!r}", file=sys.stderr)
-        return 1
-    # Prefer ASC CLI fetch-signing-files over ios_signing profile matching
-    # (Team Code signing identities). Reject the old matching block if present.
-    if env.get("ios_signing"):
         print(
-            "ERROR: do not use environment.ios_signing here; use ASC "
-            "fetch-signing-files + CERTIFICATE_PRIVATE_KEY (group ios_appstore)",
+            f"ERROR: unexpected toolchain pins flutter={env.get('flutter')!r} "
+            f"xcode={env.get('xcode')!r}",
             file=sys.stderr,
         )
         return 1
+    # Automatic ASC signing replaces environment.ios_signing profile matching.
+    if env.get("ios_signing"):
+        print(
+            "ERROR: do not use environment.ios_signing; use Codemagic automatic "
+            "ASC fetch-signing-files sequence",
+            file=sys.stderr,
+        )
+        return 1
+
+    scripts = w.get("scripts") or []
     scripts_blob = "\n".join(
-        (s.get("script") if isinstance(s, dict) else str(s)) or ""
-        for s in (w.get("scripts") or [])
+        (s.get("script") if isinstance(s, dict) else str(s)) or "" for s in scripts
     )
-    for required in (
-        "keychain initialize",
-        "app-store-connect fetch-signing-files",
-        "--type IOS_APP_STORE",
-        "keychain add-certificates",
-        "xcode-project use-profiles",
-        "CERTIFICATE_PRIVATE_KEY",
-    ):
+    for required in REQUIRED_SIGNING_SNIPPETS:
         if required not in scripts_blob:
             print(f"ERROR: missing signing script requirement: {required}", file=sys.stderr)
             return 1
+
+    # Enforce signing step order in script text.
+    positions = [scripts_blob.find(s) for s in REQUIRED_SIGNING_SNIPPETS]
+    if positions != sorted(positions) or any(p < 0 for p in positions):
+        print("ERROR: signing scripts must appear in Codemagic automatic order", file=sys.stderr)
+        return 1
+
     vars_ = env.get("vars") or {}
     if vars_.get("API_BASE_URL") != EXPECTED_API:
         print(f"ERROR: API_BASE_URL must be {EXPECTED_API}", file=sys.stderr)
@@ -91,12 +108,11 @@ def main() -> int:
         print("ERROR: environment.groups must include ios_appstore", file=sys.stderr)
         return 1
 
-    publishing = w.get("publishing") or {}
-    if "app_store_connect" in publishing:
-        print("ERROR: ios_signed_prepare must not publish to App Store Connect", file=sys.stderr)
-        return 1
     if "submit_to_testflight: true" in text or "submit_to_app_store: true" in text:
         print("ERROR: root codemagic.yaml must not enable TestFlight/App Store submit", file=sys.stderr)
+        return 1
+    if "ios_testflight" in text:
+        print("ERROR: ios_testflight must not appear in root codemagic.yaml", file=sys.stderr)
         return 1
 
     arts = w.get("artifacts") or []
@@ -110,11 +126,20 @@ def main() -> int:
             print(f"ERROR: forbidden content in yaml: {bad}", file=sys.stderr)
             return 1
 
+    # Bundle ID hard-fail must remain in inspect step.
+    if 'BID" != "com.mkgenterprises.mkgTaxMobile"' not in scripts_blob and \
+       'BID != "com.mkgenterprises.mkgTaxMobile"' not in scripts_blob and \
+       'test "${BID}" = "com.mkgenterprises.mkgTaxMobile"' not in scripts_blob and \
+       'test "${BID}" = "${BUNDLE_ID}"' not in scripts_blob:
+        print("ERROR: IPA inspect must fail closed on bundle ID", file=sys.stderr)
+        return 1
+
     print("codemagic.yaml prepare-only guardrails: PASS")
-    print(f"  workflow: ios_signed_prepare")
+    print("  workflow: ios_signed_prepare")
     print(f"  integration label: {label}")
     print(f"  bundle: {EXPECTED_BUNDLE}")
     print(f"  api: {EXPECTED_API}")
+    print("  signing: ASC automatic sequence")
     print("  publishing: none")
     return 0
 
