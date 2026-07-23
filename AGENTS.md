@@ -132,6 +132,12 @@
 - Build: `flutter build web --release` with staging dart-defines (see README / `docs/toolchain-versions.md`). Local: `python3 -m http.server 8088 -d build/web` then `/` and `/#/banking`.
 - Manual CI: copy `docs/staging-web.workflow.yml.example` → `.github/workflows/staging-web.yml` (PAT needs `workflow` scope). Also see Vercel web deploy docs under `docs/deployment/` / `docs/vercel-web-deploy.md` if using that path.
 
+
+### Codemagic iOS
+- Secret `CODEMAGIC_API_TOKEN` → `x-auth-token` for `https://api.codemagic.io`.
+- App id `6a61fd1171826706ef5d191c`. Workflow SoT: root `codemagic.yaml` (`ios_signed_prepare`, no upload). Details: `docs/ios-codemagic-testflight.md`.
+- Reference signed IPA build: `6a620ddaf44974f6fb95f192` (v1.0.0). TestFlight HOLD until explicit approval.
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
