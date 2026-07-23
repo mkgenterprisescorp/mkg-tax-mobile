@@ -12,11 +12,11 @@
 #
 # Codemagic Team / app prerequisites (not in git):
 #   1. integrations.app_store_connect MUST equal the existing Developer Portal
-#      API key label that already signed build 6a620ddaf44974f6fb95f192.
-#      Current value below: "App Store Connect" — confirm in Team integrations
-#      → Developer Portal → Manage keys before starting a build.
-#   2. Encrypted group ios_appstore must define numeric APP_STORE_APPLE_ID
-#      (App Store Connect app record Apple ID for com.mkgenterprises.mkgTaxMobile).
+#      API key label: "Codemagic CI" (same key that signed build
+#      6a620ddaf44974f6fb95f192).
+#   2. Application-level encrypted variable APP_STORE_APPLE_ID must be set
+#      (numeric App Store Connect app record Apple ID for
+#      com.mkgenterprises.mkgTaxMobile). Group ios_appstore also accepted.
 #   3. Start builds manually. Do not push release tags.
 #
 # Guardrails: no submit_to_testflight / submit_to_app_store here. Do not change
@@ -31,9 +31,8 @@ workflows:
     triggering:
       events: []
     integrations:
-      # Must match Team integrations → Developer Portal key label exactly
-      # (same key used for successful signed build 6a620ddaf44974f6fb95f192).
-      app_store_connect: App Store Connect
+      # Team integrations → Developer Portal key label (signed build 6a620dda).
+      app_store_connect: Codemagic CI
     environment:
       groups:
         - ios_appstore

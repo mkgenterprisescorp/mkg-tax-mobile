@@ -25,15 +25,15 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
 
    ```yaml
    integrations:
-     app_store_connect: App Store Connect
+     app_store_connect: Codemagic CI
    ```
 
-   Use the same API key that signed Codemagic build `6a620ddaf44974f6fb95f192`.
-   If the UI label differs, update YAML to that exact string before starting a build.
+   Same API key that signed Codemagic build `6a620ddaf44974f6fb95f192`.
 
-2. Encrypted group **`ios_appstore`** with numeric **`APP_STORE_APPLE_ID`**
+2. Application-level encrypted **`APP_STORE_APPLE_ID`**
    (App Store Connect app record Apple ID for `com.mkgenterprises.mkgTaxMobile` —
-   not the bundle ID string).
+   currently configured as `6793948043`; not the bundle ID string).
+   Group `ios_appstore` may also expose the same variable.
 
 3. Manual starts only. No release tags.
 

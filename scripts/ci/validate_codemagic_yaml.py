@@ -20,7 +20,7 @@ EXPECTED_BUNDLE = "com.mkgenterprises.mkgTaxMobile"
 EXPECTED_API = "https://app.mkgtaxconsultants.com/api/v1"
 # Existing Codemagic Developer Portal key label used for automatic signing.
 # Confirm in Team integrations before starting ios_signed_prepare.
-EXPECTED_INTEGRATION_LABEL = "App Store Connect"
+EXPECTED_INTEGRATION_LABEL = "Codemagic CI"
 
 
 def main() -> int:

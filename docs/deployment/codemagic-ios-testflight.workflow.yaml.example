@@ -14,7 +14,7 @@
 #   triggering:
 #     events: []
 #   integrations:
-#     app_store_connect: App Store Connect
+#     app_store_connect: Codemagic CI
 #   environment:
 #     groups:
 #       - ios_appstore
