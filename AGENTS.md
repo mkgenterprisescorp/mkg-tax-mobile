@@ -132,6 +132,12 @@
 - Build: `flutter build web --release` with staging dart-defines (see README / `docs/toolchain-versions.md`). Local: `python3 -m http.server 8088 -d build/web` then `/` and `/#/banking`.
 - Manual CI: copy `docs/staging-web.workflow.yml.example` → `.github/workflows/staging-web.yml` (PAT needs `workflow` scope). Also see Vercel web deploy docs under `docs/deployment/` / `docs/vercel-web-deploy.md` if using that path.
 
+### Google Play Internal testing (Android)
+- Package: `com.mkgtaxconsultants.mobile` · product label: **MKG Tax Consultants Pro File** · production API `https://app.mkgtaxconsultants.com/api/v1`.
+- Upload workflows: `.github/workflows/play-internal-aab.yml` (sign AAB) + `play-internal-upload-wif.yml` (WIF → Internal track only). Env: `android-google-play`. **No production promote** unless explicitly approved.
+- Play Publisher API `edits.testers` supports **Google Groups only** — individual email lists must be managed in Play Console (Testing → Internal testing → Testers).
+- Designated internal tester: **Marsh** · `mkgtax@gmail.com`. Opt-in hint: `https://play.google.com/apps/internaltest/com.mkgtaxconsultants.mobile` (works after the email list is saved and the tester opens the link while signed into that Google account).
+
 ### Commands
 - Deps: `flutter pub get` (refresh pub.dev plugins after pull)
 - Analyze: `flutter analyze`
