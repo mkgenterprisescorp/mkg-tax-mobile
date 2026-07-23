@@ -48,7 +48,27 @@ Password-reset / Laravel / portal / Android changes stay out of iOS release PRs.
    xcode-project use-profiles --project ios/Runner.xcodeproj
    ```
 
-   `ios_testflight` adds `--custom-export-options='{"testFlightInternalTestingOnly": true}'`.
+   `ios_testflight` uses the same App Store export (not Internal Testing Only) so
+   `submit_to_testflight: true` can request external TestFlight beta review.
+
+6. **TestFlight Test Information (required for external beta submit):**
+
+   `ios_testflight` runs `scripts/ci/ensure_asc_testflight_test_info.py` before
+   the IPA build so Codemagic post-processing can submit for beta review.
+
+   Defaults (overridable via workflow vars):
+   - Feedback / contact email: `clientservices@mkgenterprisescorp.com`
+   - Contact: Marshawn Govan / `+1-559-412-7248` (public portal phone)
+
+   ASC UI (manual fallback):
+   https://appstoreconnect.apple.com/apps/6793948043/testflight/test-info
+
+   Missing these previously caused post-processing failure after upload
+   (`Complete test information is required to submit … for external testing`).
+
+7. **Export compliance:** `ios/Runner/Info.plist` sets
+   `ITSAppUsesNonExemptEncryption=false` (HTTPS/TLS only). Without this, ASC
+   rejects beta review submit with `Build is missing export compliance`.
 
 ## Ordered release steps
 

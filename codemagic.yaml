@@ -213,7 +213,14 @@ workflows:
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
-        IOS_BUILD_NUMBER_FLOOR: "33"
+        # Prior external-submit attempt used 35; next binary must be ≥36.
+        IOS_BUILD_NUMBER_FLOOR: "36"
+        # ASC TestFlight Test Information (external beta review)
+        TF_FEEDBACK_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_FIRST_NAME: Marshawn
+        TF_CONTACT_LAST_NAME: Govan
+        TF_CONTACT_PHONE: "+1-559-412-7248"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -242,11 +249,17 @@ workflows:
       - name: Add certificates to keychain
         script: |
           keychain add-certificates
-      - name: Set up code signing (App Store / TestFlight Internal Only)
+      # Full App Store export (not Internal Testing Only) so submit_to_testflight
+      # can request external TestFlight beta review after ASC Test Info is filled.
+      - name: Set up code signing (App Store / TestFlight)
         script: |
-          xcode-project use-profiles \
-            --project ios/Runner.xcodeproj \
-            --custom-export-options='{"testFlightInternalTestingOnly": true}'
+          xcode-project use-profiles --project ios/Runner.xcodeproj
+      - name: Ensure ASC TestFlight Test Information
+        script: |
+          set -euo pipefail
+          # Warm ASC JWT via CLI (same credentials as fetch-signing-files).
+          app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" >/tmp/tf_latest_bn.txt || true
+          python3 scripts/ci/ensure_asc_testflight_test_info.py
       - name: Report signing metadata (no secrets)
         script: |
           set -euo pipefail
@@ -254,6 +267,7 @@ workflows:
           {
             echo "BUNDLE_ID=${BUNDLE_ID}"
             echo "APP_STORE_APPLE_ID=${APP_STORE_APPLE_ID}"
+            echo "TF_FEEDBACK_EMAIL=${TF_FEEDBACK_EMAIL}"
             echo "=== keychain identities (names only) ==="
             security find-identity -v -p codesigning 2>/dev/null \
               | sed -E 's/^[0-9]+\) [A-F0-9]+ /IDENTITY /' || true
