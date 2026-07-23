@@ -199,6 +199,17 @@ jobs:
               for info in z.infolist():
                   if info.file_size > 12_000_000:
                       continue
+                  # Flutter dart-defines live in libapp.so — always check host there.
+                  if info.filename.endswith("libapp.so"):
+                      data = z.read(info)
+                      if host in data:
+                          api_host_seen = True
+                      for pat, name in crit_pats:
+                          if name == "private_key":
+                              continue
+                          if pat.search(data):
+                              crit.append((name, info.filename))
+                      continue
                   if info.filename.endswith((".png", ".jpg", ".webp", ".so", ".sym")):
                       continue
                   if any(info.filename.startswith(pref) for pref in skip_prefixes):
@@ -208,9 +219,6 @@ jobs:
                       api_host_seen = True
                   for pat, name in crit_pats:
                       if pat.search(data):
-                          # tika-mimetypes.xml documents PEM markers; ignore MIME catalogs
-                          if name == "private_key" and b"tika" in info.filename.encode():
-                              continue
                           crit.append((name, info.filename))
                   for pat, name in warn_pats:
                       if pat.search(data):
@@ -229,21 +237,27 @@ jobs:
           PY
 
           echo "=== signing certificate (AAB vs upload keystore) ==="
-          # Compare public cert digests only; do not dump private key material.
-          AAB_CERT_SHA=$(keytool -printcert -jarfile "$AAB" 2>/dev/null \
-            | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}' || true)
+          # Extract signing cert from AAB META-INF (public digest only).
+          TMPCERT="$(mktemp -d)"
+          unzip -q -o "$AAB" "META-INF/*" -d "$TMPCERT" || true
+          AAB_CERT_SHA=""
+          for f in "$TMPCERT"/META-INF/*.{RSA,DSA,EC} "$TMPCERT"/META-INF/*.RSA "$TMPCERT"/META-INF/*.DSA; do
+            [ -f "$f" ] || continue
+            AAB_CERT_SHA=$(keytool -printcert -file "$f" 2>/dev/null \
+              | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}' || true)
+            [ -n "${AAB_CERT_SHA}" ] && break
+          done
           if [ -z "${AAB_CERT_SHA}" ]; then
-            # Fallback: jarsigner verbose cert lines
             AAB_CERT_SHA=$(jarsigner -verify -verbose -certs "$AAB" 2>/dev/null \
               | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}' || true)
           fi
+          rm -rf "$TMPCERT"
           test -n "${AAB_CERT_SHA}"
           test -n "${CERT_SHA256}"
           if [ "${AAB_CERT_SHA}" != "${CERT_SHA256}" ]; then
-            echo "SIGNING_MISMATCH aab_cert_len=${#AAB_CERT_SHA} keystore_cert_len=${#CERT_SHA256}" >&2
+            echo "SIGNING_MISMATCH aab_len=${#AAB_CERT_SHA} keystore_len=${#CERT_SHA256}" >&2
             exit 1
           fi
-          # Ensure not debug-signed (debug keystore SHA is environment-specific; check alias CN)
           if jarsigner -verify -verbose -certs "$AAB" 2>/dev/null | grep -qi 'CN=Android Debug'; then
             echo "DEBUG_SIGNED" >&2
             exit 1
