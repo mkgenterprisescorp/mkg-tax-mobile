@@ -71,10 +71,29 @@ class SyncCursorStore {
     return _storage.write(key: _key(accountKey, 'summaries'), value: encoded);
   }
 
+  Future<Map<String, dynamic>?> readDashboardSnapshot(String accountKey) async {
+    final raw = await _storage.read(key: _key(accountKey, 'dashboard'));
+    if (raw == null || raw.isEmpty) return null;
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  Future<void> writeDashboardSnapshot(
+    String accountKey,
+    Map<String, dynamic> snapshot,
+  ) {
+    return _storage.write(
+      key: _key(accountKey, 'dashboard'),
+      value: jsonEncode(snapshot),
+    );
+  }
+
   Future<void> clearAccount(String accountKey) async {
     await Future.wait([
       _storage.delete(key: _key(accountKey, 'cursor')),
       _storage.delete(key: _key(accountKey, 'summaries')),
+      _storage.delete(key: _key(accountKey, 'dashboard')),
     ]);
   }
 

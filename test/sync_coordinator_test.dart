@@ -159,11 +159,17 @@ void main() {
         updatedAt: DateTime.utc(2026),
       ),
     });
+    await subject.store.writeDashboardSnapshot('external-1', {
+      'schema_version': 1,
+      'cached_at': DateTime.utc(2026).toIso8601String(),
+      'workspace': {'tax_year': 2025, 'organizer_completion_percentage': 40},
+    });
 
     await subject.coordinator.clearAccount(accountKey: 'external-1');
 
     expect(await subject.store.readCursor('external-1'), isNull);
     expect(await subject.store.readCachedSummaries('external-1'), isEmpty);
+    expect(await subject.store.readDashboardSnapshot('external-1'), isNull);
   });
 
   test(

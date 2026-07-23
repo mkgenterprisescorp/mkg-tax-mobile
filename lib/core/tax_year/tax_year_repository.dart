@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../api/portal_repository.dart';
 import '../config/app_config.dart';
 import '../network/api_error_mapper.dart';
 import '../network/laravel_api_client.dart';
+import '../sync/sync_providers.dart';
 import 'return_number.dart';
 
 class TaxYearInfo {
@@ -41,6 +44,16 @@ class TaxYearInfo {
       status: (json['status'] ?? 'active').toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'tax_year': taxYear,
+    'label': label,
+    'is_current_filing_year': isCurrentFilingYear,
+    'efile_available': efileAvailable,
+    'paper_filing_only': paperFilingOnly,
+    'organizer_available': organizerAvailable,
+    'status': status,
+  };
 }
 
 class TaxYearWorkspace {
@@ -68,25 +81,35 @@ class TaxYearWorkspace {
   final List<Map<String, dynamic>> stateReturns;
   final int documentsCount;
   final dynamic taxReturnId;
+
   /// Laravel `/api/v1` tax-year workspace UUID.
   final String? workspaceId;
   final String? entityId;
+
   /// Human desk code `{LAST4}-{MM}-{DD}-{SEQ}` (e.g. GOVA-07-19-01).
   final String? returnNumber;
 
   factory TaxYearWorkspace.fromJson(Map<String, dynamic> json) {
-    final states = (json['state_workspaces'] as List?) ?? (json['state_returns'] as List?);
+    final states =
+        (json['state_workspaces'] as List?) ?? (json['state_returns'] as List?);
     final docs = json['documents'];
-    final docsCount = (json['documents_count'] as num?)?.toInt() ??
+    final docsCount =
+        (json['documents_count'] as num?)?.toInt() ??
         (docs is List ? docs.length : 0);
     return TaxYearWorkspace(
       taxYear: (json['tax_year'] as num?)?.toInt() ?? 0,
-      federalReturnStatus: _humanizeStatus(json['federal_return_status'] ?? 'Not Started'),
-      organizerStatus: _humanizeStatus(json['organizer_status'] ?? 'Not Started'),
-      organizerCompletionPercentage: (json['organizer_completion_percentage'] as num?)?.toInt() ?? 0,
+      federalReturnStatus: _humanizeStatus(
+        json['federal_return_status'] ?? 'Not Started',
+      ),
+      organizerStatus: _humanizeStatus(
+        json['organizer_status'] ?? 'Not Started',
+      ),
+      organizerCompletionPercentage:
+          (json['organizer_completion_percentage'] as num?)?.toInt() ?? 0,
       estimatedRefund: json['estimated_refund'] as num?,
       estimatedBalanceDue: json['estimated_balance_due'] as num?,
-      stateReturns: states
+      stateReturns:
+          states
               ?.whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList() ??
@@ -114,14 +137,30 @@ class TaxYearWorkspace {
       organizerStatus: pct >= 100
           ? 'Complete'
           : pct > 0
-              ? 'In Progress'
-              : 'Not Started',
+          ? 'In Progress'
+          : 'Not Started',
       organizerCompletionPercentage: pct,
       documentsCount: documentsCount,
       taxReturnId: row['id'],
       returnNumber: ReturnNumber.fromWorkspaceJson(row),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'tax_year': taxYear,
+    'federal_return_status': federalReturnStatus,
+    'organizer_status': organizerStatus,
+    'organizer_completion_percentage': organizerCompletionPercentage,
+    if (estimatedRefund != null) 'estimated_refund': estimatedRefund,
+    if (estimatedBalanceDue != null)
+      'estimated_balance_due': estimatedBalanceDue,
+    'state_returns': stateReturns,
+    'documents_count': documentsCount,
+    if (taxReturnId != null) 'tax_return_id': taxReturnId,
+    if (workspaceId != null) 'workspace_id': workspaceId,
+    if (entityId != null) 'entity_id': entityId,
+    if (returnNumber != null) 'return_number': returnNumber,
+  };
 }
 
 String _humanizeStatus(Object? raw) {
@@ -135,18 +174,26 @@ String _humanizeStatus(Object? raw) {
 }
 
 int _estimateOrganizerPct(Map<String, dynamic> data, String status) {
-  if (status == 'processing' || status == 'filed' || status == 'accepted' || status == 'completed') {
+  if (status == 'processing' ||
+      status == 'filed' ||
+      status == 'accepted' ||
+      status == 'completed') {
     return 100;
   }
   var score = 0;
   var total = 8;
   if ('${data['prepType'] ?? ''}'.isNotEmpty) score++;
-  if ('${data['firstName'] ?? ''}'.trim().isNotEmpty && '${data['lastName'] ?? ''}'.trim().isNotEmpty) score++;
+  if ('${data['firstName'] ?? ''}'.trim().isNotEmpty &&
+      '${data['lastName'] ?? ''}'.trim().isNotEmpty) {
+    score++;
+  }
   final wages = data['wages'];
-  final hasIncome = (wages is num && wages > 0) ||
+  final hasIncome =
+      (wages is num && wages > 0) ||
       ((data['w2Forms'] as List?)?.isNotEmpty ?? false) ||
       ((data['scheduleE'] is Map) &&
-          ((data['scheduleE']['rentalProperties'] as List?)?.isNotEmpty ?? false));
+          ((data['scheduleE']['rentalProperties'] as List?)?.isNotEmpty ??
+              false));
   if (hasIncome) score++;
   if (data['itemizeDeductions'] == true || (data['scheduleA'] is Map)) score++;
   final sc = data['scheduleC'];
@@ -155,14 +202,132 @@ int _estimateOrganizerPct(Map<String, dynamic> data, String status) {
   if ('${data['routingNumber'] ?? ''}'.trim().isNotEmpty) score++;
   if (data['consentPerjury'] == true || data['consentToEFile'] == true) score++;
   // Entity prep
-  for (final k in ['form1120', 'form1120S', 'form1065', 'form990EZ', 'form990', 'form1041']) {
+  for (final k in [
+    'form1120',
+    'form1120S',
+    'form1065',
+    'form990EZ',
+    'form990',
+    'form1041',
+  ]) {
     final m = data[k];
-    if (m is Map && m.values.any((v) => v != null && '$v'.trim().isNotEmpty && v != 0)) {
+    if (m is Map &&
+        m.values.any((v) => v != null && '$v'.trim().isNotEmpty && v != 0)) {
       score = (score + 2).clamp(0, total);
       break;
     }
   }
   return ((score / total) * 100).round().clamp(0, 100);
+}
+
+class MobileDashboardBootstrap {
+  const MobileDashboardBootstrap({
+    this.years = const [],
+    this.currentFilingYear,
+    this.selectedYear,
+    this.catalogSource,
+    this.workspace,
+    this.tasks = const [],
+  });
+
+  final List<TaxYearInfo> years;
+  final int? currentFilingYear;
+  final int? selectedYear;
+  final String? catalogSource;
+  final TaxYearWorkspace? workspace;
+  final List<Map<String, dynamic>> tasks;
+
+  bool get hasDashboardData => years.isNotEmpty || workspace != null;
+
+  factory MobileDashboardBootstrap.fromJson(Map<String, dynamic> root) {
+    final payload = _asMap(root['data']) ?? root;
+    final catalog =
+        _asMap(payload['tax_year_catalog']) ??
+        _asMap(payload['catalog']) ??
+        _asMap(payload['taxYears']) ??
+        _asMap(payload['tax_years']);
+    final yearsRaw =
+        _asList(payload['years']) ??
+        _asList(payload['tax_years']) ??
+        _asList(payload['taxYears']) ??
+        _asList(catalog?['years']) ??
+        const [];
+    final years = yearsRaw
+        .whereType<Map>()
+        .map((e) => TaxYearInfo.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    final meta =
+        _asMap(payload['meta']) ??
+        _asMap(catalog?['meta']) ??
+        _asMap(payload['tax_year_meta']);
+    final workspaceMap =
+        _asMap(payload['workspace']) ??
+        _asMap(payload['tax_year_workspace']) ??
+        _asMap(payload['active_workspace']) ??
+        (_looksLikeWorkspace(payload) ? payload : null);
+    final workspace = workspaceMap == null
+        ? null
+        : TaxYearWorkspace.fromJson(workspaceMap);
+    final current =
+        _intFrom(
+          meta?['current_filing_tax_year'] ??
+              meta?['currentFilingTaxYear'] ??
+              payload['current_filing_tax_year'] ??
+              payload['currentFilingTaxYear'],
+        ) ??
+        (years.isNotEmpty
+            ? years
+                  .firstWhere(
+                    (y) => y.isCurrentFilingYear,
+                    orElse: () => years.first,
+                  )
+                  .taxYear
+            : null);
+    final selected =
+        _intFrom(
+          payload['selected_tax_year'] ??
+              payload['selectedTaxYear'] ??
+              payload['tax_year'],
+        ) ??
+        workspace?.taxYear ??
+        current;
+    final tasks =
+        (_asList(payload['tasks']) ??
+                _asList(workspaceMap?['tasks']) ??
+                const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+    return MobileDashboardBootstrap(
+      years: years,
+      currentFilingYear: current,
+      selectedYear: selected,
+      catalogSource: (meta?['source'] ?? payload['source'] ?? 'laravel')
+          .toString(),
+      workspace: workspace,
+      tasks: tasks,
+    );
+  }
+
+  static Map<String, dynamic>? _asMap(Object? value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  static List<dynamic>? _asList(Object? value) => value is List ? value : null;
+
+  static int? _intFrom(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse((value ?? '').toString());
+  }
+
+  static bool _looksLikeWorkspace(Map<String, dynamic> value) {
+    return value.containsKey('tax_year') &&
+        (value.containsKey('organizer_completion_percentage') ||
+            value.containsKey('federal_return_status') ||
+            value.containsKey('workspace_id'));
+  }
 }
 
 class TaxYearRepository {
@@ -171,7 +336,8 @@ class TaxYearRepository {
 
   /// Server-authoritative 10-year list (`GET /api/v1/tax-years`).
   /// Falls back to local computation if Laravel is unreachable.
-  Future<({List<TaxYearInfo> years, int current, String source})> listTaxYears() async {
+  Future<({List<TaxYearInfo> years, int current, String source})>
+  listTaxYears() async {
     try {
       final res = await _api.get<Map<String, dynamic>>('/api/v1/tax-years');
       if ((res.statusCode ?? 500) < 400 && res.data != null) {
@@ -191,7 +357,8 @@ class TaxYearRepository {
             .whereType<Map>()
             .map((e) => TaxYearInfo.fromJson(Map<String, dynamic>.from(e)))
             .toList();
-        final current = (meta?['current_filing_tax_year'] as num?)?.toInt() ??
+        final current =
+            (meta?['current_filing_tax_year'] as num?)?.toInt() ??
             (data.isNotEmpty ? data.first.taxYear : _localCurrentFilingYear());
         if (data.isNotEmpty) {
           return (years: data, current: current, source: 'laravel');
@@ -201,6 +368,24 @@ class TaxYearRepository {
       // fall through
     }
     return _localCatalog();
+  }
+
+  /// Lightweight dashboard bootstrap (`GET /api/v1/mobile/bootstrap`).
+  ///
+  /// The endpoint is expected to return catalog/workspace/task summaries only;
+  /// full organizer payloads are deliberately ignored by the dashboard path.
+  Future<MobileDashboardBootstrap?> mobileBootstrap({int? taxYear}) async {
+    if (_api.bearerToken == null) return null;
+    final res = await _api.mobileBootstrap(taxYear: taxYear);
+    final code = res.statusCode ?? 500;
+    if (code == 404 || code == 405) return null;
+    if (code >= 400 || res.data == null) {
+      throw StateError(
+        'We’re unable to refresh your dashboard right now. Please try again.',
+      );
+    }
+    final bootstrap = MobileDashboardBootstrap.fromJson(res.data!);
+    return bootstrap.hasDashboardData ? bootstrap : null;
   }
 
   /// Activate (or fetch) a tax-year workspace for an entity.
@@ -215,7 +400,10 @@ class TaxYearRepository {
     required String entityId,
     required int taxYear,
   }) async {
-    final packed = await activateWorkspacePacked(entityId: entityId, taxYear: taxYear);
+    final packed = await activateWorkspacePacked(
+      entityId: entityId,
+      taxYear: taxYear,
+    );
     return packed.workspace;
   }
 
@@ -312,7 +500,9 @@ class TaxYearRepository {
 
   Future<TaxYearWorkspace?> getWorkspaceById(String workspaceId) async {
     if (_api.bearerToken == null) return null;
-    final res = await _api.get<Map<String, dynamic>>('/api/v1/tax-year-workspaces/$workspaceId');
+    final res = await _api.get<Map<String, dynamic>>(
+      '/api/v1/tax-year-workspaces/$workspaceId',
+    );
     if ((res.statusCode ?? 500) >= 400 || res.data == null) return null;
     final data = res.data!['data'];
     if (data is! Map) return null;
@@ -377,7 +567,9 @@ class TaxYearRepository {
     }
     final data = res.data!['data'];
     if (data is! Map) {
-      throw StateError('We’re unable to save your state return right now. Please try again.');
+      throw StateError(
+        'We’re unable to save your state return right now. Please try again.',
+      );
     }
     return Map<String, dynamic>.from(data);
   }
@@ -431,17 +623,14 @@ class WorkspaceActivation {
   final TaxYearWorkspace workspace;
   final List<Map<String, dynamic>> tasks;
   final Map<String, dynamic>? organizer;
+
   /// True when the activate JSON included a `tasks` key (even if empty).
   final bool tasksEmbedded;
 }
 
 /// Scope keys that must match the active workspace before reusing [organizerSnapshot].
 class OrganizerSnapshotScope {
-  const OrganizerSnapshotScope({
-    this.workspaceId,
-    this.entityId,
-    this.taxYear,
-  });
+  const OrganizerSnapshotScope({this.workspaceId, this.entityId, this.taxYear});
 
   final String? workspaceId;
   final String? entityId;
@@ -477,8 +666,7 @@ bool isTaxYearCatalogWarm(
   final catalogMatchesCurrentSeason =
       state.currentFilingYear == expectedLocalFilingYear;
   final loadedAt = state.catalogLoadedAt;
-  final withinTtl =
-      loadedAt != null && clock.difference(loadedAt) < ttl;
+  final withinTtl = loadedAt != null && clock.difference(loadedAt) < ttl;
   return state.years.isNotEmpty &&
       state.currentFilingYear != null &&
       catalogMatchesCurrentSeason &&
@@ -503,12 +691,15 @@ class TaxYearState {
   final List<TaxYearInfo> years;
   final int? selectedYear;
   final int? currentFilingYear;
+
   /// Wall-clock when [years] / [currentFilingYear] were last fetched.
   final DateTime? catalogLoadedAt;
   final TaxYearWorkspace? workspace;
   final List<Map<String, dynamic>> tasks;
+
   /// Organizer JSON from the last activate (same shape as GET .../organizer).
   final Map<String, dynamic>? organizerSnapshot;
+
   /// Taxpayer / return / year keys for [organizerSnapshot].
   final OrganizerSnapshotScope? organizerSnapshotScope;
   final bool loading;
@@ -563,6 +754,105 @@ class TaxYearState {
   }
 }
 
+class DashboardCachedSnapshot {
+  const DashboardCachedSnapshot({
+    required this.cachedAt,
+    this.years = const [],
+    this.selectedYear,
+    this.currentFilingYear,
+    this.catalogLoadedAt,
+    this.workspace,
+    this.tasks = const [],
+    this.source = 'cache',
+  });
+
+  final DateTime cachedAt;
+  final List<TaxYearInfo> years;
+  final int? selectedYear;
+  final int? currentFilingYear;
+  final DateTime? catalogLoadedAt;
+  final TaxYearWorkspace? workspace;
+  final List<Map<String, dynamic>> tasks;
+  final String source;
+
+  factory DashboardCachedSnapshot.fromState(TaxYearState state) {
+    return DashboardCachedSnapshot(
+      cachedAt: DateTime.now(),
+      years: state.years,
+      selectedYear: state.selectedYear,
+      currentFilingYear: state.currentFilingYear,
+      catalogLoadedAt: state.catalogLoadedAt,
+      workspace: state.workspace,
+      tasks: state.tasks,
+      source: state.source,
+    );
+  }
+
+  factory DashboardCachedSnapshot.fromJson(Map<String, dynamic> json) {
+    final years = (json['years'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => TaxYearInfo.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    final tasks = (json['tasks'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final workspaceRaw = json['workspace'];
+    return DashboardCachedSnapshot(
+      cachedAt:
+          _dateFrom(json['cached_at']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      years: years,
+      selectedYear: _intFrom(json['selected_year']),
+      currentFilingYear: _intFrom(json['current_filing_year']),
+      catalogLoadedAt: _dateFrom(json['catalog_loaded_at']),
+      workspace: workspaceRaw is Map
+          ? TaxYearWorkspace.fromJson(Map<String, dynamic>.from(workspaceRaw))
+          : null,
+      tasks: tasks,
+      source: (json['source'] ?? 'cache').toString(),
+    );
+  }
+
+  bool get hasDashboardData => years.isNotEmpty || workspace != null;
+
+  TaxYearState toTaxYearState() {
+    return TaxYearState(
+      years: years,
+      selectedYear: selectedYear ?? workspace?.taxYear ?? currentFilingYear,
+      currentFilingYear: currentFilingYear,
+      catalogLoadedAt: catalogLoadedAt,
+      workspace: workspace,
+      tasks: tasks,
+      loading: false,
+      source: source == 'unknown' ? 'cache' : source,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'schema_version': 1,
+    'cached_at': cachedAt.toIso8601String(),
+    'years': years.map((y) => y.toJson()).toList(),
+    if (selectedYear != null) 'selected_year': selectedYear,
+    if (currentFilingYear != null) 'current_filing_year': currentFilingYear,
+    if (catalogLoadedAt != null)
+      'catalog_loaded_at': catalogLoadedAt!.toIso8601String(),
+    if (workspace != null) 'workspace': workspace!.toJson(),
+    'tasks': tasks,
+    'source': source,
+  };
+
+  static int? _intFrom(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse((value ?? '').toString());
+  }
+
+  static DateTime? _dateFrom(Object? value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+}
+
 class TaxYearNotifier extends Notifier<TaxYearState> {
   @override
   TaxYearState build() => const TaxYearState(loading: true);
@@ -597,7 +887,9 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       // catchError so an unexpected rejection cannot block a forced refresh.
       // Concurrent force callers while soft is in-flight share one follow-up.
       if (_bootstrapForceQueued) {
-        return existing.catchError((Object _) {}).then((_) => bootstrap(forceCatalog: true));
+        return existing
+            .catchError((Object _) {})
+            .then((_) => bootstrap(forceCatalog: true));
       }
       _bootstrapForceQueued = true;
       return existing.catchError((Object _) {}).then((_) {
@@ -631,6 +923,127 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   @visibleForTesting
   int get debugWorkspaceRefreshEpoch => _workspaceRefreshEpoch;
 
+  Future<void> hydrateDashboardCache() async {
+    if (state.workspace != null || state.years.isNotEmpty) return;
+    final accountKey = ref.read(activeSyncAccountKeyProvider);
+    if (accountKey == null || accountKey.isEmpty) return;
+    try {
+      final raw = await ref
+          .read(syncCursorStoreProvider)
+          .readDashboardSnapshot(accountKey);
+      if (raw == null) return;
+      final snapshot = DashboardCachedSnapshot.fromJson(raw);
+      if (!snapshot.hasDashboardData) return;
+      state = snapshot.toTaxYearState();
+    } catch (_) {
+      // Cache read/decode failures should never block live dashboard refresh.
+    }
+  }
+
+  void _persistDashboardCache() {
+    final accountKey = ref.read(activeSyncAccountKeyProvider);
+    if (accountKey == null || accountKey.isEmpty) return;
+    final snapshot = DashboardCachedSnapshot.fromState(state);
+    if (!snapshot.hasDashboardData) return;
+    unawaited(
+      ref
+          .read(syncCursorStoreProvider)
+          .writeDashboardSnapshot(accountKey, snapshot.toJson())
+          .catchError((_) {}),
+    );
+  }
+
+  Future<bool> _tryMobileDashboardBootstrap({
+    required bool forceCatalog,
+    required bool hasWarmCatalog,
+  }) async {
+    if (!AppConfig.usesLaravelAuth) return false;
+    final needsCatalog = forceCatalog || !hasWarmCatalog;
+    ({List<TaxYearInfo> years, int current, String source})? catalog;
+    MobileDashboardBootstrap? bootstrap;
+    Object? catalogError;
+    Object? bootstrapError;
+
+    if (needsCatalog) {
+      final catalogFuture = _repo.listTaxYears();
+      final bootstrapFuture = _repo.mobileBootstrap(
+        taxYear: state.selectedYear,
+      );
+      await Future.wait<void>([
+        catalogFuture
+            .then<void>((value) {
+              catalog = value;
+            })
+            .catchError((Object error) {
+              catalogError = error;
+            }),
+        bootstrapFuture
+            .then<void>((value) {
+              bootstrap = value;
+            })
+            .catchError((Object error) {
+              bootstrapError = error;
+            }),
+      ]);
+    } else {
+      try {
+        bootstrap = await _repo.mobileBootstrap(taxYear: state.selectedYear);
+      } catch (e) {
+        bootstrapError = e;
+      }
+    }
+
+    if (bootstrapError != null) throw bootstrapError!;
+    final payload = bootstrap;
+    if (payload == null) {
+      if (catalog != null) {
+        final selected = state.selectedYear ?? catalog!.current;
+        state = state.copyWith(
+          years: catalog!.years,
+          currentFilingYear: catalog!.current,
+          catalogLoadedAt: DateTime.now(),
+          selectedYear: selected,
+          source: catalog!.source,
+          loading: false,
+        );
+      } else if (catalogError != null) {
+        throw catalogError!;
+      }
+      return false;
+    }
+
+    final years = payload.years.isNotEmpty
+        ? payload.years
+        : (catalog?.years.isNotEmpty == true ? catalog!.years : state.years);
+    final current =
+        payload.currentFilingYear ??
+        catalog?.current ??
+        state.currentFilingYear ??
+        (years.isNotEmpty ? years.first.taxYear : null);
+    final selected =
+        payload.selectedYear ??
+        state.selectedYear ??
+        payload.workspace?.taxYear ??
+        current;
+    final loadedAt =
+        years.isNotEmpty && (needsCatalog || state.catalogLoadedAt == null)
+        ? DateTime.now()
+        : state.catalogLoadedAt;
+    state = state.copyWith(
+      years: years,
+      currentFilingYear: current,
+      catalogLoadedAt: loadedAt,
+      selectedYear: selected,
+      workspace: payload.workspace ?? state.workspace,
+      tasks: payload.tasks,
+      loading: false,
+      source: payload.catalogSource ?? catalog?.source ?? 'laravel',
+      error: null,
+    );
+    _persistDashboardCache();
+    return true;
+  }
+
   Future<void> _bootstrapBody({required bool forceCatalog}) async {
     final hasWarmCatalog = isTaxYearCatalogWarm(state);
     // Only flash full-screen loading when we have nothing to show yet.
@@ -640,7 +1053,17 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       state = state.copyWith(error: null);
     }
     try {
-      if (forceCatalog || !hasWarmCatalog) {
+      if (AppConfig.usesLaravelAuth) {
+        final bootstrapped = await _tryMobileDashboardBootstrap(
+          forceCatalog: forceCatalog,
+          hasWarmCatalog: hasWarmCatalog,
+        );
+        if (bootstrapped) return;
+      }
+      final needsCatalog =
+          (forceCatalog || !hasWarmCatalog) &&
+          !(AppConfig.usesLaravelAuth && isTaxYearCatalogWarm(state));
+      if (needsCatalog) {
         final catalog = await _repo.listTaxYears();
         final selected = state.selectedYear ?? catalog.current;
         state = state.copyWith(
@@ -655,6 +1078,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         state = state.copyWith(loading: false);
       }
       await refreshWorkspace();
+      _persistDashboardCache();
     } catch (e) {
       state = state.copyWith(loading: false, error: ApiErrorMapper.map(e));
     }
@@ -697,7 +1121,9 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       (sections['answers'] as Map?) ?? const <String, dynamic>{},
     );
     for (final entry in sectionAnswers.entries) {
-      answersRoot[entry.key] = {'answers': Map<String, dynamic>.from(entry.value)};
+      answersRoot[entry.key] = {
+        'answers': Map<String, dynamic>.from(entry.value),
+      };
     }
     sections['answers'] = answersRoot;
     next['sections'] = sections;
@@ -753,7 +1179,9 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         final entity = await entities.ensurePrimaryEntity();
         final entityId = entity?['id']?.toString();
         if (entityId == null || entityId.isEmpty) {
-          throw StateError('We’re unable to open your tax organizer right now. Please try again.');
+          throw StateError(
+            'We’re unable to open your tax organizer right now. Please try again.',
+          );
         }
         if (!_canCommitWorkspaceRefresh(
           epoch: epoch,
@@ -770,8 +1198,8 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
         final tasks = packed.tasksEmbedded
             ? packed.tasks
             : (packed.workspace.workspaceId == null
-                ? const <Map<String, dynamic>>[]
-                : await _repo.listTasks(packed.workspace.workspaceId!));
+                  ? const <Map<String, dynamic>>[]
+                  : await _repo.listTasks(packed.workspace.workspaceId!));
         if (!_canCommitWorkspaceRefresh(
           epoch: epoch,
           requestedYear: requestedYear,
@@ -796,6 +1224,7 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
           source: 'laravel',
           error: null,
         );
+        _persistDashboardCache();
         return;
       } catch (e) {
         if (!_canCommitWorkspaceRefresh(
@@ -822,9 +1251,13 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       final portal = ref.read(portalRepositoryProvider);
       String? lastName;
       try {
-        lastName = (await ref.read(authRepositoryProvider).currentUser())?.lastName;
+        lastName =
+            (await ref.read(authRepositoryProvider).currentUser())?.lastName;
       } catch (_) {}
-      final row = await portal.getOrCreateReturnForYear(requestedYear, lastName: lastName);
+      final row = await portal.getOrCreateReturnForYear(
+        requestedYear,
+        lastName: lastName,
+      );
       var docsCount = 0;
       try {
         if (row['id'] != null) {
@@ -841,11 +1274,15 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
       if (rowYear != null && rowYear != requestedYear) return;
 
       state = state.copyWith(
-        workspace: TaxYearWorkspace.fromPortalReturn(row, documentsCount: docsCount),
+        workspace: TaxYearWorkspace.fromPortalReturn(
+          row,
+          documentsCount: docsCount,
+        ),
         tasks: const [],
         source: state.source == 'laravel' ? state.source : 'portal-returns',
         error: null,
       );
+      _persistDashboardCache();
     } catch (e) {
       if (!_canCommitWorkspaceRefresh(
         epoch: epoch,
@@ -858,4 +1295,6 @@ class TaxYearNotifier extends Notifier<TaxYearState> {
   }
 }
 
-final taxYearProvider = NotifierProvider<TaxYearNotifier, TaxYearState>(TaxYearNotifier.new);
+final taxYearProvider = NotifierProvider<TaxYearNotifier, TaxYearState>(
+  TaxYearNotifier.new,
+);
