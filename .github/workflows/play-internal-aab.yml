@@ -1,0 +1,291 @@
+name: Play Internal AAB (signed)
+
+# Manual only. Uses GitHub Environment `android-google-play` for upload-key secrets.
+# Builds a free, no-AD_ID, production-API signed App Bundle.
+# Does NOT upload to Google Play Console.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Android versionCode (must exceed prior APK/AAB versionCodes)"
+        required: true
+        default: "32"
+      build_name:
+        description: "Android versionName"
+        required: true
+        default: "1.0.0"
+
+env:
+  FLUTTER_VERSION: "3.44.6"
+  EXPECTED_PACKAGE_ID: "com.mkgtaxconsultants.mobile"
+  PRODUCTION_API_HOST: "app.mkgtaxconsultants.com"
+
+jobs:
+  build-signed-aab:
+    name: Build signed App Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: android-google-play
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: |
+          set -euo pipefail
+          flutter analyze lib test 2>&1 | tee /tmp/analyze.out
+          if grep -E "error •" /tmp/analyze.out; then
+            echo "Analyzer reported errors" >&2
+            exit 1
+          fi
+
+      - name: flutter test
+        run: flutter test --concurrency=1
+
+      - name: Materialize upload keystore (temp only)
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_UPLOAD_KEYSTORE_BASE64}"
+          test -n "${ANDROID_UPLOAD_KEYSTORE_PASSWORD}"
+          test -n "${ANDROID_UPLOAD_KEY_ALIAS}"
+          test -n "${ANDROID_UPLOAD_KEY_PASSWORD}"
+
+          KEYSTORE_DIR="$(mktemp -d)"
+          echo "KEYSTORE_DIR=${KEYSTORE_DIR}" >> "$GITHUB_ENV"
+          KEYSTORE_PATH="${KEYSTORE_DIR}/upload-keystore.jks"
+          # Decode without echoing ciphertext; strip whitespace/newlines from base64
+          printf '%s' "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | tr -d '\n\r ' | base64 -d > "${KEYSTORE_PATH}"
+          chmod 600 "${KEYSTORE_PATH}"
+          test -s "${KEYSTORE_PATH}"
+
+          umask 077
+          {
+            echo "storePassword=${ANDROID_UPLOAD_KEYSTORE_PASSWORD}"
+            echo "keyPassword=${ANDROID_UPLOAD_KEY_PASSWORD}"
+            echo "keyAlias=${ANDROID_UPLOAD_KEY_ALIAS}"
+            echo "storeFile=${KEYSTORE_PATH}"
+          } > android/key.properties
+          chmod 600 android/key.properties
+
+          # Public certificate fingerprint only (never print private key material)
+          CERT_SHA=$(keytool -list -v \
+            -keystore "${KEYSTORE_PATH}" \
+            -storepass "${ANDROID_UPLOAD_KEYSTORE_PASSWORD}" \
+            -alias "${ANDROID_UPLOAD_KEY_ALIAS}" \
+            | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}')
+          test -n "${CERT_SHA}"
+          echo "CERT_SHA256=${CERT_SHA}" >> "$GITHUB_ENV"
+          echo "Upload certificate SHA-256 length=${#CERT_SHA}"
+
+          unset ANDROID_UPLOAD_KEYSTORE_BASE64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS ANDROID_UPLOAD_KEY_PASSWORD
+
+      - name: Build signed release App Bundle (production API)
+        run: |
+          set -euo pipefail
+          # Live production mobile API host (api.finance… DNS not live yet — repo SoT).
+          flutter build appbundle --release \
+            --build-name="${{ inputs.build_name }}" \
+            --build-number="${{ inputs.build_number }}" \
+            --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+            --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com \
+            --dart-define=WEB_BASE_URL=https://mkgtaxconsultants.com \
+            --dart-define=APP_ENV=production \
+            --dart-define=APP_NAME=MKG Tax Consultants Pro Filer
+
+      - name: Verify AAB + merged manifest + signing
+        run: |
+          set -euo pipefail
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+
+          curl -fsSL -o /tmp/bundletool.jar \
+            https://github.com/google/bundletool/releases/download/1.17.2/bundletool-all-1.17.2.jar
+
+          java -jar /tmp/bundletool.jar dump manifest --bundle="$AAB" > /tmp/merged-manifest.xml
+
+          echo "=== package / version / flags ==="
+          python3 - <<'PY'
+          import re, pathlib, sys, os
+          m = pathlib.Path("/tmp/merged-manifest.xml").read_text()
+          pkg = re.search(r'package="([^"]+)"', m)
+          vc = re.search(r'android:versionCode="([^"]+)"', m)
+          vn = re.search(r'android:versionName="([^"]+)"', m)
+          debuggable = 'android:debuggable="true"' in m
+          test_only = 'android:testOnly="true"' in m
+          ad_id = "com.google.android.gms.permission.AD_ID" in m
+          print("package=", pkg.group(1) if pkg else None)
+          print("versionCode=", vc.group(1) if vc else None)
+          print("versionName=", vn.group(1) if vn else None)
+          print("debuggable=", debuggable)
+          print("testOnly=", test_only)
+          print("has_AD_ID_permission=", ad_id)
+          errors = []
+          expected_pkg = os.environ["EXPECTED_PACKAGE_ID"]
+          if not pkg or pkg.group(1) != expected_pkg:
+              errors.append("package_id_mismatch")
+          if ad_id:
+              errors.append("AD_ID_permission_present")
+          if debuggable:
+              errors.append("debuggable_true")
+          if test_only:
+              errors.append("testOnly_true")
+          expected_vc = """${{ inputs.build_number }}"""
+          if not vc or vc.group(1) != expected_vc:
+              errors.append(f"versionCode_mismatch expected={expected_vc}")
+          if errors:
+              print("VERIFY_FAIL", errors)
+              sys.exit(1)
+          print("VERIFY_OK")
+          PY
+
+          echo "=== permissions (names only) ==="
+          grep -oE 'android:name="[^"]*permission[^"]*"' /tmp/merged-manifest.xml | sort -u || true
+
+          echo "=== host / secret scan ==="
+          python3 - <<'PY'
+          import zipfile, re, sys, os
+          aab = "build/app/outputs/bundle/release/app-release.aab"
+          host = os.environ["PRODUCTION_API_HOST"].encode()
+          crit_pats = [
+              (re.compile(rb"neon\.tech", re.I), "neon.tech"),
+              (re.compile(rb"DATABASE_URL"), "DATABASE_URL"),
+              (re.compile(rb"sk_live_[0-9a-zA-Z]{8,}"), "stripe_live"),
+              (re.compile(rb"whsec_[0-9a-zA-Z]{8,}"), "webhook_secret"),
+              (re.compile(rb"/internal/mobile"), "internal_s2s"),
+              (re.compile(rb"-----BEGIN (?:RSA )?PRIVATE KEY-----"), "private_key"),
+              (re.compile(rb"ANDROID_UPLOAD_KEYSTORE"), "keystore_secret_name"),
+          ]
+          warn_pats = [
+              (re.compile(rb"127\.0\.0\.1"), "loopback"),
+              (re.compile(rb"(?<![A-Za-z])localhost(?![A-Za-z])", re.I), "localhost"),
+              (re.compile(rb"APP_ENV.{0,16}staging"), "staging_env"),
+              (re.compile(rb"http://(?!schemas\.android\.com)"), "cleartext_http"),
+          ]
+          crit, warn = [], []
+          api_host_seen = False
+          with zipfile.ZipFile(aab) as z:
+              for info in z.infolist():
+                  if info.file_size > 12_000_000:
+                      continue
+                  if info.filename.endswith((".png", ".jpg", ".webp", ".so")):
+                      continue
+                  data = z.read(info)
+                  if host in data:
+                      api_host_seen = True
+                  for pat, name in crit_pats:
+                      if pat.search(data):
+                          crit.append((name, info.filename))
+                  for pat, name in warn_pats:
+                      if pat.search(data):
+                          warn.append((name, info.filename))
+          print("api_host_seen=", api_host_seen)
+          print("warn_hits=", len(warn))
+          for w in warn[:20]:
+              print("WARN", w[0], w[1])
+          if crit:
+              print("CRITICAL", crit[:20])
+              sys.exit(1)
+          if not api_host_seen:
+              print("CRITICAL missing production API host string in bundle")
+              sys.exit(1)
+          print("SECRET_SCAN_OK")
+          PY
+
+          echo "=== signing certificate (AAB vs upload keystore) ==="
+          # Compare public cert digests only; do not dump private key material.
+          AAB_CERT_SHA=$(keytool -printcert -jarfile "$AAB" 2>/dev/null \
+            | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}' || true)
+          if [ -z "${AAB_CERT_SHA}" ]; then
+            # Fallback: jarsigner verbose cert lines
+            AAB_CERT_SHA=$(jarsigner -verify -verbose -certs "$AAB" 2>/dev/null \
+              | awk -F': ' '/SHA256:/{gsub(/ /,"",$2); print $2; exit}' || true)
+          fi
+          test -n "${AAB_CERT_SHA}"
+          test -n "${CERT_SHA256}"
+          if [ "${AAB_CERT_SHA}" != "${CERT_SHA256}" ]; then
+            echo "SIGNING_MISMATCH aab_cert_len=${#AAB_CERT_SHA} keystore_cert_len=${#CERT_SHA256}" >&2
+            exit 1
+          fi
+          # Ensure not debug-signed (debug keystore SHA is environment-specific; check alias CN)
+          if jarsigner -verify -verbose -certs "$AAB" 2>/dev/null | grep -qi 'CN=Android Debug'; then
+            echo "DEBUG_SIGNED" >&2
+            exit 1
+          fi
+          echo "SIGNING_OK cert_sha256_len=${#CERT_SHA256}"
+
+          sha256sum "$AAB" | tee build/app/outputs/bundle/release/SHA256SUMS.txt
+          {
+            echo "package=${EXPECTED_PACKAGE_ID}"
+            echo "versionName=${{ inputs.build_name }}"
+            echo "versionCode=${{ inputs.build_number }}"
+            echo "certSha256=${CERT_SHA256}"
+            echo "commit=${GITHUB_SHA}"
+            echo "api=https://app.mkgtaxconsultants.com/api/v1"
+            echo "appEnv=production"
+            echo "adId=false"
+            echo "distribution=free"
+          } > build/app/outputs/bundle/release/BUILD_META.txt
+          # Do not put keystore path or passwords into BUILD_META
+          ls -la "$AAB" build/app/outputs/bundle/release/SHA256SUMS.txt
+
+      - name: Secure cleanup of keystore material
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f android/key.properties
+          if [ -n "${KEYSTORE_DIR:-}" ] && [ -d "${KEYSTORE_DIR}" ]; then
+            find "${KEYSTORE_DIR}" -type f -exec shred -u {} \; 2>/dev/null \
+              || find "${KEYSTORE_DIR}" -type f -delete
+            rm -rf "${KEYSTORE_DIR}"
+          fi
+
+      - name: Upload private AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkg-tax-pro-filer-play-aab
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/bundle/release/SHA256SUMS.txt
+            build/app/outputs/bundle/release/BUILD_META.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          {
+            echo "## Play Internal AAB"
+            echo "- commit: \`${GITHUB_SHA}\`"
+            echo "- package: \`${EXPECTED_PACKAGE_ID}\`"
+            echo "- versionName: \`${{ inputs.build_name }}\`"
+            echo "- versionCode: \`${{ inputs.build_number }}\`"
+            echo "- API: \`https://app.mkgtaxconsultants.com/api/v1\` (APP_ENV=production)"
+            echo "- distribution: free / Advertising ID: No"
+            echo "- artifact: \`mkg-tax-pro-filer-play-aab\`"
+            echo "- upload cert SHA-256: \`${CERT_SHA256}\`"
+            echo "- Play Console upload: **not performed**"
+          } >> "$GITHUB_STEP_SUMMARY"
