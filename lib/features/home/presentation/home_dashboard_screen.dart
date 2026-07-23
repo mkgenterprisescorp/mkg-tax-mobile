@@ -17,10 +17,17 @@ class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
 
   @override
-  ConsumerState<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
+  ConsumerState<HomeDashboardScreen> createState() =>
+      _HomeDashboardScreenState();
 }
 
 class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
+  Future<void> _hydrateThenBootstrap() async {
+    await ref.read(taxYearProvider.notifier).hydrateDashboardCache();
+    if (!mounted) return;
+    await ref.read(taxYearProvider.notifier).bootstrap();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +35,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
       // Defer Organizer defaults until after first frame — Home does not need
       // the ~35KB JSON for first paint; Organizer loads it on open (cached).
       unawaited(Future<void>.delayed(Duration.zero, OrganizerDefaults.load));
-      ref.read(taxYearProvider.notifier).bootstrap();
+      unawaited(_hydrateThenBootstrap());
     });
   }
 
@@ -38,19 +45,25 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     // Fine-grained watches — avoid rebuilding the whole dashboard on every
     // taxYear field churn (e.g. organizerSnapshot updates).
     final loading = ref.watch(taxYearProvider.select((s) => s.loading));
-    final selectedYear = ref.watch(taxYearProvider.select((s) => s.selectedYear));
-    final currentFilingYear =
-        ref.watch(taxYearProvider.select((s) => s.currentFilingYear));
+    final selectedYear = ref.watch(
+      taxYearProvider.select((s) => s.selectedYear),
+    );
+    final currentFilingYear = ref.watch(
+      taxYearProvider.select((s) => s.currentFilingYear),
+    );
     final workspace = ref.watch(taxYearProvider.select((s) => s.workspace));
     final tasks = ref.watch(taxYearProvider.select((s) => s.tasks));
     final error = ref.watch(taxYearProvider.select((s) => s.error));
     final caps = capabilitiesFor(auth.user?.role);
-    final name = auth.user?.firstName.isNotEmpty == true ? auth.user!.firstName : 'there';
+    final name = auth.user?.firstName.isNotEmpty == true
+        ? auth.user!.firstName
+        : 'there';
     final year = selectedYear ?? currentFilingYear ?? (DateTime.now().year - 1);
     final ws = workspace;
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(taxYearProvider.notifier).bootstrap(forceCatalog: true),
+      onRefresh: () =>
+          ref.read(taxYearProvider.notifier).bootstrap(forceCatalog: true),
       child: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
@@ -62,16 +75,25 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               children: [
                 Text(
                   caps.isProfessional ? 'Good day, $name' : 'Hi $name,',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 const Text(
                   'MKG Tax Consultants',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: MkgColors.primary),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: MkgColors.primary,
+                  ),
                 ),
                 Text(
                   'Finance Advisors',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: MkgColors.accent.withValues(alpha: 0.95)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: MkgColors.accent.withValues(alpha: 0.95),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -107,26 +129,41 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.flag_outlined, color: MkgColors.primary),
+                        const Icon(
+                          Icons.flag_outlined,
+                          color: MkgColors.primary,
+                        ),
                         const SizedBox(width: 8),
-                        Text('Filing progress · TY $year', style: const TextStyle(fontWeight: FontWeight.w800)),
+                        Text(
+                          'Filing progress · TY $year',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     LinearProgressIndicator(
-                      value: ((ws?.organizerCompletionPercentage ?? 0) / 100).clamp(0, 1),
+                      value: ((ws?.organizerCompletionPercentage ?? 0) / 100)
+                          .clamp(0, 1),
                       minHeight: 8,
                       borderRadius: BorderRadius.circular(8),
                       color: MkgColors.primary,
-                      backgroundColor: MkgColors.primary.withValues(alpha: 0.12),
+                      backgroundColor: MkgColors.primary.withValues(
+                        alpha: 0.12,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _chip('Federal', ws?.federalReturnStatus ?? 'Not Started'),
-                        _chip('Organizer', ws?.organizerStatus ?? 'Not Started'),
+                        _chip(
+                          'Federal',
+                          ws?.federalReturnStatus ?? 'Not Started',
+                        ),
+                        _chip(
+                          'Organizer',
+                          ws?.organizerStatus ?? 'Not Started',
+                        ),
                         _chip('Docs', '${ws?.documentsCount ?? 0} on file'),
                       ],
                     ),
@@ -136,7 +173,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Text('Quick walkthrough', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              child: Text(
+                'Quick walkthrough',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -178,7 +218,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
-              child: Text('Services', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              child: Text(
+                'Services',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -221,7 +264,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             if (tasks.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
-                child: Text('Outstanding tasks', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                child: Text(
+                  'Outstanding tasks',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
               ),
               ...tasks.take(3).map((t) {
                 final href = (t['href'] ?? 'tax-center').toString();
@@ -233,7 +279,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   _ => '/tax-center',
                 };
                 return ListTile(
-                  leading: const Icon(Icons.check_circle_outline, color: MkgColors.accent),
+                  leading: const Icon(
+                    Icons.check_circle_outline,
+                    color: MkgColors.accent,
+                  ),
                   title: Text((t['title'] ?? 'Task').toString()),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(path),
@@ -242,7 +291,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             ],
             if (caps.isProfessional)
               ListTile(
-                leading: const Icon(Icons.groups_outlined, color: MkgColors.primary),
+                leading: const Icon(
+                  Icons.groups_outlined,
+                  color: MkgColors.primary,
+                ),
                 title: const Text('My Clients'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.go('/my-clients'),
@@ -254,14 +306,17 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   }
 
   Widget _chip(String label, String value) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: MkgColors.primary.withValues(alpha: 0.15)),
-        ),
-        child: Text('$label: $value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: MkgColors.primary.withValues(alpha: 0.15)),
+    ),
+    child: Text(
+      '$label: $value',
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+    ),
+  );
 }
 
 class _ServicePillar extends StatelessWidget {
@@ -300,9 +355,21 @@ class _ServicePillar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(color: MkgColors.textGrey, fontSize: 13)),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: MkgColors.textGrey,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -316,7 +383,11 @@ class _ServicePillar extends StatelessWidget {
 }
 
 class _QuickIcon extends StatelessWidget {
-  const _QuickIcon({required this.icon, required this.label, required this.onTap});
+  const _QuickIcon({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -340,7 +411,9 @@ class _QuickIcon extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: MkgColors.primary.withValues(alpha: 0.18)),
+                  border: Border.all(
+                    color: MkgColors.primary.withValues(alpha: 0.18),
+                  ),
                 ),
                 child: Icon(icon, color: MkgColors.primary),
               ),
@@ -348,7 +421,10 @@ class _QuickIcon extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),

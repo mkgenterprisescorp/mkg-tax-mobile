@@ -41,6 +41,7 @@ class LaravelApiClient {
         receiveTimeout: const Duration(seconds: 30),
         headers: {
           'Accept': 'application/json',
+          'Accept-Encoding': 'gzip',
           'Content-Type': 'application/json',
           'X-Client': 'mkg-tax-mobile',
         },
@@ -50,8 +51,18 @@ class LaravelApiClient {
     return LaravelApiClient(dio);
   }
 
-  Future<Response<T>> get<T>(String path, {Map<String, dynamic>? query, Options? options}) =>
-      dio.get<T>(path, queryParameters: query, options: options);
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? query,
+    Options? options,
+  }) => dio.get<T>(path, queryParameters: query, options: options);
+
+  Future<Response<Map<String, dynamic>>> mobileBootstrap({int? taxYear}) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/mobile/bootstrap',
+      query: {'tax_year': ?taxYear},
+    );
+  }
 
   Future<Response<T>> post<T>(String path, {Object? data, Options? options}) =>
       dio.post<T>(path, data: data, options: options);
