@@ -43,7 +43,7 @@ workflows:
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
-        IOS_BUILD_NUMBER_FLOOR: "33"
+        IOS_BUILD_NUMBER_FLOOR: "37"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -214,7 +214,7 @@ workflows:
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
         # Prior external-submit attempt used 35; next binary must be ≥36.
-        IOS_BUILD_NUMBER_FLOOR: "36"
+        IOS_BUILD_NUMBER_FLOOR: "37"
         # ASC TestFlight Test Information (external beta review)
         TF_FEEDBACK_EMAIL: clientservices@mkgenterprisescorp.com
         TF_CONTACT_EMAIL: clientservices@mkgenterprisescorp.com
