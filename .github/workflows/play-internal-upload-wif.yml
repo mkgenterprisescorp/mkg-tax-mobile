@@ -21,7 +21,7 @@ on:
       release_name:
         description: "Play Console release name"
         required: true
-        default: "Pro Filer 1.0.0 (32) — Internal"
+        default: "MKG Tax Consultants Pro Filer 1.0.0 (32)"
       release_status:
         description: "Play release status: draft (safe) or completed (testers)"
         required: true
