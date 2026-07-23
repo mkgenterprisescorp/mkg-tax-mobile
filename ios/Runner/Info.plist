@@ -26,6 +26,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Privacy purpose strings required by App Store Connect (ITMS-90683).
+	     file_picker / document upload paths may reference Photos, Camera, and
+	     Location APIs even when the user only picks tax document files. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MKG Tax needs access to your photo library so you can upload images of tax documents such as W-2s, 1099s, IDs, and receipts.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>MKG Tax needs camera access so you can photograph tax documents such as W-2s, 1099s, IDs, and receipts for upload.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MKG Tax may use your location while you use the app only if a linked feature or library requests it to complete document or address-related workflows. Location is not used for advertising.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
