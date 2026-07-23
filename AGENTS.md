@@ -135,7 +135,7 @@
 
 ### Mobile login / Play Internal testers
 - Signup is **disabled** on Sanctum production builds (`usesLaravelAuth` / `MOBILE_REGISTRATION_ENABLED=false`).
-- Login requires portal S2S (`FINANCEMKGTAXPRO_*` ↔ portal `MOBILE_SERVICE_CLIENT_*`). If Laravel logs show `[financemkgtaxpro-bridge] ... authenticate ... unauthorized`, fix **duplicate** `MOBILE_SERVICE_CLIENT_ID`/`SECRET` on the DigitalOcean `financemkgtaxpro` app (keep plain ID + first secret only), then retest.
+- Login requires portal S2S (`FINANCEMKGTAXPRO_*` ↔ portal `MOBILE_SERVICE_CLIENT_*`). **Resolved 2026-07-23:** S2S matrix 10/10 (identity assertion minting + durable nonce active; no whitespace_credentials/503/504). Wrong password returns `invalid_credentials` via bridge.
 - Designated testers: Marsh `mkgtax@gmail.com`, Erin `erin.mkgtax@gmail.com` (must be portal **client** users: active + approved + email verified; TOTP off or OTP UI required).
 
 ### Commands
