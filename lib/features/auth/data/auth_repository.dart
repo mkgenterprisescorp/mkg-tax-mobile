@@ -267,20 +267,34 @@ class AuthRepository {
     return PortalUser.fromJson(Map<String, dynamic>.from(res.data!));
   }
 
+  /// Returns true when a 401 body is an intentional MFA challenge (not bad password).
+  static bool isMfaRequiredBody(Map<String, dynamic> data) {
+    if (data['error']?.toString() == 'mfa_required') return true;
+    final verification = data['verification'];
+    if (verification is Map && verification['mfa_required'] == true) return true;
+    return false;
+  }
+
   Future<PortalUser> login({
     required String email,
     required String password,
+    String? otp,
   }) async {
     if (_usesLaravelAuth) {
+      final payload = <String, dynamic>{
+        'identifier': email.trim(),
+        'password': password,
+        'device_name': 'mkg-tax-mobile',
+      };
+      final otpTrimmed = otp?.trim();
+      if (otpTrimmed != null && otpTrimmed.isNotEmpty) {
+        payload['otp'] = otpTrimmed;
+      }
       final res = await _api.post<Map<String, dynamic>>(
         '/auth/login',
-        data: {
-          'identifier': email.trim(),
-          'password': password,
-          'device_name': 'mkg-tax-mobile',
-        },
+        data: payload,
       );
-      final data = res.data ?? {};
+      final data = Map<String, dynamic>.from(res.data ?? {});
       if (res.statusCode == 200) {
         final token = (data['token'] ?? '').toString();
         if (token.isEmpty) {
@@ -299,12 +313,26 @@ class AuthRepository {
         }
         return PortalUser.fromJson(userMap);
       }
+      if (isMfaRequiredBody(data)) {
+        // Password was accepted; portal emailed a login OTP (same as web).
+        final challengedAgain = otpTrimmed != null && otpTrimmed.isNotEmpty;
+        throw AuthException(
+          challengedAgain
+              ? ApiErrorMapper.loginOtpInvalidMessage
+              : ApiErrorMapper.loginOtpRequiredMessage,
+          requiresOtp: true,
+        );
+      }
       throw AuthException(_loginErrorMessage(res.statusCode));
     }
 
     final res = await _api.post<Map<String, dynamic>>(
       '/api/login',
-      data: {'email': email.trim(), 'password': password},
+      data: {
+        'email': email.trim(),
+        'password': password,
+        if (otp != null && otp.trim().isNotEmpty) 'otp': otp.trim(),
+      },
     );
     final data = res.data ?? {};
     if (res.statusCode == 200) {
@@ -320,6 +348,12 @@ class AuthRepository {
         );
       }
       return PortalUser.fromJson(Map<String, dynamic>.from(data));
+    }
+    if (isMfaRequiredBody(Map<String, dynamic>.from(data))) {
+      throw AuthException(
+        ApiErrorMapper.loginOtpRequiredMessage,
+        requiresOtp: true,
+      );
     }
     throw AuthException(_loginErrorMessage(res.statusCode));
   }
@@ -747,18 +781,32 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 class AuthState {
-  const AuthState({this.user, this.loading = false, this.error});
+  const AuthState({
+    this.user,
+    this.loading = false,
+    this.error,
+    this.requiresOtp = false,
+  });
   final PortalUser? user;
   final bool loading;
   final String? error;
+  /// Password was accepted; UI should collect the email OTP and resubmit.
+  final bool requiresOtp;
 
   bool get isAuthenticated => user != null;
 
-  AuthState copyWith({PortalUser? user, bool? loading, String? error, bool clearUser = false}) {
+  AuthState copyWith({
+    PortalUser? user,
+    bool? loading,
+    String? error,
+    bool? requiresOtp,
+    bool clearUser = false,
+  }) {
     return AuthState(
       user: clearUser ? null : (user ?? this.user),
       loading: loading ?? this.loading,
       error: error,
+      requiresOtp: requiresOtp ?? this.requiresOtp,
     );
   }
 }
@@ -794,10 +842,13 @@ class AuthNotifier extends Notifier<AuthState> {
     _pingRouter();
   }
 
-  Future<bool> login(String email, String password) async {
+  /// Returns true on success. When [AuthState.requiresOtp] is set, password
+  /// was accepted and the UI must collect the emailed OTP then call again
+  /// with [otp] (same shared password as the web portal).
+  Future<bool> login(String email, String password, {String? otp}) async {
     state = state.copyWith(loading: true, error: null);
     try {
-      var user = await _repo.login(email: email, password: password);
+      var user = await _repo.login(email: email, password: password, otp: otp);
       if (AppConfig.usesLaravelAuth) {
         user = await _repo.hydrateLaravelProfile(user);
       }
@@ -809,7 +860,11 @@ class AuthNotifier extends Notifier<AuthState> {
       _pingRouter();
       return true;
     } on AuthException catch (e) {
-      state = AuthState(loading: false, error: e.message);
+      state = AuthState(
+        loading: false,
+        error: e.message,
+        requiresOtp: e.requiresOtp || e.requires2FA,
+      );
       _pingRouter();
       return false;
     } catch (e) {
