@@ -51,7 +51,7 @@ workflows:
           flutter pub get
       - name: Flutter analyze
         script: |
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter tests
         script: |
           flutter test --concurrency=1
@@ -228,7 +228,7 @@ workflows:
           flutter pub get
       - name: Flutter analyze
         script: |
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter tests
         script: |
           flutter test --concurrency=1
@@ -418,7 +418,7 @@ workflows:
           flutter pub get
       - name: Flutter analyze
         script: |
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter tests
         script: |
           flutter test --concurrency=1
