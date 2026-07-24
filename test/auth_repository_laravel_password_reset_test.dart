@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mkg_tax_mobile/core/network/api_client.dart';
 import 'package:mkg_tax_mobile/features/auth/data/auth_repository.dart';
 
-class _PortalAdapter implements HttpClientAdapter {
-  _PortalAdapter({required this.statusCode, this.body});
+class _ApiAdapter implements HttpClientAdapter {
+  _ApiAdapter({required this.statusCode, this.body});
 
   final int statusCode;
   final Object? body;
@@ -45,48 +45,45 @@ void main() {
     AuthRepository.debugUsesLaravelAuth = null;
   });
 
-  test('Laravel auth completes password reset via portal /api/reset-password', () async {
+  test('Laravel auth completes password reset via Sanctum confirm façade', () async {
     AuthRepository.debugUsesLaravelAuth = () => true;
-    final adapter = _PortalAdapter(
+    final adapter = _ApiAdapter(
       statusCode: 200,
       body: {'success': true, 'message': 'Password reset successfully.'},
     );
-    final portal = Dio(
-      BaseOptions(
-        baseUrl: 'https://mkgtaxconsultants.com',
-        validateStatus: (code) => code != null && code < 500,
-      ),
-    )..httpClientAdapter = adapter;
+    final client = ApiClient.memory();
+    client.dio.httpClientAdapter = adapter;
 
-    final repo = AuthRepository(ApiClient.memory(), portalClient: portal);
+    final repo = AuthRepository(client);
     await repo.resetPassword(
       email: 'client@example.com',
       code: '123456',
       newPassword: 'NewPass12',
     );
 
-    expect(adapter.lastPath, '/api/reset-password');
+    expect(adapter.lastPath, '/auth/password-reset/confirm');
     expect(adapter.lastData, {
       'email': 'client@example.com',
       'code': '123456',
-      'newPassword': 'NewPass12',
+      'new_password': 'NewPass12',
     });
   });
 
   test('Laravel auth maps invalid reset code to AuthException', () async {
     AuthRepository.debugUsesLaravelAuth = () => true;
-    final adapter = _PortalAdapter(
-      statusCode: 401,
-      body: {'message': 'Invalid or expired reset code'},
+    final adapter = _ApiAdapter(
+      statusCode: 400,
+      body: {
+        'error': {
+          'code': 'invalid_reset',
+          'message': 'That code is invalid or has expired. Please request a new one.',
+        },
+      },
     );
-    final portal = Dio(
-      BaseOptions(
-        baseUrl: 'https://mkgtaxconsultants.com',
-        validateStatus: (code) => code != null && code < 500,
-      ),
-    )..httpClientAdapter = adapter;
+    final client = ApiClient.memory();
+    client.dio.httpClientAdapter = adapter;
 
-    final repo = AuthRepository(ApiClient.memory(), portalClient: portal);
+    final repo = AuthRepository(client);
     await expectLater(
       () => repo.resetPassword(
         email: 'client@example.com',
