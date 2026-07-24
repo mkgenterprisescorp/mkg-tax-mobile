@@ -6,6 +6,7 @@
 # Workflows:
 #   ios_signed_prepare — signed IPA + private artifacts; NO App Store Connect upload
 #   ios_testflight     — signed IPA + TestFlight upload only (submit_to_app_store: false)
+#   ios_app_store      — signed IPA + App Store production submit (explicit approval only)
 #
 # Codemagic Team / app prerequisites (not in git):
 #   1. integrations.app_store_connect MUST equal "Codemagic CI"
@@ -43,7 +44,7 @@ workflows:
         API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
-        IOS_BUILD_NUMBER_FLOOR: "37"
+        IOS_BUILD_NUMBER_FLOOR: "39"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -214,7 +215,7 @@ workflows:
         BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
         APP_STORE_APPLE_ID: "6793948043"
         # Prior external-submit attempt used 35; next binary must be ≥36.
-        IOS_BUILD_NUMBER_FLOOR: "37"
+        IOS_BUILD_NUMBER_FLOOR: "39"
         # ASC TestFlight Test Information (external beta review)
         TF_FEEDBACK_EMAIL: clientservices@mkgenterprisescorp.com
         TF_CONTACT_EMAIL: clientservices@mkgenterprisescorp.com
@@ -382,3 +383,193 @@ workflows:
         auth: integration
         submit_to_testflight: true
         submit_to_app_store: false
+
+  ios_app_store:
+    name: iOS App Store production submit
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    triggering:
+      events: []
+    integrations:
+      app_store_connect: Codemagic CI
+    environment:
+      groups:
+        - ios_appstore
+      flutter: "3.44.6"
+      # App Store Connect requires iOS 26 SDK (Xcode 26+) as of 2026.
+      xcode: "26.4"
+      cocoapods: default
+      vars:
+        APP_ENV: production
+        API_BASE_URL: https://app.mkgtaxconsultants.com/api/v1
+        BUNDLE_ID: com.mkgenterprises.mkgTaxMobile
+        APP_STORE_APPLE_ID: "6793948043"
+        # Prior external-submit attempt used 35; next binary must be ≥36.
+        IOS_BUILD_NUMBER_FLOOR: "39"
+        # ASC TestFlight Test Information (external beta review)
+        TF_FEEDBACK_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_EMAIL: clientservices@mkgenterprisescorp.com
+        TF_CONTACT_FIRST_NAME: Marshawn
+        TF_CONTACT_LAST_NAME: Govan
+        TF_CONTACT_PHONE: "+1-559-412-7248"
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Flutter analyze
+        script: |
+          flutter analyze --no-fatal-infos
+      - name: Flutter tests
+        script: |
+          flutter test --concurrency=1
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch App Store signing files (ASC)
+        script: |
+          set -euo pipefail
+          test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
+          if [ -z "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            echo "CERTIFICATE_PRIVATE_KEY is not available to this yaml workflow." >&2
+            echo "Add it under App settings → Environment variables in group ios_appstore." >&2
+            exit 1
+          fi
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
+      # Full App Store export (not Internal Testing Only) so submit_to_testflight
+      # can request external TestFlight beta review after ASC Test Info is filled.
+      - name: Set up code signing (App Store / TestFlight)
+        script: |
+          xcode-project use-profiles --project ios/Runner.xcodeproj
+      - name: Ensure ASC TestFlight Test Information
+        script: |
+          set -euo pipefail
+          # Warm ASC JWT via CLI (same credentials as fetch-signing-files).
+          app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" >/tmp/tf_latest_bn.txt || true
+          python3 scripts/ci/ensure_asc_testflight_test_info.py
+      - name: Report signing metadata (no secrets)
+        script: |
+          set -euo pipefail
+          mkdir -p /tmp/signing_meta
+          {
+            echo "BUNDLE_ID=${BUNDLE_ID}"
+            echo "APP_STORE_APPLE_ID=${APP_STORE_APPLE_ID}"
+            echo "TF_FEEDBACK_EMAIL=${TF_FEEDBACK_EMAIL}"
+            echo "=== keychain identities (names only) ==="
+            security find-identity -v -p codesigning 2>/dev/null \
+              | sed -E 's/^[0-9]+\) [A-F0-9]+ /IDENTITY /' || true
+          } | tee /tmp/signing_meta/report.txt
+      - name: Resolve next iOS build number
+        script: |
+          set -euo pipefail
+          if [ -z "${APP_STORE_APPLE_ID:-}" ]; then
+            echo "APP_STORE_APPLE_ID missing" >&2
+            exit 1
+          fi
+          LATEST="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
+          if [ -z "${LATEST}" ] || ! [[ "${LATEST}" =~ ^[0-9]+$ ]]; then
+            LATEST="$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)"
+          fi
+          if [ -z "${LATEST}" ] || ! [[ "${LATEST}" =~ ^[0-9]+$ ]]; then
+            LATEST=0
+          fi
+          CANDIDATE=$((LATEST + 1))
+          FLOOR="${IOS_BUILD_NUMBER_FLOOR}"
+          if [ "${CANDIDATE}" -lt "${FLOOR}" ]; then
+            BUILD_NUMBER="${FLOOR}"
+          else
+            BUILD_NUMBER="${CANDIDATE}"
+          fi
+          echo "Resolved BUILD_NUMBER=${BUILD_NUMBER} (latest=${LATEST}, floor=${FLOOR})"
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$CM_ENV"
+      - name: Build signed IPA (production API)
+        script: |
+          set -euo pipefail
+          test "${BUNDLE_ID}" = "com.mkgenterprises.mkgTaxMobile"
+          flutter build ipa --release \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=APP_ENV=production \
+            --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
+            --export-options-plist=/Users/builder/export_options.plist
+      - name: Inspect IPA (bundle ID + distribution profile)
+        script: |
+          set -euo pipefail
+          IPA="$(find build/ios/ipa -name '*.ipa' | head -n 1)"
+          if [ -z "${IPA}" ]; then
+            echo "No IPA produced under build/ios/ipa" >&2
+            exit 1
+          fi
+          echo "IPA=${IPA}"
+          ls -la "${IPA}" | tee /tmp/ipa.size.txt
+          shasum -a 256 "${IPA}" | tee /tmp/ipa.sha256
+          mkdir -p /tmp/ipa_inspect
+          unzip -q -o "${IPA}" -d /tmp/ipa_inspect
+          APP="$(find /tmp/ipa_inspect/Payload -maxdepth 1 -name '*.app' -type d | head -n 1)"
+          PLIST="${APP}/Info.plist"
+          BID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${PLIST}")"
+          VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${PLIST}")"
+          BN="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${PLIST}")"
+          DISPLAY="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${PLIST}" 2>/dev/null || true)"
+          echo "CFBundleIdentifier=${BID}"
+          echo "CFBundleShortVersionString=${VER}"
+          echo "CFBundleVersion=${BN}"
+          echo "CFBundleDisplayName=${DISPLAY}"
+          if [ "${BID}" != "com.mkgenterprises.mkgTaxMobile" ]; then
+            echo "Bundle ID mismatch: got ${BID}" >&2
+            exit 1
+          fi
+          test "${BID}" = "${BUNDLE_ID}"
+          codesign -dvvv "${APP}" 2>&1 | tee /tmp/codesign.txt | grep -E 'Authority=|TeamIdentifier=|Identifier=' || true
+          if ! grep -q 'Authority=Apple Distribution' /tmp/codesign.txt; then
+            echo "Expected Apple Distribution signing identity" >&2
+            exit 1
+          fi
+          if grep -qE 'Authority=Apple Development|Authority=iPhone Developer' /tmp/codesign.txt; then
+            echo "Development signing identity is not allowed for this release IPA" >&2
+            exit 1
+          fi
+          PROFILE="${APP}/embedded.mobileprovision"
+          test -f "${PROFILE}"
+          security cms -D -i "${PROFILE}" > /tmp/profile.plist
+          /usr/libexec/PlistBuddy -c 'Print :Name' /tmp/profile.plist | sed 's/^/ProfileName=/'
+          /usr/libexec/PlistBuddy -c 'Print :UUID' /tmp/profile.plist | sed 's/^/ProfileUUID=/'
+          /usr/libexec/PlistBuddy -c 'Print :TeamName' /tmp/profile.plist | sed 's/^/TeamName=/'
+          /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /tmp/profile.plist \
+            | sed 's/^/application-identifier=/'
+          /usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' /tmp/profile.plist 2>/dev/null \
+            | sed 's/^/get-task-allow=/' || true
+          if /usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' /tmp/profile.plist 2>/dev/null | grep -qi true; then
+            echo "embedded.mobileprovision looks like development (get-task-allow=true)" >&2
+            exit 1
+          fi
+          SCAN_ROOTS=("${APP}/Frameworks/App.framework" "${APP}/Info.plist")
+          FORBIDDEN_RE='neon\.tech|DATABASE_URL|HMAC_SECRET|identity_assertion_secret|MOCK_PASSWORD|/internal/mobile|http://app\.mkgtaxconsultants\.com|sk_live_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY'
+          for root in "${SCAN_ROOTS[@]}"; do
+            [ -e "${root}" ] || continue
+            if grep -aRE "${FORBIDDEN_RE}" "${root}" >/dev/null 2>&1; then
+              echo "Forbidden pattern found inside IPA payload" >&2
+              exit 1
+            fi
+          done
+          if ! grep -aR "app.mkgtaxconsultants.com" "${APP}/Frameworks/App.framework" >/dev/null 2>&1; then
+            echo "Production API host app.mkgtaxconsultants.com not found in App.framework" >&2
+            exit 1
+          fi
+          echo "ProductionAPI=https://app.mkgtaxconsultants.com/api/v1"
+          echo "IPA inspection passed — publishing to App Store production."
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - /tmp/ipa.sha256
+      - /tmp/ipa.size.txt
+      - /tmp/codesign.txt
+      - /tmp/signing_meta/report.txt
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: true

@@ -49,7 +49,7 @@ jobs:
         run: |
           flutter build apk --release \
             --build-name=1.0.0 \
-            --build-number=38 \
+            --build-number=39 \
             --dart-define=API_BASE_URL=https://app.mkgtaxconsultants.com/api/v1 \
             --dart-define=LARAVEL_API_BASE_URL=https://app.mkgtaxconsultants.com
 

@@ -1,11 +1,15 @@
-name: Play Internal Upload (WIF)
+name: Play Production Upload (WIF)
 
-# Uploads an existing private AAB artifact to Google Play Internal testing only.
+# Uploads an existing private AAB artifact to Google Play production track.
 # Authenticates via Workload Identity Federation (no JSON key in secrets).
-# Does NOT promote to closed/open/production.
+# Requires explicit confirm_production=UPLOAD_PRODUCTION (owner-approved releases only).
 on:
   workflow_dispatch:
     inputs:
+      confirm_production:
+        description: "Type UPLOAD_PRODUCTION to authorize production track upload"
+        required: true
+        default: ""
       artifact_run_id:
         description: "Actions run ID that produced mkg-tax-pro-filer-play-aab"
         required: true
@@ -23,18 +27,18 @@ on:
         required: true
         default: "MKG Tax Consultants Pro File"
       release_status:
-        description: "Play release status: draft (safe) or completed (testers)"
+        description: "Play release status: draft or completed (production rollout)"
         required: true
-        default: "draft"
+        default: "completed"
 
 env:
   PACKAGE_NAME: "com.mkgtaxconsultants.mobile"
   ARTIFACT_NAME: "mkg-tax-pro-filer-play-aab"
-  TRACK: "internal"
+  TRACK: "production"
 
 jobs:
-  upload-internal:
-    name: Upload AAB to Internal testing
+  upload-production:
+    name: Upload AAB to production
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: android-google-play
@@ -104,6 +108,7 @@ jobs:
           RELEASE_NAME: ${{ inputs.release_name }}
           RELEASE_STATUS: ${{ inputs.release_status }}
           VERSION_CODE: ${{ inputs.expected_version_code }}
+          CONFIRM_PRODUCTION: ${{ inputs.confirm_production }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -117,8 +122,11 @@ jobs:
           release_status = os.environ["RELEASE_STATUS"]
           version_code = int(os.environ["VERSION_CODE"])
 
-          if track != "internal":
-              sys.exit("Refusing non-internal track")
+          confirm = os.environ.get("CONFIRM_PRODUCTION", "")
+          if confirm != "UPLOAD_PRODUCTION":
+              sys.exit("Refusing production upload without confirm_production=UPLOAD_PRODUCTION")
+          if track != "production":
+              sys.exit("Refusing non-production track")
           if release_status not in ("draft", "completed"):
               sys.exit("release_status must be draft or completed")
           if len(release_name) > 50:
@@ -127,7 +135,7 @@ jobs:
           def api(method, url, data=None, headers=None, raw=False):
               hdrs = {
                   "Authorization": f"Bearer {token}",
-                  "User-Agent": "mkg-play-internal-upload",
+                  "User-Agent": "mkg-play-production-upload",
               }
               if headers:
                   hdrs.update(headers)
@@ -184,19 +192,13 @@ jobs:
                   raise
 
           notes = (
-              "Internal testing — MKG Tax Consultants Pro Filer 1.0.0 (32)\n\n"
-              "Please verify:\n"
-              "1. Login with a valid client account (Sanctum) against production API "
+              "MKG Tax Consultants Pro Filer 1.0.0 (39)\n\n"
+              "Production release — Sanctum signup/reset, profile save, tax organizer "
+              "save, and portal tax-return provisioning verified against "
               "https://app.mkgtaxconsultants.com/api/v1\n"
-              "2. Client synchronization: tax-year activate / workspace load after login\n"
-              "3. Organizer: open return, edit an allowlisted field, save / autosave\n"
-              "4. Estimates: run federal estimate and confirm server-authored results "
-              "(no on-device tax math)\n"
-              "5. Tessa: send a short assist message; confirm response (voice remains off)\n"
-              "6. Logout: session ends; re-open requires login\n"
           )
 
-          # 3) Assign to internal track only
+          # 3) Assign to production track
           track_body = {
               "track": track,
               "releases": [
@@ -274,10 +276,10 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Play Internal Upload"
+            echo "## Play Production Upload"
             echo "- package: \`${{ env.PACKAGE_NAME }}\`"
             echo "- versionCode: \`${{ inputs.expected_version_code }}\`"
-            echo "- track: \`internal\` only"
+            echo "- track: \`production\`"
             echo "- release name: \`${{ inputs.release_name }}\`"
             echo "- artifact run: \`${{ inputs.artifact_run_id }}\`"
             echo "- expected commit: \`${{ inputs.expected_commit }}\`"
