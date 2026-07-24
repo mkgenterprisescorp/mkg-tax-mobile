@@ -19,7 +19,7 @@ YAML_PATH = ROOT / "codemagic.yaml"
 EXPECTED_BUNDLE = "com.mkgenterprises.mkgTaxMobile"
 EXPECTED_API = "https://app.mkgtaxconsultants.com/api/v1"
 EXPECTED_INTEGRATION_LABEL = "Codemagic CI"
-ALLOWED_WORKFLOWS = ("ios_signed_prepare", "ios_testflight")
+ALLOWED_WORKFLOWS = ("ios_signed_prepare", "ios_testflight", "ios_app_store")
 
 REQUIRED_SIGNING_SNIPPETS = (
     "keychain initialize",
@@ -140,8 +140,24 @@ def main() -> int:
             "ios_testflight TF_FEEDBACK_EMAIL must be clientservices@mkgenterprisescorp.com"
         )
 
+    store = workflows["ios_app_store"]
+    store_publishing = store.get("publishing") or {}
+    store_asc = store_publishing.get("app_store_connect") or {}
+    if not store_asc:
+        errors.append("ios_app_store must publish via app_store_connect")
+    else:
+        if store_asc.get("auth") != "integration":
+            errors.append("ios_app_store publishing.auth must be 'integration'")
+        if store_asc.get("submit_to_testflight") is not True:
+            errors.append("ios_app_store must set submit_to_testflight: true")
+        if store_asc.get("submit_to_app_store") is not True:
+            errors.append("ios_app_store must set submit_to_app_store: true")
+
+    # App Store production submit is allowed only on the dedicated ios_app_store workflow.
     if "submit_to_app_store: true" in text:
-        errors.append("submit_to_app_store: true is forbidden")
+        tf_text = yaml.dump({"ios_testflight": tf})
+        if "submit_to_app_store: true" in tf_text:
+            errors.append("ios_testflight must not set submit_to_app_store: true")
 
     for bad in ("BEGIN PRIVATE KEY", "DATABASE_URL=", "neon.tech"):
         if bad in text:
@@ -152,13 +168,14 @@ def main() -> int:
             print(f"ERROR: {e}", file=sys.stderr)
         return 1
 
-    print("codemagic.yaml prepare+TestFlight guardrails: PASS")
+    print("codemagic.yaml prepare+TestFlight+AppStore guardrails: PASS")
     print(f"  workflows: {list(ALLOWED_WORKFLOWS)}")
     print(f"  integration label: {EXPECTED_INTEGRATION_LABEL}")
     print(f"  bundle: {EXPECTED_BUNDLE}")
     print(f"  api: {EXPECTED_API}")
     print("  ios_signed_prepare publishing: none")
     print("  ios_testflight: TestFlight only (no App Store)")
+    print("  ios_app_store: App Store production submit enabled")
     return 0
 
 

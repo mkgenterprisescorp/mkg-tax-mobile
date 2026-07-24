@@ -160,3 +160,8 @@
 - Payroll/W-4: estimate-only UI at `/payroll-tools`.
 - Banking: connection stub only — MKG is not a bank; no credentials / money movement.
 - **Do not** run staging/prod migrations or change DO DNS from agent sessions without explicit approval.
+
+### Production store release 1.0.0+39 (owner-approved 2026-07-24)
+- Gate verified live: register/password-reset, profile PATCH, organizer PUT save, tax-returns list/create, filing-year provision on signup.
+- Play: `.github/workflows/play-production-upload-wif.yml` (requires `confirm_production=UPLOAD_PRODUCTION`).
+- iOS: Codemagic workflow `ios_app_store` (`submit_to_app_store: true`); TestFlight workflow remains App-Store-submit false.
