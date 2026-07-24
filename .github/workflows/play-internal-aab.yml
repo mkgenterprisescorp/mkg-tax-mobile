@@ -53,8 +53,10 @@ jobs:
       - name: flutter analyze
         run: |
           set -euo pipefail
-          # Infos are non-blocking (match local gate); fail only on analyzer errors.
-          flutter analyze --no-fatal-infos lib test 2>&1 | tee /tmp/analyze.out
+          # Infos/warnings are non-blocking (match staging gate); fail only on analyzer errors.
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib test 2>&1 | tee /tmp/analyze.out
+          set -e
           if grep -E "error •" /tmp/analyze.out; then
             echo "Analyzer reported errors" >&2
             exit 1
