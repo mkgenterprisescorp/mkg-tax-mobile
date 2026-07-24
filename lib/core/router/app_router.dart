@@ -8,6 +8,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/bookkeeping/presentation/bookkeeping_screen.dart';
 import '../../features/chat/presentation/advisor_chat_screen.dart';
 import '../../features/clients/presentation/my_clients_screen.dart';
@@ -139,6 +140,12 @@ GoRouter createRouter({
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => VerifyEmailScreen(
+          initialEmail: state.uri.queryParameters['email'],
+        ),
+      ),
       GoRoute(path: '/complete-profile', builder: (context, state) => const CompleteProfileScreen()),
       GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       ShellRoute(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/theme/mkg_theme.dart';
 import '../../../core/widgets/mkg_widgets.dart';
 import '../data/auth_repository.dart';
@@ -28,10 +27,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirm = TextEditingController();
   final _referral = TextEditingController();
 
-  /// Testing builds that authenticate against `/api/v1` do not offer online
-  /// self-registration. Keep the form disabled so Create Account cannot fire.
-  bool get _registrationUnavailable =>
-      RegisterScreen.debugForceUnavailable || AppConfig.usesLaravelAuth;
+  bool get _registrationUnavailable => RegisterScreen.debugForceUnavailable;
 
   @override
   void dispose() {
@@ -70,7 +66,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
-    final ok = await ref.read(authProvider.notifier).register(
+    final result = await ref.read(authProvider.notifier).register(
           email: _email.text,
           password: _password.text,
           firstName: _first.text,
@@ -79,11 +75,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           referralCode: _referral.text,
         );
     if (!mounted) return;
-    if (ok) {
-      context.go('/forms');
-    } else {
+    if (result == null) {
       _toast(ref.read(authProvider).error ?? 'Registration failed');
+      return;
     }
+    if (result.user != null) {
+      context.go('/forms');
+      return;
+    }
+    // Sanctum path: email verification required before login.
+    final email = Uri.encodeComponent(_email.text.trim());
+    context.go('/verify-email?email=$email');
   }
 
   void _toast(String msg) {

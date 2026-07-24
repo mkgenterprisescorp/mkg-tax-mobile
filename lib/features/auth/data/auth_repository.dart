@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,32 @@ import '../../../core/network/laravel_api_client.dart';
 import '../../../core/sync/sync_cursor_store.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_providers.dart';
+
+/// Result of [AuthRepository.register]. Sanctum signups require email
+/// verification before login; cookie/portal register may return a session user.
+class RegistrationResult {
+  const RegistrationResult({
+    required this.verificationRequired,
+    required this.message,
+    this.user,
+    this.created = false,
+  });
+
+  final bool created;
+  final bool verificationRequired;
+  final String message;
+  final PortalUser? user;
+}
+
+String _uuidV4() {
+  final r = Random.secure();
+  final bytes = List<int>.generate(16, (_) => r.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final h = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-'
+      '${h.substring(16, 20)}-${h.substring(20)}';
+}
 
 class PortalUser {
   const PortalUser({
@@ -301,7 +328,10 @@ class AuthRepository {
   static const registrationUnavailableMessage =
       'Online account registration is not available in this testing version. Please contact MKG Tax Consultants for assistance.';
 
-  Future<PortalUser> register({
+  static const registrationVerificationMessage =
+      'Account created. Enter the verification code sent to your email, then sign in.';
+
+  Future<RegistrationResult> register({
     required String email,
     required String password,
     required String firstName,
@@ -310,7 +340,41 @@ class AuthRepository {
     String? referralCode,
   }) async {
     if (_usesLaravelAuth) {
-      throw AuthException(registrationUnavailableMessage);
+      final res = await _api.post<Map<String, dynamic>>(
+        '/auth/register',
+        data: {
+          'email': email.trim(),
+          'phone': phone.trim(),
+          'password': password,
+          'password_confirmation': password,
+          'first_name': firstName.trim(),
+          'last_name': lastName.trim(),
+          'consents': {
+            'terms_version': '1.0',
+            'privacy_version': '1.0',
+            'electronic_communications': true,
+          },
+          'idempotency_key': _uuidV4(),
+        },
+      );
+      final data = Map<String, dynamic>.from(res.data ?? {});
+      if (res.statusCode == 503) {
+        final err = data['error'];
+        final msg = err is Map ? err['message']?.toString() : null;
+        throw AuthException(msg ?? registrationUnavailableMessage);
+      }
+      if ((res.statusCode ?? 500) >= 400) {
+        throw AuthException(
+          _authErrorMessage(res.statusCode, 'Registration failed. Please try again.'),
+        );
+      }
+      return RegistrationResult(
+        created: data['created'] == true,
+        verificationRequired: data['verification_required'] != false,
+        message: (data['message'] as String?)?.trim().isNotEmpty == true
+            ? data['message'] as String
+            : registrationVerificationMessage,
+      );
     }
 
     final res = await _api.post<Map<String, dynamic>>(
@@ -327,7 +391,12 @@ class AuthRepository {
     );
     final data = res.data ?? {};
     if (res.statusCode == 200 || res.statusCode == 201) {
-      return PortalUser.fromJson(Map<String, dynamic>.from(data));
+      return RegistrationResult(
+        created: true,
+        verificationRequired: false,
+        message: 'Account created.',
+        user: PortalUser.fromJson(Map<String, dynamic>.from(data)),
+      );
     }
     throw AuthException(_authErrorMessage(res.statusCode, 'Registration failed. Please try again.'));
   }
@@ -365,32 +434,33 @@ class AuthRepository {
 
   /// Step 3 of web-parity reset: exchange email + 6-digit code for a new password.
   ///
-  /// Production Sanctum builds (`usesLaravelAuth`) complete reset against the
-  /// portal origin that issued the OTP (`AppConfig.portalRoot` →
-  /// `POST /api/reset-password`). Request still goes through Laravel S2S
-  /// (`/auth/password-reset/request`); confirm must hit the same portal OTP
-  /// store. Cookie-portal builds keep using `_api` on the portal base URL.
+  /// Sanctum builds confirm via Laravel façade
+  /// (`POST /auth/password-reset/confirm` → portal S2S). Cookie-portal builds
+  /// keep using `_api` on the portal base URL.
   Future<void> resetPassword({
     required String email,
     required String code,
     required String newPassword,
   }) async {
-    final payload = {
-      'email': email.trim(),
-      'code': code.trim(),
-      'newPassword': newPassword,
-    };
     try {
       final Response<Map<String, dynamic>> res;
       if (_usesLaravelAuth) {
-        res = await _portalDio().post<Map<String, dynamic>>(
-          '/api/reset-password',
-          data: payload,
+        res = await _api.post<Map<String, dynamic>>(
+          '/auth/password-reset/confirm',
+          data: {
+            'email': email.trim(),
+            'code': code.trim(),
+            'new_password': newPassword,
+          },
         );
       } else {
         res = await _api.post<Map<String, dynamic>>(
           '/api/reset-password',
-          data: payload,
+          data: {
+            'email': email.trim(),
+            'code': code.trim(),
+            'newPassword': newPassword,
+          },
         );
       }
       if ((res.statusCode ?? 500) >= 400) {
@@ -408,6 +478,46 @@ class AuthRepository {
         _authErrorMessage(
           e.response?.statusCode,
           'That code is invalid or has expired. Please request a new one.',
+        ),
+      );
+    }
+  }
+
+  /// Pre-login email verification for Sanctum signups (email + code).
+  Future<void> confirmEmailVerification({
+    required String email,
+    required String code,
+  }) async {
+    if (!_usesLaravelAuth) {
+      throw AuthException('Email verification is not available for this build.');
+    }
+    try {
+      final res = await _api.post<Map<String, dynamic>>(
+        '/auth/verify-email',
+        data: {
+          'email': email.trim(),
+          'code': code.trim(),
+          'channel': 'email',
+        },
+      );
+      final data = Map<String, dynamic>.from(res.data ?? {});
+      if ((res.statusCode ?? 500) >= 500) {
+        throw AuthException('Verification service unavailable. Please try again.');
+      }
+      if (data['verified'] != true) {
+        throw AuthException(
+          (data['message'] as String?)?.trim().isNotEmpty == true
+              ? data['message'] as String
+              : 'That code is invalid or has expired. Please try again.',
+        );
+      }
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      throw AuthException(
+        _authErrorMessage(
+          e.response?.statusCode,
+          'That code is invalid or has expired. Please try again.',
         ),
       );
     }
@@ -709,7 +819,8 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  Future<bool> register({
+  /// Returns a [RegistrationResult] on success, or null on failure (see [AuthState.error]).
+  Future<RegistrationResult?> register({
     required String email,
     required String password,
     required String firstName,
@@ -719,7 +830,7 @@ class AuthNotifier extends Notifier<AuthState> {
   }) async {
     state = state.copyWith(loading: true, error: null);
     try {
-      final user = await _repo.register(
+      final result = await _repo.register(
         email: email,
         password: password,
         firstName: firstName,
@@ -727,17 +838,21 @@ class AuthNotifier extends Notifier<AuthState> {
         phone: phone,
         referralCode: referralCode,
       );
-      state = AuthState(user: user, loading: false);
+      if (result.user != null) {
+        state = AuthState(user: result.user, loading: false);
+      } else {
+        state = const AuthState(loading: false);
+      }
       _pingRouter();
-      return true;
+      return result;
     } on AuthException catch (e) {
       state = AuthState(loading: false, error: e.message);
       _pingRouter();
-      return false;
+      return null;
     } catch (e) {
       state = AuthState(loading: false, error: ApiErrorMapper.map(e));
       _pingRouter();
-      return false;
+      return null;
     }
   }
 
