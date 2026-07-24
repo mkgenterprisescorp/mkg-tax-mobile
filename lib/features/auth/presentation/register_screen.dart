@@ -83,6 +83,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       context.go('/forms');
       return;
     }
+    // Existing portal account: do not send users to verify-email (no code is issued).
+    if (!result.created) {
+      _toast(
+        'An account with this email already exists. Sign in with your web password, or use Forgot Password.',
+      );
+      context.go('/login');
+      return;
+    }
     // Sanctum path: email verification required before login.
     final email = Uri.encodeComponent(_email.text.trim());
     context.go('/verify-email?email=$email');
