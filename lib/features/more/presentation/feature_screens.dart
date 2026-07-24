@@ -934,6 +934,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _hydrateFromLaravelProfile() async {
     if (!AppConfig.usesLaravelAuth) return;
     try {
+      final current = ref.read(authProvider).user;
+      if (current != null) {
+        final hydrated = await ref.read(authRepositoryProvider).hydrateLaravelProfile(current);
+        if (!mounted) return;
+        await ref.read(authProvider.notifier).setUser(hydrated);
+        if (_phone.text.trim().isEmpty && (hydrated.phone ?? '').trim().isNotEmpty) {
+          _phone.text = hydrated.phone!.trim();
+        }
+        setState(() {
+          if ('${_addressData['address'] ?? ''}'.trim().isEmpty && (hydrated.address ?? '').isNotEmpty) {
+            _addressData['address'] = hydrated.address;
+          }
+          if ('${_addressData['city'] ?? ''}'.trim().isEmpty && (hydrated.city ?? '').isNotEmpty) {
+            _addressData['city'] = hydrated.city;
+          }
+          if ('${_addressData['state'] ?? ''}'.trim().isEmpty && (hydrated.state ?? '').isNotEmpty) {
+            _addressData['state'] = hydrated.state;
+          }
+          if ('${_addressData['zip'] ?? ''}'.trim().isEmpty && (hydrated.zipCode ?? '').isNotEmpty) {
+            _addressData['zip'] = hydrated.zipCode;
+          }
+        });
+      }
       final prefill = await ref.read(organizerProfilePrefillRepositoryProvider).load();
       if (!mounted) return;
       if (_phone.text.trim().isEmpty && prefill.phone.isNotEmpty) {

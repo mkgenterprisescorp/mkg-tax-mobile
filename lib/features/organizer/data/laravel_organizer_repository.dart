@@ -18,6 +18,7 @@ class LaravelOrganizerRepository {
   );
 
   Future<Map<String, dynamic>?> show(String workspaceId, {String prepType = 'personal'}) async {
+    await _api.ensureBearerFromStorage();
     if (_api.bearerToken == null) return null;
     final res = await _api.get<Map<String, dynamic>>(
       '/api/v1/tax-year-workspaces/$workspaceId/organizer',
@@ -35,6 +36,7 @@ class LaravelOrganizerRepository {
     String prepType = 'personal',
     String? status,
   }) async {
+    await _api.ensureBearerFromStorage();
     if (_api.bearerToken == null) {
       throw StateError('Please sign in again to save your organizer.');
     }
@@ -65,6 +67,7 @@ class LaravelOrganizerRepository {
     bool submit = false,
     Set<String>? onlySectionKeys,
   }) async {
+    await _api.ensureBearerFromStorage();
     if (_api.bearerToken == null) {
       throw StateError('Please sign in again to save your organizer.');
     }

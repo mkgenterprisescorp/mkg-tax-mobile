@@ -172,7 +172,7 @@ class AuthRepository {
   bool get _usesLaravelAuth =>
       debugUsesLaravelAuth?.call() ?? AppConfig.usesLaravelAuth;
 
-  static const _tokenKey = 'mkg_sanctum_token';
+  static const _tokenKey = LaravelApiClient.sanctumTokenStorageKey;
   static const _storage = FlutterSecureStorage();
 
   Dio _portalDio() {
@@ -495,7 +495,10 @@ class AuthRepository {
     required String zipCode,
   }) async {
     final laravel = _laravel;
-    if (laravel == null || laravel.bearerToken == null) {
+    // Rehydrate bearer from secure storage — provider rebuilds can drop the
+    // in-memory token while the session is still valid (looked like a logout).
+    final token = await _readToken();
+    if (laravel == null || token == null || token.isEmpty) {
       throw AuthException(ApiErrorMapper.loginSessionExpiredMessage);
     }
 
@@ -507,7 +510,13 @@ class AuthRepository {
         );
       }
       final data = res.data?['data'];
-      if (data is Map) return Map<String, dynamic>.from(data);
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        if (map['error'] != null) {
+          throw AuthException('Unable to load your profile. Please try again.');
+        }
+        return map;
+      }
       if (res.data is Map) return Map<String, dynamic>.from(res.data!);
       throw AuthException('Unable to load your profile. Please try again.');
     }
@@ -518,18 +527,26 @@ class AuthRepository {
       throw AuthException('Unable to update your profile right now. Please try again.');
     }
 
+    // Omit nulls — Laravel ConvertEmptyStringsToNull + portal Zod .optional()
+    // previously rejected JSON null for line2/phone and returned error-shaped 200s.
+    final mailing = <String, dynamic>{
+      'line1': address.trim(),
+      'city': city.trim(),
+      'state': state.trim().toUpperCase(),
+      'postal_code': zipCode.trim(),
+      'country': 'US',
+    };
+    final apt = apartment.trim();
+    if (apt.isNotEmpty) mailing['line2'] = apt;
+
     final payload = <String, dynamic>{
       'version': version,
-      'phone': phone.trim().isEmpty ? null : phone.trim(),
-      'mailing_address': {
-        'line1': address.trim(),
-        'line2': apartment.trim().isEmpty ? null : apartment.trim(),
-        'city': city.trim(),
-        'state': state.trim().toUpperCase(),
-        'postal_code': zipCode.trim(),
-        'country': 'US',
-      },
+      'mailing_address': mailing,
     };
+    final phoneTrimmed = phone.trim();
+    if (phoneTrimmed.isNotEmpty) payload['phone'] = phoneTrimmed;
+
+    final sessionFallback = await currentUser();
 
     for (var attempt = 0; attempt < 2; attempt++) {
       payload['version'] = version;
@@ -537,12 +554,13 @@ class AuthRepository {
         '/api/v1/profile',
         data: payload,
       );
-      if (res.statusCode == 200) {
-        final data = res.data?['data'];
-        final map = data is Map
-            ? Map<String, dynamic>.from(data)
-            : Map<String, dynamic>.from(res.data ?? {});
-        return PortalUser.fromLaravelProfile(map, fallback: await currentUser());
+      final data = res.data?['data'];
+      final map = data is Map
+          ? Map<String, dynamic>.from(data)
+          : (res.data is Map ? Map<String, dynamic>.from(res.data as Map) : <String, dynamic>{});
+
+      if (res.statusCode == 200 && map['error'] == null && map['external_user_id'] != null) {
+        return PortalUser.fromLaravelProfile(map, fallback: sessionFallback);
       }
       if (res.statusCode == 409) {
         if (attempt > 0) {
@@ -575,6 +593,24 @@ class AuthRepository {
     throw AuthException(
       'This information changed on another device or in the client portal. Please review and try again.',
     );
+  }
+
+  /// Enrich Sanctum session claims with GET /api/v1/profile (address / KYC).
+  Future<PortalUser> hydrateLaravelProfile(PortalUser fallback) async {
+    final laravel = _laravel;
+    final token = await _readToken();
+    if (laravel == null || token == null || token.isEmpty) return fallback;
+    try {
+      final res = await laravel.get<Map<String, dynamic>>('/api/v1/profile');
+      if ((res.statusCode ?? 500) >= 400) return fallback;
+      final data = res.data?['data'];
+      if (data is! Map) return fallback;
+      final map = Map<String, dynamic>.from(data);
+      if (map['error'] != null) return fallback;
+      return PortalUser.fromLaravelProfile(map, fallback: fallback);
+    } catch (_) {
+      return fallback;
+    }
   }
 
   Future<PortalUser> refreshUser() async {
@@ -630,7 +666,10 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> restoreSession() async {
     state = state.copyWith(loading: true, error: null);
     try {
-      final user = await _repo.currentUser();
+      var user = await _repo.currentUser();
+      if (user != null && AppConfig.usesLaravelAuth) {
+        user = await _repo.hydrateLaravelProfile(user);
+      }
       state = AuthState(user: user, loading: false);
       _setSyncAccount(user);
       if (user != null) {
@@ -648,7 +687,10 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<bool> login(String email, String password) async {
     state = state.copyWith(loading: true, error: null);
     try {
-      final user = await _repo.login(email: email, password: password);
+      var user = await _repo.login(email: email, password: password);
+      if (AppConfig.usesLaravelAuth) {
+        user = await _repo.hydrateLaravelProfile(user);
+      }
       state = AuthState(user: user, loading: false);
       _setSyncAccount(user);
       unawaited(

@@ -364,8 +364,13 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
                 'clientPlatform': 'flutter',
               },
               submit: submit,
-              // Autosave: dirty sections only. Manual/Continue: full snapshot.
-              onlySectionKeys: silent && !submit ? dirtySnapshot : null,
+              // Autosave / Continue with dirty keys → dirty-only PUT (faster).
+              // Submit → full snapshot. Continue with nothing dirty → full draft.
+              onlySectionKeys: submit
+                  ? null
+                  : (silent
+                      ? dirtySnapshot
+                      : (dirtySnapshot.isNotEmpty ? dirtySnapshot : null)),
             );
       } else {
         await ref.read(organizerRepositoryProvider).save(
@@ -454,12 +459,13 @@ class _OrganizerScreenState extends ConsumerState<OrganizerScreen> {
   }
 
   Future<void> _next() async {
-    await _save();
-    if (!mounted) return;
     if (_step >= _steps.length - 1) {
+      // Single PUT with status=processing — avoid draft+submit double write.
       await _save(submit: true);
       return;
     }
+    await _save();
+    if (!mounted) return;
     // Return to icon hub so the client can pick the next section.
     setState(() {
       _step += 1;
