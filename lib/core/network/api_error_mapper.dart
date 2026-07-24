@@ -154,4 +154,11 @@ class ApiErrorMapper {
 
   static const String loginSessionExpiredMessage =
       'Your session has expired. Please sign in again.';
+
+  /// Password accepted; client must enter the email OTP (same as web login).
+  static const String loginOtpRequiredMessage =
+      'Enter the verification code sent to your email to continue.';
+
+  static const String loginOtpInvalidMessage =
+      'That verification code is invalid or has expired. Please try again.';
 }
